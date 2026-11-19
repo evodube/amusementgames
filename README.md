@@ -21,7 +21,9 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   `Data\F4SE\Plugins\AmusementGames_user.ini`.
 - **Settlers play too**: at Bandit Roundup, one settler to each gallery, rifle to the shoulder, their score on its
   board as they shoot; at Nuka-Zapper Race, settlers gather at the lanes (up to five: every lane but yours), and 10
-  seconds after the second is ready they race. Walk up while they gather and you join them: the race starts then.
+  seconds after the second is ready they race. No racing on your own: put your token in and you wait for a settler
+  to be ready (10 seconds after, you're off), racing only the settlers who came; the HUD shows who's racing and their
+  rockets, and at the end whether you won or lost (and who won). Activate it again while waiting to leave, token back.
 - **Takings**: each machine earns its settlement 1 cap a day for every settler there, put in the workshop when you're
   back (up to 30 days' worth). The rate is the global `AmusementGamesIncomePerSettler` (`set AmusementGamesIncomePerSettler to 2`).
 - **Token Stand**: press F to buy 5 Nuka-Cade tokens (5 caps a token, 25 a press). Each game takes a token.

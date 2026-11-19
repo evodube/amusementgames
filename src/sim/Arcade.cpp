@@ -716,6 +716,9 @@ namespace sim
 					a_out.line1 = std::format("HITS {} OF {}", _lanes[_you].hits, layout::Zapper().hitsToWin);
 				}
 				a_out.line2 = "SQUIRT YOUR TARGET: FIRST ROCKET UP WINS";
+				if (_winner >= 0 && _you >= 0) {
+					a_out.verdict = _winner == _you ? std::string("YOU WON!") : std::format("YOU LOST · {} WON", _lanes[_winner].name);
+				}
 				for (const auto& l : _lanes) {
 					if (!l.empty) {
 						a_out.race.emplace_back(l.name, l.shown);

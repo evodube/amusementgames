@@ -86,6 +86,7 @@ namespace sim
 		double      timeLeft{ -1.0 }; // seconds (-1: not a timed game)
 		double      power{ -1.0 };    // 0..1 while charging a throw (-1: no meter)
 		std::vector<std::pair<std::string, double>> race;  // the zapper race: each lane's name and how far up (0..1)
+		std::string verdict;             // the zapper race over: "YOU WON!" or "YOU LOST · <winner> WON"
 		std::string clock;               // an untimed game's stand-in for the clock (Atomic Rollers' ball, the race's countdown)
 		bool        showPoints{ false }; // the points as they come, on screen (Atomic Rollers)
 		int         waiting{ -1 };       // the machine's things on show while you play (Atomic Rollers: the balls left in its

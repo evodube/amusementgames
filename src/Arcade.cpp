@@ -193,33 +193,43 @@ namespace ag
 			Notify(std::format("{}: a race is on. Wait your turn.", sim::GameName(game)));
 			return;
 		}
+		if (game == sim::GameId::kNukaZapperRace) {
+			// no racing on your own: you race settlers. Your token in, you wait for one to be ready; 10 seconds after,
+			// the race starts (activate again to leave, your token back)
+			if (race && race->youIn) {
+				race->youIn = false;
+				GiveToken();
+				Notify("Nuka-Zapper Race: you've left the race. Your token's back.");
+				return;
+			}
+			if (!TakeToken()) {
+				Notify(std::format("{}: insert a Nuka-Cade token. Buy them at a Token Stand.", sim::GameName(game)));
+				return;
+			}
+			if (!race) {
+				Race r;
+				r.phase = 1;
+				r.machine = a_machine->GetHandle();
+				r.machineID = a_machine->GetFormID();
+				_races.push_back(std::move(r));
+				race = &_races.back();
+				InviteRacer(*race);
+			}
+			race->youIn = true;
+			if (race->countdown < 0.0 && std::ranges::any_of(race->racers, [](const Racer& a_q) { return a_q.state == 2; })) {
+				race->countdown = sim::layout::Zapper().gatherSeconds;
+			}
+			Notify(race->countdown >= 0.0 ? std::format("Nuka-Zapper Race: the race starts in {:.0f} seconds. Get behind your gun.", race->countdown) :
+			                                "Nuka-Zapper Race: racers are on their way. The race starts 10 seconds after one's ready.");
+			log::info("NUKA-ZAPPER RACE {:08X}: you're in, waiting for racers", race->machineID);
+			return;
+		}
 		if (!TakeToken()) {
 			Notify(std::format("{}: insert a Nuka-Cade token. Buy them at a Token Stand.", sim::GameName(game)));
 			return;
 		}
 		Start(a_machine, game);
-		// settlers gathering for a race here: you join them, and it starts now (those not ready yet aren't in it)
-		race = RaceOn(a_machine->GetFormID());
-		if (race && race->phase == 1 && _game) {
-			for (auto& q : race->racers) {
-				if (q.state != 2) {
-					LetGo(q);
-					q.lane = -1;
-				}
-			}
-			std::erase_if(race->racers, [](const Racer& a_q) { return a_q.lane < 0; });
-			const auto&              L = sim::layout::Zapper();
-			std::vector<double>      skill(L.lanes.size(), 0.5);  // (lanes nobody's at: the machine's own racers, as ever)
-			std::vector<std::string> names(L.lanes.size());
-			for (const auto& q : race->racers) {
-				skill[q.lane] = q.skill;
-				names[q.lane] = q.name;
-			}
-			sim::SetZapperRacers(*_game, L.playerLane, skill, names);
-			race->withYou = true;
-			race->phase = 2;
-			log::info("NUKA-ZAPPER RACE {:08X}: you joined {} settlers", race->machineID, race->racers.size());
-		}
+
 	}
 
 	void Arcade::Start(RE::TESObjectREFR* a_machine, sim::GameId a_game)
@@ -307,6 +317,11 @@ namespace ag
 		{
 			std::scoped_lock lock(_hudMutex);
 			_hud.results = true;
+			{
+				sim::HudInfo info;
+				_game->Hud(info);
+				_hud.verdict = info.verdict;
+			}
 			_hud.won = tickets;
 			_hud.newBest = newBest;
 			_hud.score = score;
@@ -768,6 +783,14 @@ namespace ag
 		RE::TESObjectREFR::RemoveItemData data(token, 1);
 		player->RemoveItem(data);
 		return true;
+	}
+
+	void Arcade::GiveToken()
+	{
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		if (auto* token = Forms::Token(); player && token) {
+			player->AddObjectToContainer(token, nullptr, 1, nullptr, RE::ITEM_REMOVE_REASON::kNone);
+		}
 	}
 
 	void Arcade::Notify(const std::string& a_text)
@@ -1421,9 +1444,12 @@ namespace ag
 					InviteRacer(a_r);
 				}
 			}
-			if (ready >= 2 && a_r.countdown < 0.0) {
+			if (ready + (a_r.youIn ? 1 : 0) >= 2 && a_r.countdown < 0.0) {
 				a_r.countdown = sim::layout::Zapper().gatherSeconds;
 				log::info("NUKA-ZAPPER RACE {:08X}: two ready: the race starts in {:.0f}s", a_r.machineID, a_r.countdown);
+				if (a_r.youIn) {
+					Notify(std::format("Nuka-Zapper Race: the race starts in {:.0f} seconds. Get behind your gun.", a_r.countdown));
+				}
 			}
 			if (a_r.countdown >= 0.0) {
 				a_r.countdown -= a_dt;
@@ -1432,7 +1458,7 @@ namespace ag
 				}
 			} else if (a_r.gathered > sim::layout::Zapper().gatherLongest) {
 				EndRace(a_r, "not two settlers ready to race");
-			} else if (a_r.racers.empty() && a_r.gathered > 20.0) {
+			} else if (a_r.racers.empty() && a_r.gathered > 20.0 && !a_r.youIn) {
 				EndRace(a_r, "nobody came");
 			}
 			return;
@@ -1505,7 +1531,7 @@ namespace ag
 			}
 		}
 		std::erase_if(a_r.racers, [](const Racer& a_q) { return a_q.lane < 0; });
-		if (a_r.racers.size() < 2) {
+		if (a_r.racers.size() + (a_r.youIn ? 1 : 0) < 2 || (a_r.youIn && _playing)) {
 			a_r.countdown = -1.0;  // (back to gathering)
 			return;
 		}
@@ -1515,6 +1541,20 @@ namespace ag
 		for (const auto& q : a_r.racers) {
 			skill[q.lane] = q.skill;
 			names[q.lane] = q.name;
+		}
+		if (a_r.youIn) {
+			// you and the settlers: your game is the race, you in your lane, theirs theirs, the rest empty
+			Start(machine.get(), sim::GameId::kNukaZapperRace);
+			if (!_game) {
+				EndRace(a_r, "your game couldn't start");
+				return;
+			}
+			sim::SetZapperRacers(*_game, L.playerLane, skill, names);
+			a_r.youIn = false;
+			a_r.withYou = true;
+			a_r.phase = 2;
+			log::info("NUKA-ZAPPER RACE {:08X}: you and {} settlers racing", a_r.machineID, a_r.racers.size());
+			return;
 		}
 		a_r.game = sim::MakeGame(sim::GameId::kNukaZapperRace);
 		a_r.game->Start(static_cast<std::uint32_t>(_showRng()));
@@ -1546,6 +1586,10 @@ namespace ag
 			log::info("NUKA-ZAPPER RACE {:08X}: called off ({})", a_r.machineID, a_why);
 		}
 		const bool raced = a_r.phase == 2;
+		if (a_r.youIn) {
+			GiveToken();
+			Notify("Nuka-Zapper Race: nobody came to race. Your token's back.");
+		}
 		for (auto& q : a_r.racers) {
 			if (raced && q.state == 2) {
 				_played[Played(q.actorID, sim::GameId::kNukaZapperRace)] = kShowTurnAbout;

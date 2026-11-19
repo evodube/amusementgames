@@ -299,6 +299,29 @@ namespace ag::Hud
 			}
 		}
 
+		// the zapper race: who's racing (you and the settlers in it, nobody else), their rockets' climb, yours bright
+		void Race(const View& a_v, const Arcade::HudState& a_st)
+		{
+			if (a_st.info.race.empty()) {
+				return;
+			}
+			const float rowH = 30.0f, w = 300.0f, x = a_v.w - w - 30.0f, y = a_v.h * 0.22f;
+			const float h = 40.0f + rowH * static_cast<float>(a_st.info.race.size());
+			Chamfer(a_v, x, y, w, h, 10.0f, kPanel, kEdge);
+			Print(a_v, Mono(), "RACING", x + 14, y + 10, 12, kDim, 0, 2.0f);
+			float ry = y + 32.0f;
+			for (const auto& [name, up] : a_st.info.race) {
+				const bool  you = name == "YOU";
+				const ImU32 col = you ? kBright : kText;
+				Print(a_v, Mono(), name, x + 14, ry, 14, col, you ? kGlow : 0, 1.0f);
+				const float bx = x + 130.0f, bw = w - 144.0f, by = ry + 3.0f;
+				DL::AddRect(a_v.dl, a_v.P(bx, by), a_v.P(bx + bw, by + 12), kEdge, 0.0f, 0, std::max(1.0f, a_v.s));
+				const float p = static_cast<float>(std::clamp(up, 0.0, 1.0));
+				DL::AddRectFilled(a_v.dl, a_v.P(bx + 2, by + 2), a_v.P(bx + 2 + (bw - 4) * p, by + 10), col, 0.0f, 0);
+				ry += rowH;
+			}
+		}
+
 		// the end of a game: the score, the tickets out, a new best
 		void Results(const View& a_v, const Arcade::HudState& a_st)
 		{
@@ -306,6 +329,11 @@ namespace ag::Hud
 			const float w = 460.0f, h = a_st.newBest ? 176.0f : 150.0f, x = a_v.w * 0.5f - w * 0.5f, y = a_v.h * 0.3f;
 			Chamfer(a_v, x, y, w, h, 14.0f, Fade(kPanel, a), Fade(kEdge, a));
 			Print(a_v, Mono(), std::format("{} · GAME OVER", sim::GameName(a_st.game)), a_v.w * 0.5f, y + 14, 14, Fade(kDim, a), 0, 2.0f, Align::kCentre);
+			if (!a_st.verdict.empty()) {
+				// (the zapper race: won or lost, over the panel)
+				Print(a_v, Title(), a_st.verdict, a_v.w * 0.5f, y - 56, 40, Fade(a_st.verdict == "YOU WON!" ? kBright : kRedText, a),
+					Fade(a_st.verdict == "YOU WON!" ? kGlow : kRedGlow, a), 2.0f, Align::kCentre);
+			}
 			Print(a_v, Title(), std::format("{} POINTS", Commas(a_st.score)), a_v.w * 0.5f, y + 38, 40, Fade(kBright, a), Fade(kGlow, a), 2.0f, Align::kCentre);
 			Print(a_v, Title(), std::format("+{} TICKETS", a_st.won), a_v.w * 0.5f, y + 92, 30, Fade(kText, a), Fade(kGlow, a), 2.0f, Align::kCentre);
 			if (a_st.newBest) {
@@ -341,6 +369,9 @@ namespace ag::Hud
 			// scoreboard has the score)
 			Timer(v, st);
 			Guide(viewport, v, st);
+			if (st.game == sim::GameId::kNukaZapperRace) {
+				Race(v, st);
+			}
 			if (st.info.showPoints) {
 				Points(v, st);
 			}

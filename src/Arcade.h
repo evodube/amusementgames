@@ -43,6 +43,7 @@ namespace ag
 			double                     sinceLastPoints{ 99.0 };
 			int                        won{ 0 };           // tickets this game paid
 			bool                       newBest{ false };
+			std::string                verdict;      // the zapper race: won or lost (and who won)
 			double                     resultsAge{ 0.0 };
 			std::string                leaveKey{ "X" };
 			std::vector<std::array<float, 2>> guide;  // the aim line on the screen (0..1), from the ball out
@@ -277,6 +278,7 @@ namespace ag
 			double                                 countdown{ -1.0 };
 			double                                 invite{ 0.0 };
 			bool                                   withYou{ false };  // you're racing too (your game is the race)
+			bool                                   youIn{ false };    // ...or will be: waiting with your token in for a racer
 			std::unique_ptr<sim::Game>             game;     // (settlers only)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
@@ -287,6 +289,7 @@ namespace ag
 		void   TickRace(Race& a_r, double a_dt);
 		bool   StartRace();
 		bool   InviteRacer(Race& a_r);
+		void   GiveToken();
 		void   BeginRace(Race& a_r);
 		void   EndRace(Race& a_r, const char* a_why);
 		void   LetGo(Racer& a_q);
