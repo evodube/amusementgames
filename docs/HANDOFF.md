@@ -50,13 +50,14 @@ own heads are activators scored OnHit. A TESHitEvent with you as the cause and a
 
 ## Weapons
 
-Whac-a-Commie: DLC04_CommieWhacker; Nuka-Zapper Race: DLC04_ThirstZapper (held for show: fighting stays held, the
-stream is the game's own, a solid line of the Thirst Zapper's water drops from its muzzle); Bandit Roundup:
+Whac-a-Commie: DLC04_CommieWhacker; Nuka-Zapper Race: DLC04_ThirstZapper (fired for real, a hit each
+click on target, ten to win; your lane is ZapperLayout::playerLane, marked by a Thirst Zapper model (STAT 82B) lying
+on the counter, put up with the scoreboard and hidden while you play); Bandit Roundup:
 DLC03_LeverGun (DLCCoast.esm 0002C8B0, looked up by name so Far Harbor isn't a master), else HuntingRifle
 (Fallout4.esm); shots counted a second apart. Arcade::TopUpAmmo keeps its magazine at the most rounds seen in it
 (Actor::SetCurrentAmmoCount, hand 0), so it's never reloaded; the rounds spent come off the 200 lent. ArmPlayer lends it (if you have none) with 200 of its ammo, equips and draws it; DisarmPlayer takes
 back the lent weapon and what's left of the lent ammo and re-equips what you had out. Fighting isn't held for those
-games but the zapper race (your swing or shot is the real one; the game reads the click and where you look).
+games (your swing or shot is the real one; the game reads the click and where you look).
 
 ## Scoreboards (src/Scoreboard.cpp)
 

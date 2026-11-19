@@ -3,6 +3,7 @@
 #include "Arcade.h"
 #include "Forms.h"
 #include "Papyrus.h"
+#include "sim/Layouts.h"
 
 namespace ag::Scoreboards
 {
@@ -26,6 +27,7 @@ namespace ag::Scoreboards
 			Row                 score;
 			Row                 high;
 			double              refresh{ 0.0 };
+			RE::ObjectRefHandle prop;  // the zapper race's Thirst Zapper on the counter: where you stand
 		};
 
 		std::vector<Board> g_boards;
@@ -48,6 +50,7 @@ namespace ag::Scoreboards
 
 		void Remove(Board& a_b)
 		{
+			Remove(a_b.prop);
 			for (auto* row : { &a_b.score, &a_b.high }) {
 				for (auto& h : row->refs) {
 					Remove(h);
@@ -108,6 +111,16 @@ namespace ag::Scoreboards
 					row->refs[i] = Place(a_machine, form, node->world.translate);
 					row->shown[i] = -2;
 					++placed;
+				}
+			}
+			// the zapper race: a Thirst Zapper lying on the counter in front of your lane's target, where you stand
+			if (a_b.game == sim::GameId::kNukaZapperRace) {
+				if (auto* gun = Forms::Bound(Forms::Own(Forms::kZapperGun))) {
+					const auto&        w = root->world;
+					const auto&        g = sim::layout::Zapper().gunRest;
+					const RE::NiPoint3 local{ static_cast<float>(g.x), static_cast<float>(g.y), static_cast<float>(g.z) };
+					const RE::NiPoint3 at = w.translate + w.rotate.Transpose() * (local * (w.scale != 0.0f ? w.scale : 1.0f));
+					a_b.prop = Place(a_machine, gun, at);
 				}
 			}
 			log::info("{} {:08X}: its scoreboard up ({} digits)", sim::GameName(a_b.game), a_machine->GetFormID(), placed);
@@ -207,6 +220,13 @@ namespace ag::Scoreboards
 		}
 		const auto& arcade = Arcade::Get();
 		for (auto& b : g_boards) {
+			// the zapper's gun on the counter: out of sight while you're playing (it's in your hands)
+			if (auto prop = b.prop.get(); prop && prop->Get3D()) {
+				const bool hide = arcade.PlayingOn(b.id);
+				if (prop->Get3D()->GetAppCulled() != hide) {
+					prop->Get3D()->SetAppCulled(hide);
+				}
+			}
 			// every few seconds every digit's set again (a digit whose animation didn't take: its 3D not ready, a
 			// Papyrus call dropped)
 			b.refresh -= a_dt;

@@ -25,7 +25,8 @@ namespace ag::Forms
 		kGalleryPig = 0x827,
 		kGalleryBottle = 0x828,
 		kGalleryStar = 0x829,
-		kZapperTarget = 0x82A
+		kZapperTarget = 0x82A,
+		kZapperGun = 0x82B  // the Thirst Zapper lying on the counter: where you stand to play
 	};
 
 	inline constexpr RE::TESFormID kFurnitureTables = 0x00118F59;  // WorkshopRecipeFilterFurniture02Tables
@@ -93,7 +94,7 @@ namespace ag::Forms
 		case sim::GameId::kAtomicRollers: return { kSkeeBall };
 		case sim::GameId::kHoopShot: return { kBasketball };
 		case sim::GameId::kWhacACommie: return { kCommieHead };
-		case sim::GameId::kNukaZapperRace: return { kZapperRocket, kZapperDrop };
+		case sim::GameId::kNukaZapperRace: return { kZapperRocket };
 		case sim::GameId::kBanditRoundup: return { kGalleryDuck, kGalleryBunny, kGalleryPig, kGalleryBottle, kGalleryStar };
 		default: return {};
 		}

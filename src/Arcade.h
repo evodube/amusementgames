@@ -68,6 +68,7 @@ namespace ag
 			const auto it = _lastScores.find(a_machine);
 			return it != _lastScores.end() ? it->second : 0;
 		}
+		bool PlayingOn(RE::TESFormID a_machine) const { return _playing && _machineID == a_machine; }
 		int Best(sim::GameId a_game) const { return a_game != sim::GameId::kCount ? _best[static_cast<int>(a_game)] : 0; }
 
 		// something of the game's hit by you (on the game's thread): Whac-a-Commie's heads are whacked this way
