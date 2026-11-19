@@ -219,7 +219,7 @@ EndFunction
 ; (RaiderRifleSightedEnd); their animation events sent straight if the idle won't play
 Function Aim(Actor a) Global
 	If !a.PlayIdle(Game.GetFormFromFile(0x000199F6, "Fallout4.esm") as Idle)
-		Debug.SendAnimationEvent(a, "rifleSightedStart")
+		a.PlayAnimation("rifleSightedStart")
 	EndIf
 EndFunction
 
@@ -235,7 +235,7 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 		Return 1
 	EndIf
 	Aim(a)
-	Debug.SendAnimationEvent(a, "attackStart")
+	a.PlayAnimation("attackStart")
 	w.Fire(a, Game.GetForm(aiAmmo) as Ammo)
 	Return 2
 EndFunction
@@ -247,7 +247,7 @@ Function NpcEnd(Int aiActor, Int aiWeapon, Int aiLent) Global
 		Return
 	EndIf
 	If !a.PlayIdle(Game.GetFormFromFile(0x00018DEA, "Fallout4.esm") as Idle)  ; (RaiderRifleSightedEnd: the rifle down)
-		Debug.SendAnimationEvent(a, "rifleSightedEnd")
+		a.PlayAnimation("rifleSightedEnd")
 	EndIf
 	AmusementGamesQuest q = TheQuest()
 	Keyword k = LinkSpot()
