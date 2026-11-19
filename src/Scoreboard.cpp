@@ -320,8 +320,9 @@ namespace ag::Scoreboards
 					}
 					// still being moved (where it is differs from the last look): wait till it's put down
 					const auto& now = a_ref->Get3D()->world;
+					// (and the first look too: just loaded, a machine settles a hair, which read as moved straight after)
 					auto [seen, fresh] = g_lastSeen.try_emplace(a_ref->GetFormID(), now);
-					if (!fresh && Moved(now, seen->second)) {
+					if (fresh || Moved(now, seen->second)) {
 						seen->second = now;
 						return RE::BSContainer::ForEachResult::kContinue;
 					}

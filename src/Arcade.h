@@ -241,6 +241,7 @@ namespace ag
 		}
 		std::vector<Show>  _shows;  // settlers' games: one a machine, as many as there are machines free
 		std::unordered_map<RE::TESFormID, double> _rest;  // a machine's rest after a settler's game there (seconds)
+		std::unordered_map<RE::TESFormID, double> _played;  // a settler who's just played: not asked again for this long
 		std::vector<Held>  _letGo;  // (on their way when called off)
 		double             _nextShow{ 20.0 };
 		std::mt19937       _showRng{ std::random_device{}() };

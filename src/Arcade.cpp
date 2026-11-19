@@ -772,6 +772,7 @@ namespace ag
 		constexpr double    kShowFirst = 20.0;                 // the first chance after you're about
 		constexpr double    kShowRetry = 20.0;                 // no one free: try again in this long
 		constexpr double    kShowNextTry = 5.0;                // the one asked couldn't come: someone else this soon
+		constexpr double    kShowTurnAbout = 300.0;            // a settler who's played: others asked first for this long
 		constexpr double    kShowWalk = 90.0;                  // not there by then: near enough, or called off
 		constexpr float     kShowArrived = 12.0f;              // this near the spot: there
 		constexpr float     kShowAtSpot = 40.0f;               // ...or this near and no closer for a moment
@@ -818,10 +819,12 @@ namespace ag
 			return true;
 		});
 
-		// machines resting after a settler's game there
-		for (auto it = _rest.begin(); it != _rest.end();) {
-			it->second -= a_dt;
-			it = it->second <= 0.0 ? _rest.erase(it) : std::next(it);
+		// machines resting after a settler's game there, and settlers who've just played
+		for (auto* m : { &_rest, &_played }) {
+			for (auto it = m->begin(); it != m->end();) {
+				it->second -= a_dt;
+				it = it->second <= 0.0 ? m->erase(it) : std::next(it);
+			}
 		}
 		// a settler to a free machine now and then (another soon after, while there are machines free)
 		if (Settings::Get().settlersOn) {
@@ -1007,6 +1010,7 @@ namespace ag
 		PlacePieces(f, *a_s.game, a_s.gameId, machine.get(), a_s.pieces, a_s.pieceModel, a_s.frozen);
 		if (a_s.game->Over()) {
 			_lastScores[a_s.machineID] = a_s.game->Score();
+			_played[a_s.actorID] = kShowTurnAbout;
 			log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
 			EndShow(a_s, nullptr);
 		}
@@ -1055,8 +1059,9 @@ namespace ag
 					continue;
 				}
 				if (std::ranges::find(_refused, a->GetFormID()) != _refused.end() ||
-					std::ranges::any_of(_shows, [&](const Show& a_s) { return a_s.actorID == a->GetFormID(); })) {
-					continue;  // (couldn't come lately, or at another machine)
+					std::ranges::any_of(_shows, [&](const Show& a_s) { return a_s.actorID == a->GetFormID(); }) ||
+					_played.contains(a->GetFormID())) {
+					continue;  // (couldn't come lately, at another machine, or had a go lately: someone else's turn)
 				}
 				settlers.push_back(a.get());
 			}
