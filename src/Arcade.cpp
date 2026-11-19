@@ -103,7 +103,7 @@ namespace ag
 		_lmb = focus && (::GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
 		const bool leave = focus && (::GetAsyncKeyState(kLeaveVk) & 0x8000) != 0;
 		if (leave && !_leaveWas) {
-			_leave = true;
+			_leavePressed = true;
 		}
 		_leaveWas = leave;
 		if (_tickPending.exchange(true)) {
@@ -148,7 +148,7 @@ namespace ag
 		_game->Start(static_cast<std::uint32_t>(std::chrono::steady_clock::now().time_since_epoch().count()));
 		_playing = true;
 		_held = _lmb.load();  // (a button already down when you start doesn't throw)
-		_leave = false;
+		_leavePressed = false;
 		_hurry = false;
 		_resultsLeft = 0.0;
 		_last = std::chrono::steady_clock::now();
@@ -290,7 +290,7 @@ namespace ag
 					_hud = {};
 				}
 			}
-			_leave = false;
+			_leavePressed = false;
 			return;
 		}
 		if (menus::AnyBlocking()) {
@@ -302,7 +302,7 @@ namespace ag
 			Abort("the machine's gone");
 			return;
 		}
-		if (_leave.exchange(false)) {
+		if (_leavePressed.exchange(false)) {
 			Finish(true);
 			return;
 		}

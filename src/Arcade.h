@@ -106,7 +106,7 @@ namespace ag
 		// render thread -> game thread
 		std::atomic<bool> _tickPending{ false };
 		std::atomic<bool> _lmb{ false };
-		std::atomic<bool> _leave{ false };     // the leave key went down
+		std::atomic<bool> _leavePressed{ false };     // the leave key went down
 		bool              _leaveWas{ false };
 
 		// the game (game thread)
