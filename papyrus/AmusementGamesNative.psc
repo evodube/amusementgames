@@ -210,16 +210,34 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	a.DrawWeapon()
 	Utility.Wait(1.2)
 	a.EnableAI(False)
+	; up to the shoulder, down the sights: as they'd stand to shoot at anyone
+	Aim(a)
 	Return r
 EndFunction
 
-; ...a shot (the rifle fired from their hands: its sound and flash)
-Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
+; Fallout4.esm's own idles for a rifle: raised to the sights (RaiderRifleSightedStart), a shot (RaiderFireSingle), lowered
+; (RaiderRifleSightedEnd); their animation events sent straight if the idle won't play
+Function Aim(Actor a) Global
+	If !a.PlayIdle(Game.GetFormFromFile(0x000199F6, "Fallout4.esm") as Idle)
+		Debug.SendAnimationEvent(a, "rifleSightedStart")
+	EndIf
+EndFunction
+
+; ...a shot: the rifle fired from the shoulder, as at an enemy (its own shot animation, which fires it); the weapon
+; fired from them as well only if that won't play. 1: the shot animation, 2: fired without it, 0: no one to fire it
+Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
-	If a && w
-		w.Fire(a, Game.GetForm(aiAmmo) as Ammo)
+	If !a || !w
+		Return 0
 	EndIf
+	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
+		Return 1
+	EndIf
+	Aim(a)
+	Debug.SendAnimationEvent(a, "attackStart")
+	w.Fire(a, Game.GetForm(aiAmmo) as Ammo)
+	Return 2
 EndFunction
 
 ; ...and let go: out of the quest, AI back on, the lent rifle taken back
@@ -227,6 +245,9 @@ Function NpcEnd(Int aiActor, Int aiWeapon, Int aiLent) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	If !a
 		Return
+	EndIf
+	If !a.PlayIdle(Game.GetFormFromFile(0x00018DEA, "Fallout4.esm") as Idle)  ; (RaiderRifleSightedEnd: the rifle down)
+		Debug.SendAnimationEvent(a, "rifleSightedEnd")
 	EndIf
 	AmusementGamesQuest q = TheQuest()
 	Keyword k = LinkSpot()
