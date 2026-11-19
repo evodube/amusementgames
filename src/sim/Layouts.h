@@ -116,14 +116,17 @@ namespace sim::layout
 	{
 		std::vector<ZapperLane> lanes{ ZapLane(-182.2), ZapLane(-109.5), ZapLane(-37.5), ZapLane(34.1), ZapLane(106.4), ZapLane(178.2) };
 		double targetRadius{ 11.0 };        // DLC04_Nukacade_NukaZapperTarget01: 30 across
-		int    hitsToWin{ 10 };             // Nuka-World's: ten hits up, the eleventh event the win
-		double shotSeconds{ 0.3 };          // your squirts, at most this often
-		double aiShotShortest{ 0.35 };      // the other lanes' squirts: between these apart...
-		double aiShotLongest{ 0.8 };
-		double aiHitWorst{ 0.3 };           // ...each hitting with this chance (the worst player)...
-		double aiHitBest{ 0.65 };           // ...to this (the best)
-		double rocketRise{ 3.0 };           // how fast a rocket climbs to its height (a fraction a second)
-		int    pointsPerHit{ 1 };
+		int    steps{ 10 };                 // Nuka-World's: ten hits up (here, ten steps of time on target), then the win
+		double secondsToWin{ 8.0 };         // on target all the way
+		double streamSpeed{ 520.0 };        // the water's speed out of the gun
+		double dropEvery{ 0.012 };          // the stream: drops this far apart in time, close enough to look solid...
+		int    maxDrops{ 150 };             // ...at most this many out at once (all six lanes)
+		double dropScale{ 0.6 };
+		double muzzleForward{ 34.0 };       // your stream comes out of your Thirst Zapper: ahead of your eyes...
+		double muzzleSide{ 7.0 };           // ...a little right...
+		double muzzleDrop{ 9.0 };           // ...and down
+		double aiSkillWorst{ 0.0 };
+		int    pointsPerStep{ 1 };          // a point a step (a hit)
 		int    winPoints{ 10 };             // (Nuka-World's win: ten hits' worth)
 	};
 
@@ -155,7 +158,7 @@ namespace sim::layout
 		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0 }, { 1, 15.0, 16.0, 3.0 }, { 1, 13.0, 11.0, 2.0 }, { 1, 8.0, 22.0, 1.2 },
 			{ 1, 12.0, 11.0, 0.6 } };  // a point a hit, whatever it is
 		double                   flipSeconds{ 0.15 };
-		double                   shotSeconds{ 0.3 };
+		double                   shotSeconds{ 1.0 };  // the Hunting Rifle's bolt between shots
 	};
 
 	const RollersLayout& Rollers();

@@ -163,7 +163,9 @@ namespace ag
 			}
 		}
 		Arm(a_game);
-		BlockControls(true, _lent.weapon != nullptr);  // (with a weapon: its swing or shot is yours to make)
+		// with a weapon, its swing or shot is yours to make: but the Thirst Zapper's only for show (the race's stream is
+		// the game's own, a solid one while you hold the button)
+		BlockControls(true, _lent.weapon != nullptr && a_game != sim::GameId::kNukaZapperRace);
 		// the pieces: one ref for each the game shows (they're moved, shown and hidden every frame)
 		std::vector<sim::Piece> pieces;
 		_game->Pieces(pieces);
@@ -508,7 +510,7 @@ namespace ag
 		}
 		_lent.weapon = weapon;
 		_lent.added = Count(weapon) == 0;
-		_lent.ammo = weapon->weaponData.ammo;
+		_lent.ammo = a_game == sim::GameId::kNukaZapperRace ? nullptr : weapon->weaponData.ammo;
 		if (_lent.ammo) {
 			_lent.ammoBefore = Count(_lent.ammo);
 			_lent.ammoGiven = 200;

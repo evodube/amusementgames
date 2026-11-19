@@ -44,10 +44,11 @@ with their scripts on and call DLC04:DLC04ArcadeScoreNumber.DisplayNumber, as Nu
 
 ## Weapons
 
-Whac-a-Commie: DLC04_CommieWhacker; Nuka-Zapper Race: DLC04_ThirstZapper; Bandit Roundup: DLC04_Revolver (the
-Western Revolver). ArmPlayer lends it (if you have none) with 200 of its ammo, equips and draws it; DisarmPlayer takes
+Whac-a-Commie: DLC04_CommieWhacker; Nuka-Zapper Race: DLC04_ThirstZapper (held for show: fighting stays held, the
+stream is the game's own, a solid line of the Thirst Zapper's water drops from its muzzle); Bandit Roundup:
+HuntingRifle (Fallout4.esm, single-shot bolt-action; shots counted a second apart). ArmPlayer lends it (if you have none) with 200 of its ammo, equips and draws it; DisarmPlayer takes
 back the lent weapon and what's left of the lent ammo and re-equips what you had out. Fighting isn't held for those
-games (your swing or shot is the real one; the game reads the click and where you look).
+games but the zapper race (your swing or shot is the real one; the game reads the click and where you look).
 
 ## Scoreboards (src/Scoreboard.cpp)
 

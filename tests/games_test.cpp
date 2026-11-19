@@ -241,14 +241,15 @@ namespace
 		const auto& L = layout::Zapper();
 		auto        g = MakeGame(GameId::kNukaZapperRace);
 		const Vec3  eye = L.lanes[1].gun + Vec3{ 0, -40, 40 };
-		bool        was = false;
 		const int   s = Play(*g, [&](Game&, double) {
             Input in = LookAt(eye, L.lanes[1].target);
-            in.pressed = !was;
-            was = !was;
+            in.held = true;
             return in;
         }, 60.0);
-		Check(s == L.hitsToWin * L.pointsPerHit + L.winPoints, "nuka-zapper race: squirting dead on target wins");
+		Check(s == L.steps * L.pointsPerStep + L.winPoints, "nuka-zapper race: a steady stream on target wins");
+		std::vector<Piece> pieces;
+		g->Pieces(pieces);
+		Check(static_cast<int>(pieces.size()) == static_cast<int>(L.lanes.size()) + L.maxDrops, "nuka-zapper race: a rocket a lane and the stream's drops");
 		auto      lazy = MakeGame(GameId::kNukaZapperRace);
 		const int s2 = Play(*lazy, [&](Game&, double) { return LookAt(eye, L.lanes[1].target + Vec3{ 0, 0, 50 }); }, 60.0);
 		Check(s2 == 0 && lazy->Over(), "nuka-zapper race: not squirting, the others win and you're placed");

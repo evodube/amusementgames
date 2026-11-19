@@ -36,7 +36,7 @@ namespace ag::Forms
 	inline constexpr std::uint32_t kTicket = 0x019988;  // MISC DLC04_Nukacade_Ticket01
 	inline constexpr std::uint32_t kCommieWhacker = 0x052926;   // WEAP DLC04_CommieWhacker: Whac-a-Commie's mallet
 	inline constexpr std::uint32_t kThirstZapper = 0x007BC8;    // WEAP DLC04_ThirstZapper: the zapper race's water gun
-	inline constexpr std::uint32_t kWesternRevolver = 0x0415B3; // WEAP DLC04_Revolver: Bandit Roundup's six-shooter
+	inline constexpr RE::TESFormID kHuntingRifle = 0x0004F46A;  // WEAP HuntingRifle (Fallout4.esm): Bandit Roundup's single-shot rifle
 	inline constexpr std::uint32_t kNumbers = 0x04E138;       // ACTI DLC04_Nukacade_Numbers: a scoreboard digit
 	inline constexpr std::uint32_t kNumbersLarge = 0x053653;  // ACTI DLC04_Nukacade_Numbers_Large: the zapper's and gallery's
 
@@ -90,7 +90,7 @@ namespace ag::Forms
 		case sim::GameId::kAtomicRollers: return { kSkeeBall };
 		case sim::GameId::kHoopShot: return { kBasketball };
 		case sim::GameId::kWhacACommie: return { kCommieHead };
-		case sim::GameId::kNukaZapperRace: return { kZapperRocket };
+		case sim::GameId::kNukaZapperRace: return { kZapperRocket, kZapperDrop };
 		case sim::GameId::kBanditRoundup: return { kGalleryDuck, kGalleryBunny, kGalleryPig, kGalleryBottle, kGalleryStar };
 		default: return {};
 		}
@@ -99,14 +99,13 @@ namespace ag::Forms
 	// the weapon you play a game with (Nuka-World's), or none
 	inline RE::TESObjectWEAP* WeaponOf(sim::GameId a_game)
 	{
-		std::uint32_t id = 0;
+		RE::TESForm* form = nullptr;
 		switch (a_game) {
-		case sim::GameId::kWhacACommie: id = kCommieWhacker; break;
-		case sim::GameId::kNukaZapperRace: id = kThirstZapper; break;
-		case sim::GameId::kBanditRoundup: id = kWesternRevolver; break;
+		case sim::GameId::kWhacACommie: form = Nuka(kCommieWhacker); break;
+		case sim::GameId::kNukaZapperRace: form = Nuka(kThirstZapper); break;
+		case sim::GameId::kBanditRoundup: form = RE::TESForm::GetFormByID(kHuntingRifle); break;
 		default: return nullptr;
 		}
-		auto* form = Nuka(id);
 		return form ? form->As<RE::TESObjectWEAP>() : nullptr;
 	}
 
