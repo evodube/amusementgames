@@ -36,6 +36,14 @@ namespace ag::Scoreboards
 				bool                weapon{ false };
 				bool                settled{ false }; // frozen in place (and, a weapon, made not to be picked up)
 				std::shared_ptr<std::atomic<std::uint32_t>> placed;  // a weapon: its ref's id once Papyrus has placed it
+				// Atomic Rollers' balls in the pocket: one slot each from the front (home); as balls are taken from the
+				// front, the rest roll down the pocket, slot by slot
+				bool                rolls{ false };
+				RE::NiPoint3        step;             // a slot back up the pocket (world)
+				RE::NiMatrix3       machine;          // the machine's turn
+				float               home{ 0.0f };
+				float               slot{ 0.0f };     // where it is now
+				float               turnPerSlot{ 0.0f };  // how far it turns rolling a slot (radians)
 			};
 			std::vector<Prop> props;  // the machine's things: the balls, the mallet, the gun on the counter
 		};
@@ -161,8 +169,15 @@ namespace ag::Scoreboards
 				{
 					const auto& L = sim::layout::Rollers();
 					auto*       ball = Forms::Bound(Forms::Own(Forms::kSkeeBall));
+					const RE::NiPoint3 step = w.rotate.Transpose() * (RE::NiPoint3{ 0.0f, static_cast<float>(L.pocketStep), 0.0f } * scale);
 					for (int k = 0; k < L.balls; ++k) {
 						add(ball, at(L.pocket + sim::Vec3{ 0.0, L.pocketStep * k, 0.0 }), 0.0f, nullptr, false);
+						auto& p = a_b.props.back();
+						p.rolls = true;
+						p.step = step;
+						p.machine = w.rotate;
+						p.home = p.slot = static_cast<float>(k);
+						p.turnPerSlot = static_cast<float>(L.pocketStep / L.ballRadius);
 					}
 				}
 				break;
@@ -300,6 +315,8 @@ namespace ag::Scoreboards
 		}
 	}
 
+	constexpr float kRollSlotsPerSecond = 5.0f;  // the pocket's balls rolling down
+
 	void Tick(double a_dt)
 	{
 		g_scan -= a_dt;
@@ -312,6 +329,7 @@ namespace ag::Scoreboards
 			// the props: settled once loaded; on show unless you're playing (then the game says how many: Atomic
 			// Rollers' balls still waiting in the pocket)
 			const int shown = arcade.PropsShown(b.id, static_cast<int>(b.props.size()));
+			const int taken = static_cast<int>(b.props.size()) - shown;  // (Atomic Rollers: from the front of the pocket)
 			for (int k = 0; k < static_cast<int>(b.props.size()); ++k) {
 				auto& p = b.props[k];
 				if (!p.ref && p.placed && *p.placed != 0) {
@@ -325,30 +343,56 @@ namespace ag::Scoreboards
 				if (!root) {
 					continue;
 				}
-				if (!p.settled) {
-					p.settled = true;
-					RE::BSVisit::TraverseScenegraphCollision(root, [](RE::bhkNPCollisionObject* a_c) {
-						a_c->SetMotionType(RE::hknpMotionPropertiesId::Preset::kKeyframed);
-						return RE::BSVisitControl::kContinue;
-					});
-					// exactly where and how it lies
+				// exactly where and how it lies
+				const auto lay = [root](const RE::NiPoint3& a_at, const RE::NiMatrix3& a_rot) {
 					RE::NiTransform t;
 					if (auto* parent = root->parent) {
 						const auto& pw = parent->GetWorldTransform();
 						const float ps = pw.scale != 0.0f ? pw.scale : 1.0f;
-						t.rotate = p.rot * pw.rotate.Transpose();
-						t.translate = (pw.rotate * (p.at - pw.translate)) * (1.0f / ps);
+						t.rotate = a_rot * pw.rotate.Transpose();
+						t.translate = (pw.rotate * (a_at - pw.translate)) * (1.0f / ps);
 						t.scale = 1.0f / ps;
 					} else {
-						t.rotate = p.rot;
-						t.translate = p.at;
+						t.rotate = a_rot;
+						t.translate = a_at;
 						t.scale = 1.0f;
 					}
 					root->SetLocalTransform(t);
 					RE::NiUpdateData update;
 					root->Update(update);
+				};
+				bool moved = false;
+				if (p.rolls) {
+					// taken from the front; the rest roll down to fill the gap (back up to their places for a new game)
+					const float want = static_cast<float>(k - taken);
+					if (want >= p.slot) {
+						moved = want != p.slot;
+						p.slot = want;
+					} else {
+						p.slot = std::max(want, p.slot - static_cast<float>(a_dt) * kRollSlotsPerSecond);
+						moved = true;
+					}
 				}
-				const bool hide = k >= shown;
+				if (!p.settled) {
+					p.settled = true;
+					moved = true;
+					RE::BSVisit::TraverseScenegraphCollision(root, [](RE::bhkNPCollisionObject* a_c) {
+						a_c->SetMotionType(RE::hknpMotionPropertiesId::Preset::kKeyframed);
+						return RE::BSVisitControl::kContinue;
+					});
+				}
+				if (moved) {
+					if (p.rolls) {
+						// rolled toward you: turned about the machine's x, its top toward you
+						const float a = (p.home - p.slot) * p.turnPerSlot;
+						const float c = std::cos(a), sn = std::sin(a);
+						const RE::NiMatrix3 local(1, 0, 0, 0, 0, c, sn, 0, 0, -sn, c, 0);
+						lay(p.at + p.step * (p.slot - p.home), local * p.machine);
+					} else {
+						lay(p.at, p.rot);
+					}
+				}
+				const bool hide = p.rolls ? k < taken : k >= shown;
 				if (root->GetAppCulled() != hide) {
 					root->SetAppCulled(hide);
 				}
