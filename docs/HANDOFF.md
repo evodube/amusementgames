@@ -67,7 +67,7 @@ games (your swing or shot is the real one; the game reads the click and where yo
 ## Props (src/Scoreboard.cpp PutUpProps)
 
 Put up with the scoreboard: Atomic Rollers' 9 balls in the right-hand pocket (RollersLayout::pocket, back along its
-channel), Hoop Shot's 3 basketballs on the front shelf, Whac-a-Commie's mallet (STAT 82B, the Nuka-Cade's own
+channel), Hoop Shot's 3 basketballs at the foot of its ramp, just behind the front shelf, Whac-a-Commie's mallet (STAT 82B, the Nuka-Cade's own
 DLC04_Nukacade_CommieWhacker01.nif) at its whacker01 node, the Thirst Zapper and the rifle as real weapon refs laid
 on their counters: placed by AmusementGamesNative.PlaceWeapon (PlaceAtMe: a ref made from the plugin got only the
 modular rifle's first piece, its lever), BlockActivation, the rifle's iron sights attached, then laid down by the

@@ -64,7 +64,10 @@ namespace sim::layout
 		double rampFrontY{ -90.0 }, rampFrontZ{ 50.2 };   // the return ramp: up from under the shelf...
 		double rampBackY{ 157.0 }, rampBackZ{ 92.9 };     // ...to the back
 		double shelfFrontY{ -128.0 }, shelfBackY{ -90.0 }, shelfZ{ 57.9 };
-		double shelfBallY{ -109.0 };        // the balls waiting on the front shelf (z: the shelf and the ball's radius)
+		// the balls waiting just behind the front shelf, at the foot of the ramp the balls come back down (its floor
+		// at 51.9 there, rising 0.17 a unit back): resting on it, their centres here
+		double restBallY{ -76.0 }, restBallZ{ 64.1 };
+		double restBallSpacing{ 26.0 };     // across, side by side
 		double sideX{ 56.0 };               // the cage's sides...
 		double sideTopZ{ 142.0 };           // ...up to here (open above)
 		double handForward{ 30.0 };         // the ball in your hand, in front of your eyes...

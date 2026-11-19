@@ -28,7 +28,7 @@ for the game (with ammo) if you haven't one, and you get back what you had out a
 shows the game on it and your best at that game, kept in your save. X leaves a game early, paid for the score so far.
 
 Each machine looks ready to play: Atomic Rollers' balls wait in its right-hand pocket (fewer as you play), Hoop
-Shot's on its front shelf, the Nuka-Cade's mallet rests on Whac-a-Commie, a Thirst Zapper lies on the zapper race's
+Shot's at the foot of its ramp, the Nuka-Cade's mallet rests on Whac-a-Commie, a Thirst Zapper lies on the zapper race's
 counter in front of your lane and the rifle on the gallery's counter (not to be picked up: you're handed one to play).
 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,

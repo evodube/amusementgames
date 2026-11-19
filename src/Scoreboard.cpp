@@ -116,7 +116,7 @@ namespace ag::Scoreboards
 		}
 
 		// the machine's things, to make it look ready to play: Atomic Rollers' balls waiting in its right-hand pocket,
-		// Hoop Shot's on the front shelf, the mallet on Whac-a-Commie, a Thirst Zapper on the zapper race's counter in
+		// Hoop Shot's at the foot of its ramp, behind the front shelf, the mallet on Whac-a-Commie, a Thirst Zapper on the zapper race's counter in
 		// front of your lane, the rifle on the gallery's counter
 		void PutUpProps(Board& a_b, RE::TESObjectREFR* a_machine)
 		{
@@ -185,8 +185,8 @@ namespace ag::Scoreboards
 				{
 					const auto& L = sim::layout::Hoop();
 					auto*       ball = Forms::Bound(Forms::Own(Forms::kBasketball));
-					for (double x : { -24.0, 0.0, 24.0 }) {
-						add(ball, at({ x, L.shelfBallY, 57.9 + L.ballRadius }), 0.0f, nullptr, false);
+					for (double x : { -L.restBallSpacing, 0.0, L.restBallSpacing }) {
+						add(ball, at({ x, L.restBallY, L.restBallZ }), 0.0f, nullptr, false);
 					}
 				}
 				break;
