@@ -940,7 +940,16 @@ namespace ag
 		const sim::Input in = _show.shooter->Next(*_show.game, _show.eye, a_dt);
 		_show.game->Update(a_dt, in);
 		if (in.pressed && _show.weapon) {
-			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(_show.weapon), Papyrus::Id(_show.weapon->weaponData.ammo) });
+			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
+			const std::string       name = _show.name;
+			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(_show.weapon), Papyrus::Id(_show.weapon->weaponData.ammo) },
+				[name](std::int32_t a_r) {
+					if (told.exchange(a_r) != a_r) {
+						log::info("BANDIT ROUNDUP: {}'s shots: {}", name,
+							a_r == 1 ? "the rifle's own shot animation (RaiderFireSingle)" :
+							a_r == 2 ? "the shot animation wouldn't play: fired without it" : "nobody to fire it");
+					}
+				});
 		}
 		for (const auto& s : _show.game->TakeSounds()) {
 			Sounds::Play(_show.gameId, s.cue, machine.get(), s.gain);
