@@ -267,6 +267,29 @@ namespace
 		auto      lazy = MakeGame(GameId::kNukaZapperRace);
 		const int s2 = Play(*lazy, [&](Game&, double) { return LookAt(eye, lane.target + Vec3{ 0, 0, 50 }); }, 60.0);
 		Check(s2 == 0 && lazy->Over(), "nuka-zapper race: not squirting, the others win and you're placed");
+
+		// settlers racing each other (you not in it): lanes 0, 2 and 5 raced, the rest empty; one wins, the shots come
+		// from raced lanes only, the empty lanes' rockets stay down
+		{
+			auto race = MakeGame(GameId::kNukaZapperRace);
+			race->Start(11);
+			SetZapperRacers(*race, -1, { 0.9, -1, 0.2, -1, -1, 0.5 }, { "A", "", "B", "", "", "C" });
+			bool onlyRaced = true;
+			double t = 0.0;
+			while (!race->Over() && t < 120.0) {
+				race->Update(1.0 / 60.0, Input{});
+				for (int lane : TakeZapperShots(*race)) {
+					onlyRaced &= lane == 0 || lane == 2 || lane == 5;
+				}
+				t += 1.0 / 60.0;
+			}
+			std::vector<Piece> pieces;
+			race->Pieces(pieces);
+			const int w = ZapperWinner(*race);
+			std::printf("     nuka-zapper race, settlers: lane %d won in %.0fs, score %d\n", w, t, race->Score());
+			Check(race->Over() && (w == 0 || w == 2 || w == 5) && onlyRaced && pieces[1].pos.z == L.lanes[1].rocketBottom.z,
+				"nuka-zapper race: settlers race each other, empty lanes stay still");
+		}
 	}
 
 	void Gallery()

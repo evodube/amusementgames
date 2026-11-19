@@ -65,8 +65,13 @@ namespace ag
 			if (_playing && _game && _machineID == a_machine) {
 				return _game->Score();
 			}
-			if (_show.phase == Show::Phase::kPlaying && _show.game && _show.machineID == a_machine) {
-				return _show.game->Score();  // (a settler's game)
+			if (const auto* s = ShowOn(a_machine); s && s->phase == Show::Phase::kPlaying && s->game) {
+				return s->game->Score();  // (a settler's game)
+			}
+			for (const auto& r : _races) {
+				if (r.phase == 2 && r.machineID == a_machine && r.game) {
+					return r.game->Score();  // (settlers racing: the leader's)
+				}
 			}
 			const auto it = _lastScores.find(a_machine);
 			return it != _lastScores.end() ? it->second : 0;
@@ -75,7 +80,7 @@ namespace ag
 		// how many of a machine's props are on show: all of them, or while you play on it what the game says
 		int PropsShown(RE::TESFormID a_machine, int a_all) const
 		{
-			if (_show.phase == Show::Phase::kPlaying && _show.machineID == a_machine) {
+			if (const auto* s = ShowOn(a_machine); s && s->phase == Show::Phase::kPlaying) {
 				return 0;  // (a settler's playing: the rifle's in their hands)
 			}
 			if (!PlayingOn(a_machine) || !_game) {
@@ -207,6 +212,7 @@ namespace ag
 			RE::TESObjectWEAP*                     weapon{ nullptr };
 			bool                                   added{ false };  // the rifle lent (taken back after)
 			double                                 walked{ 0.0 };   // seconds on the way
+			double                                 onTarget{ 0.0 }; // a shot held back this long, turning onto the target
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been
 			std::shared_ptr<std::atomic<std::int32_t>> ready;  // NpcStartGallery: -1 not yet, 1 walking, 10+ not coming
@@ -225,10 +231,80 @@ namespace ag
 			bool                                   added{ false };
 		};
 		void TickShow(double a_dt);
+		void TickOne(Show& a_s, double a_dt);
 		bool StartShow();
-		void EndShow(const char* a_why);
+		void EndShow(Show& a_s, const char* a_why);
 		void Release(RE::TESFormID a_actor, RE::TESFormID a_weapon, bool a_added);
-		Show               _show;
+		const Show* ShowOn(RE::TESFormID a_machine) const
+		{
+			for (const auto& s : _shows) {
+				if (s.phase != Show::Phase::kNone && s.machineID == a_machine) {
+					return &s;
+				}
+			}
+			return nullptr;
+		}
+		std::vector<Show>  _shows;  // settlers' games: one a machine, as many as there are machines free
+
+		// settlers racing at Nuka-Zapper Race: up to one a lane but yours. They gather (each walks to the spot behind
+		// their lane's gun and takes up a Thirst Zapper); 10 s after the second is ready the race starts. You can
+		// join while they gather: the race starts then, you in your lane
+		struct Racer
+		{
+			int                                    lane{ 0 };
+			RE::ObjectRefHandle                    actor;
+			RE::TESFormID                          actorID{ 0 };
+			std::string                            name;
+			RE::ObjectRefHandle                    marker;  // where they stand
+			RE::ObjectRefHandle                    aimAt;   // their lane's target
+			int                                    state{ 0 };  // 0 walking, 1 taking up the gun, 2 ready
+			double                                 walked{ 0.0 };
+			double                                 stall{ 0.0 };
+			float                                  best{ 1e9f };
+			double                                 skill{ 0.5 };
+			double                                 sinceShot{ 9.0 };
+			bool                                   added{ false };
+			std::shared_ptr<std::atomic<std::int32_t>> ready;
+			std::shared_ptr<std::atomic<std::int32_t>> armed;
+		};
+		struct Race
+		{
+			int                                    phase{ 0 };  // 0 none, 1 gathering, 2 racing
+			RE::ObjectRefHandle                    machine;
+			RE::TESFormID                          machineID{ 0 };
+			std::vector<Racer>                     racers;
+			double                                 gathered{ 0.0 };  // seconds gathering
+			double                                 countdown{ -1.0 };
+			double                                 invite{ 0.0 };
+			bool                                   withYou{ false };  // you're racing too (your game is the race)
+			std::unique_ptr<sim::Game>             game;     // (settlers only)
+			std::vector<RE::ObjectRefHandle>       pieces;
+			std::vector<int>                       pieceModel;
+			std::vector<RE::ObjectRefHandle>       fixtures;
+			std::vector<RE::NiAVObject*>           frozen;
+		};
+		void   TickRaces(double a_dt);
+		void   TickRace(Race& a_r, double a_dt);
+		bool   StartRace();
+		bool   InviteRacer(Race& a_r);
+		void   BeginRace(Race& a_r);
+		void   EndRace(Race& a_r, const char* a_why);
+		void   LetGo(Racer& a_q);
+		void   RaceShots(Race& a_r, sim::Game& a_game, double a_dt);
+		Race*  RaceOn(RE::TESFormID a_machine)
+		{
+			for (auto& r : _races) {
+				if (r.phase != 0 && r.machineID == a_machine) {
+					return &r;
+				}
+			}
+			return nullptr;
+		}
+		RE::Actor* PickSettler(RE::TESObjectREFR* a_machine);
+		std::vector<Race>  _races;
+		double             _nextRace{ 20.0 };
+		std::unordered_map<RE::TESFormID, double> _rest;  // a machine's rest after a settler's game there (seconds)
+		std::unordered_map<RE::TESFormID, double> _played;  // a settler who's just played: not asked again for this long
 		std::vector<Held>  _letGo;  // (on their way when called off)
 		double             _nextShow{ 20.0 };
 		std::mt19937       _showRng{ std::random_device{}() };

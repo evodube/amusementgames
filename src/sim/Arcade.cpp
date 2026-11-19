@@ -3,6 +3,7 @@
 #include "sim/Layouts.h"
 
 #include <algorithm>
+#include <utility>
 #include <array>
 #include <cmath>
 #include <format>
@@ -635,6 +636,8 @@ namespace sim
 				}
 				_you = std::clamp(L.playerLane, 0, static_cast<int>(_lanes.size()) - 1);
 				_lanes[_you].name = "YOU";
+				_shots.clear();
+				_winner = -1;
 				_place = 0;
 				_score = 0;
 				_ending = 2.0;
@@ -662,7 +665,7 @@ namespace sim
 				}
 				_cool -= a_dt;
 				// you: a squirt (a click), a hit if your sights are on your target
-				if (a_in.pressed && _cool <= 0.0) {
+				if (_you >= 0 && a_in.pressed && _cool <= 0.0) {
 					_cool = L.shotSeconds;
 					const auto& g = L.lanes[_you];
 					Vec3        at;
@@ -672,13 +675,14 @@ namespace sim
 				}
 				// the others
 				for (int i = 0; i < static_cast<int>(_lanes.size()) && _place == 0; ++i) {
-					if (i == _you) {
+					if (i == _you || _lanes[i].empty) {
 						continue;
 					}
 					auto& l = _lanes[i];
 					l.next -= a_dt;
 					if (l.next <= 0.0) {
 						l.next = std::uniform_real_distribution<double>(L.aiShotShortest, L.aiShotLongest)(_rng);
+						_shots.push_back(i);
 						const double chance = L.aiHitWorst + (L.aiHitBest - L.aiHitWorst) * l.skill;
 						if (std::uniform_real_distribution<double>(0.0, 1.0)(_rng) < chance) {
 							Hit(i);
@@ -705,19 +709,43 @@ namespace sim
 				if (_countdown > 0.0) {
 					a_out.line1 = std::format("READY... {}", static_cast<int>(std::ceil(_countdown)));
 					a_out.clock = std::to_string(static_cast<int>(std::ceil(_countdown)));
-				} else if (_place > 0) {
+				} else if (_place > 0 && _you >= 0) {
 					static constexpr std::array<const char*, 7> ord{ "", "1ST", "2ND", "3RD", "4TH", "5TH", "6TH" };
 					a_out.line1 = _place == 1 ? std::string("YOU WIN!") : std::format("YOU CAME {}", ord[std::min<std::size_t>(_place, 6)]);
-				} else {
+				} else if (_you >= 0) {
 					a_out.line1 = std::format("HITS {} OF {}", _lanes[_you].hits, layout::Zapper().hitsToWin);
 				}
 				a_out.line2 = "SQUIRT YOUR TARGET: FIRST ROCKET UP WINS";
 				for (const auto& l : _lanes) {
-					a_out.race.emplace_back(l.name, l.shown);
+					if (!l.empty) {
+						a_out.race.emplace_back(l.name, l.shown);
+					}
 				}
 			}
 
 			int TicketsFor(int a_score) const override { return TicketTable{ 4, 1, 10, 0, 0 }.For(a_score); }  // a ticket every 4 points: a win (40) still 10
+
+			void SetRacers(int a_you, const std::vector<double>& a_skill, const std::vector<std::string>& a_names)
+			{
+				_you = a_you >= 0 && a_you < static_cast<int>(_lanes.size()) ? a_you : -1;
+				for (int i = 0; i < static_cast<int>(_lanes.size()); ++i) {
+					auto& l = _lanes[i];
+					if (i == _you) {
+						l.name = "YOU";
+						l.empty = false;
+						continue;
+					}
+					const double sk = i < static_cast<int>(a_skill.size()) ? a_skill[i] : -1.0;
+					l.empty = sk < 0.0;
+					l.skill = std::clamp(sk, 0.0, 1.0);
+					if (i < static_cast<int>(a_names.size()) && !a_names[i].empty()) {
+						l.name = a_names[i];
+					}
+				}
+			}
+
+			std::vector<int> TakeShots() { return std::exchange(_shots, {}); }
+			int              Winner() const { return _winner; }
 
 		private:
 			void Hit(int a_lane)
@@ -728,8 +756,19 @@ namespace sim
 				if (a_lane == _you) {
 					Add(L.pointsPerHit);
 					Say(Cue::kTargetHit, L.lanes[a_lane].target, 0.8);
+				} else if (_you < 0) {
+					// (settlers only: the score's the leader's)
+					_score = std::max(_score, l.hits * L.pointsPerHit);
+					Say(Cue::kTargetHit, L.lanes[a_lane].target, 0.5);
 				}
 				if (l.hits >= L.hitsToWin) {
+					_winner = a_lane;
+					if (_you < 0) {
+						_place = 1;
+						Add(L.winPoints);
+						Say(Cue::kWin, L.lanes[a_lane].rocketTop);
+						return;
+					}
 					// the race is over: you're placed by how many hits you had
 					int ahead = 0;
 					for (int i = 0; i < static_cast<int>(_lanes.size()); ++i) {
@@ -754,6 +793,7 @@ namespace sim
 				int         hits{ 0 };
 				double      shown{ 0.0 };  // the rocket's height, catching up with the hits
 				double      next{ 0.5 };
+				bool        empty{ false };  // nobody racing this lane
 			};
 
 			std::vector<Lane> _lanes;
@@ -762,6 +802,8 @@ namespace sim
 			double            _ending{ 2.0 };
 			double            _countdown{ 3.0 };
 			double            _cool{ 0.0 };
+			std::vector<int>  _shots;
+			int               _winner{ -1 };
 		};
 
 		// ======================================================================== Bandit Roundup (the shooting gallery)
@@ -961,6 +1003,25 @@ namespace sim
 			n += jackpotBonus;
 		}
 		return std::clamp(n, min, std::max(min, max));
+	}
+
+	void SetZapperRacers(Game& a_game, int a_you, const std::vector<double>& a_skill, const std::vector<std::string>& a_names)
+	{
+		if (auto* z = dynamic_cast<Zapper*>(&a_game)) {
+			z->SetRacers(a_you, a_skill, a_names);
+		}
+	}
+
+	std::vector<int> TakeZapperShots(Game& a_game)
+	{
+		auto* z = dynamic_cast<Zapper*>(&a_game);
+		return z ? z->TakeShots() : std::vector<int>{};
+	}
+
+	int ZapperWinner(const Game& a_game)
+	{
+		const auto* z = dynamic_cast<const Zapper*>(&a_game);
+		return z ? z->Winner() : -1;
 	}
 
 	GalleryShooter::GalleryShooter(std::uint32_t a_seed, double a_spread) :

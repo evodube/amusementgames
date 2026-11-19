@@ -31,9 +31,10 @@ Nuka-World's scripts' properties (ScoreEvents PointValue, ScorePerTicket): Atomi
 
 ## Settlers playing
 
-Arcade::TickShow (src/Arcade.cpp, "settlers at the games"): one settler's game at a time. Every 45-120 s (20 s at
-first, 20 s retries, 5 s after someone couldn't come) a Bandit Roundup machine near you (Scoreboards::Machines) that
-you're not at gets a settler of its settlement (linked to the same workshop by WorkshopItemKeyword, within 3000 of it,
+Arcade::TickShow (src/Arcade.cpp, "settlers at the games"): one settler's game a machine, as many at once as there
+are Bandit Roundups near you (Arcade::_shows). Every 5 s (20 s when none could be started) a free machine
+(Scoreboards::Machines; not yours, no settler's game on it, not resting: 45-120 s after a game there, Settings) gets a
+settler of its settlement not already at another (linked to the same workshop by WorkshopItemKeyword, within 3000 of it,
 not in combat). An XMarkerHeading is put at GalleryLayout::stand (machine space -15,-62,0, facing the targets, where
 you'd stand). Walking them there is done as Wasteland Wagers does: AmusementGamesQuest (QUST xx00080F, priority 100,
 start game enabled) has a Players collection carrying AmusementGamesWalkToSpot (PACK xx00080E: Travel to the linked
@@ -49,6 +50,17 @@ scoreboard shows its score (ScoreOn). NpcEnd lets them go (out of the quest, AI 
 if you leave (3000), start that machine yourself, or they die/fight/unload; anyone mid-way when called off is let go
 once Papyrus is done with them. Anyone held when the game's saved is written to the cosave ('AGHL') and let go after
 that save loads (kPostLoadGame), and the quest's collection is emptied then too (NpcClearAll).
+
+## Settlers racing
+
+Arcade::TickRaces ("settlers racing (Nuka-Zapper Race)"): a race a Nuka-Zapper Race machine near you. Gathering:
+settlers invited every 5 s, a lane each (ZapperLayout::settlerLanes: all but yours), each walked (the same quest and
+Papyrus as the gallery's: NpcStartGallery, NpcWalk, NpcTakeUp with the Thirst Zapper, aiming at their lane's target)
+to stand behind their lane's gun (standY). 10 s after the second is ready (gatherSeconds) the race starts with those
+ready (sim::SetZapperRacers: their lanes by their skill, the rest empty; the score the leader's); given up after
+gatherLongest without two. Their squirts (sim::TakeZapperShots) are NpcShoot. You activating it while they gather
+joins you: your game's lanes are theirs (the empty ones the machine's own racers) and the race starts then; they're
+let go when your game ends (Cleanup). While they race it's theirs ("a race is on").
 
 ## Takings
 

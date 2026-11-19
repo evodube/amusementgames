@@ -108,12 +108,13 @@ namespace ag
 			void __stdcall DrawSettlers()
 			{
 				auto& s = Settings::Get();
-				TextWrapped("Now and then, while you're about, a settler of the settlement walks over to a free Bandit "
-				            "Roundup and plays a round.");
+				TextWrapped("While you're about, settlers of the settlement walk over to the Bandit Roundups and play: one "
+				            "settler to each machine, as many at once as there are machines (the one you're at left to you). "
+				            "After a game a machine rests a while before the next settler comes to it.");
 				Spacing();
 				Saved(Checkbox("Settlers play the games", &s.settlersOn));
 				SetNextItemWidth(260.0f);
-				SliderFloat("Between their games, at least", &s.settlersGapShortest, 5.0f, 600.0f, "%.0f s");
+				SliderFloat("A machine's rest between games, at least", &s.settlersGapShortest, 5.0f, 600.0f, "%.0f s");
 				Saved(IsItemDeactivatedAfterEdit());
 				SetNextItemWidth(260.0f);
 				SliderFloat("...and at most", &s.settlersGapLongest, 5.0f, 1200.0f, "%.0f s");
