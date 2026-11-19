@@ -169,6 +169,12 @@ namespace ag
 		void TopUpAmmo();
 		Lent _lent;
 
+		// Whac-a-Commie: your swing quicker the more Agility you have (WeaponSpeedMult raised while you play; the
+		// amount kept, to take off again, in the cosave too in case you save mid-game)
+		void  Quicken(bool a_on);
+		float _swingBoost{ 0.0f };
+		float _swingFromSave{ 0.0f };
+
 		std::array<int, static_cast<int>(sim::GameId::kCount)> _best{};
 		RE::TESFormID                                         _machineID{ 0 };
 		std::unordered_map<RE::TESFormID, int>                _lastScores;  // each machine's last game (this session)

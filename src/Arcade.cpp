@@ -96,6 +96,7 @@ namespace ag
 
 		constexpr std::uint32_t kSaveType = 0x41474253;  // 'AGBS': the best scores
 		constexpr std::uint32_t kSaveVersion = 1;
+		constexpr std::uint32_t kSwingType = 0x41475357;  // 'AGSW': the swing quickening on when saved
 		constexpr std::uint32_t kHeldType = 0x4147484C;  // 'AGHL': settlers held at a machine when saved
 	}
 
@@ -596,6 +597,47 @@ namespace ag
 			[had](std::int32_t a_had) { *had = a_had; });
 		log::info("{}: {} in your hands{}", sim::GameName(a_game), weapon->GetFormEditorID() ? weapon->GetFormEditorID() : "its weapon",
 			_lent.added ? " (lent)" : "");
+		if (a_game == sim::GameId::kWhacACommie) {
+			Quicken(true);
+		}
+	}
+
+	namespace
+	{
+		const RE::ActorValueInfo* AV(const char* a_editorID)
+		{
+			return RE::TESForm::GetFormByEditorID<RE::ActorValueInfo>(a_editorID);
+		}
+
+		constexpr float kSwingPerAgility = 0.06f;  // each point of Agility past 1: this much quicker...
+		constexpr float kSwingMost = 2.0f;         // ...up to twice as quick
+	}
+
+	void Arcade::Quicken(bool a_on)
+	{
+		auto*       player = RE::PlayerCharacter::GetSingleton();
+		const auto* speed = AV("WeaponSpeedMult");
+		if (!player || !speed) {
+			return;
+		}
+		if (!a_on) {
+			if (_swingBoost != 0.0f) {
+				player->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kTemporary, *speed, -_swingBoost);
+				_swingBoost = 0.0f;
+			}
+			return;
+		}
+		const auto* agility = AV("Agility");
+		const float agi = agility ? player->GetActorValue(*agility) : 1.0f;
+		const float mult = std::clamp(1.0f + kSwingPerAgility * (agi - 1.0f), 1.0f, kSwingMost);
+		// (0: the game's default, as quick as normal)
+		const float now = player->GetActorValue(*speed);
+		const float base = now > 0.0f ? now : 1.0f;
+		_swingBoost = base * mult - now;
+		if (_swingBoost != 0.0f) {
+			player->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kTemporary, *speed, _swingBoost);
+		}
+		log::info("Whac-a-Commie: Agility {}: your swing x{:.2f}", agi, mult);
 	}
 
 	// unlimited ammo while you play: the weapon's magazine is put back to full after every shot, so it's never
@@ -627,6 +669,7 @@ namespace ag
 		const int back = _lent.ammo ? std::clamp(Count(_lent.ammo) - _lent.ammoBefore, 0, _lent.ammoGiven) : 0;
 		Papyrus::CallWithBools("DisarmPlayer", Papyrus::Id(_lent.weapon), _lent.added, Papyrus::Id(_lent.ammo), back, _lent.had->load());
 		_lent = {};
+		Quicken(false);
 	}
 
 	void Arcade::BlockControls(bool a_block, bool a_allowFighting)
@@ -734,6 +777,14 @@ namespace ag
 			Release(h.actor, h.weapon, h.added);
 		}
 		_heldFromSave.clear();
+		// a save made mid Whac-a-Commie: its swing quickening taken off
+		if (_swingFromSave != 0.0f) {
+			if (auto* player = RE::PlayerCharacter::GetSingleton(); player && AV("WeaponSpeedMult")) {
+				player->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kTemporary, *AV("WeaponSpeedMult"), -_swingFromSave);
+				log::info("Whac-a-Commie: a save's swing quickening ({:+.2f}) taken off", _swingFromSave);
+			}
+			_swingFromSave = 0.0f;
+		}
 	}
 
 	void Arcade::TickShow(double a_dt)
@@ -925,6 +976,9 @@ namespace ag
 	{
 		auto& self = Get();
 		Income::Save(a_intfc);
+		if (self._swingBoost != 0.0f && a_intfc->OpenRecord(kSwingType, 1)) {
+			a_intfc->WriteRecordData(&self._swingBoost, sizeof(self._swingBoost));
+		}
 		// settlers held at a machine (AI off): let go after a load of this save
 		{
 			std::vector<Held> held;
@@ -965,7 +1019,12 @@ namespace ag
 		self._best.fill(0);
 		Income::Revert();
 		self._heldFromSave.clear();
+		self._swingFromSave = 0.0f;
 		while (a_intfc->GetNextRecordInfo(type, version, length)) {
+			if (type == kSwingType) {
+				a_intfc->ReadRecordData(&self._swingFromSave, sizeof(self._swingFromSave));
+				continue;
+			}
 			if (type == kHeldType) {
 				std::uint32_t n = 0;
 				a_intfc->ReadRecordData(&n, sizeof(n));
