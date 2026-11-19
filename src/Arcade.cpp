@@ -944,6 +944,17 @@ namespace ag
 		// playing: the shooter aims and fires; the game plays it
 		const sim::Input in = _show.shooter->Next(*_show.game, _show.eye, a_dt);
 		_show.game->Update(a_dt, in);
+		// what they aim at follows their shot: the marker their hold package aims at put where the shooter's looking,
+		// out at the targets' tracks (so they swing from target to target, and each shot goes where it's aimed)
+		if (auto aimAt = _show.aimAt.get(); aimAt && std::abs(in.dir.y) > 0.05) {
+			const double t = (sim::layout::Gallery().aimAt.y - in.eye.y) / in.dir.y;
+			if (t > 0.0) {
+				const RE::NiPoint3 w = ToWorld(f, in.eye + in.dir * t);
+				aimAt->data.location.x = w.x;
+				aimAt->data.location.y = w.y;
+				aimAt->data.location.z = w.z;
+			}
+		}
 		if (in.pressed && _show.weapon) {
 			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
 			const std::string       name = _show.name;
