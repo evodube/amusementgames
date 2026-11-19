@@ -69,6 +69,9 @@ namespace ag
 		}
 		int Best(sim::GameId a_game) const { return a_game != sim::GameId::kCount ? _best[static_cast<int>(a_game)] : 0; }
 
+		// something of the game's hit by you (on the game's thread): Whac-a-Commie's heads are whacked this way
+		void OnHit(RE::TESObjectREFR* a_target);
+
 		// a machine activated by you (on the game's thread)
 		void OnActivated(RE::TESObjectREFR* a_machine);
 

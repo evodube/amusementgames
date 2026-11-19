@@ -42,6 +42,12 @@ method on a form or ref with no script bound (a sound descriptor, a digit made w
 silently did nothing in 0.1.0 (no sounds, no digits). If the digits still don't change, the other way: make them
 with their scripts on and call DLC04:DLC04ArcadeScoreNumber.DisplayNumber, as Nuka-World does.
 
+## Whac-a-Commie's whacks
+
+The heads are an ACTI of ours (0x822, the still DLC04_Nukacade_Commie01.nif, which has collision), as Nuka-World's
+own heads are activators scored OnHit. A TESHitEvent with you as the cause and a head as the target is the whack
+(Arcade::OnHit -> sim::Game::OnPieceHit); clicks score nothing. The log says when the first one comes through.
+
 ## Weapons
 
 Whac-a-Commie: DLC04_CommieWhacker; Nuka-Zapper Race: DLC04_ThirstZapper (held for show: fighting stays held, the

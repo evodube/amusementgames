@@ -411,7 +411,7 @@ namespace sim
 			{
 				const auto& L = layout::Whac();
 				sinceLastPoints += a_dt;
-				_swing = std::max(0.0, _swing - a_dt);
+				(void)a_in;  // (a whack is your weapon hitting a head: OnPieceHit)
 				if (_time > 0.0) {
 					_time = std::max(0.0, _time - a_dt);
 					if (!_hurried && _time <= 10.0) {
@@ -473,34 +473,20 @@ namespace sim
 						break;
 					}
 				}
-				// a whack: at the head nearest where you look on the top, if it's up far enough
-				if (a_in.pressed && _time > 0.0 && _swing <= 0.0) {
-					_swing = L.swingSeconds;
-					{
-						// the head the look passes nearest (within its size), if it's up far enough
-						int    best = -1;
-						double bestD = L.hitRadius;
-						for (int i = 0; i < static_cast<int>(_heads.size()); ++i) {
-							if (Height(i) <= 0.35) {
-								continue;
-							}
-							const Vec3   c = HeadAt(i) + Vec3{ 0, 0, -9.0 };  // the face (the model hangs below its origin)
-							const double t = std::max(0.0, (c - a_in.eye).Dot(a_in.dir));
-							const double d = (a_in.eye + a_in.dir * t - c).Length();
-							if (d < bestD) {
-								best = i;
-								bestD = d;
-							}
-						}
-						if (best >= 0) {
-							auto& h = _heads[best];
-							Add(L.points);
-							++_hits;
-							h = { Head::kHit, 0.0, h.upFor };
-							Say(Cue::kWhack, L.holes[best]);
-						}
-					}
+			}
+
+			// a whack: your Commie Whacker hit a head (its hit event); it counts if the head's up far enough
+			void OnPieceHit(int a_piece) override
+			{
+				const auto& L = layout::Whac();
+				if (_time <= 0.0 || a_piece < 0 || a_piece >= static_cast<int>(_heads.size()) || Height(a_piece) <= 0.35 ||
+					_heads[a_piece].phase == Head::kHit) {
+					return;
 				}
+				Add(L.points);
+				++_hits;
+				_heads[a_piece] = { Head::kHit, 0.0, _heads[a_piece].upFor };
+				Say(Cue::kWhack, L.holes[a_piece]);
 			}
 
 			bool Over() const override { return _time <= 0.0 && _ending <= 0.0; }
@@ -534,6 +520,7 @@ namespace sim
 			void Hud(HudInfo& a_out) const override
 			{
 				a_out.timeLeft = _time;
+				a_out.timerOnly = true;
 				a_out.line1 = std::format("COMMIES WHACKED {}", _hits);
 				a_out.line2 = std::format("GOT AWAY {}", _misses);
 			}
@@ -585,7 +572,6 @@ namespace sim
 			std::vector<Head> _heads;
 			double            _time{ 0.0 };
 			double            _next{ 0.0 };
-			double            _swing{ 0.0 };
 			double            _ending{ 1.5 };
 			int               _hits{ 0 };
 			int               _misses{ 0 };

@@ -88,6 +88,7 @@ namespace sim
 		double      aimX{ 0.0 };      // -1..1: where your throw goes across the lane (rollers' guide), 0 centre
 		bool        showAim{ false };
 		std::vector<std::pair<std::string, double>> race;  // the zapper race: each lane's name and how far up (0..1)
+		bool        timerOnly{ false };  // only the clock while playing (and the result at the end)
 	};
 
 	class Game
@@ -101,6 +102,8 @@ namespace sim
 		virtual bool   Over() const = 0;
 		virtual void   Pieces(std::vector<Piece>& a_out) const = 0;
 		virtual void   Hud(HudInfo& a_out) const = 0;
+		// one of the game's pieces hit by your weapon (Whac-a-Commie: a head whacked)
+		virtual void   OnPieceHit(int) {}
 
 		int Score() const { return _score; }
 		// the tickets a score is worth at this game

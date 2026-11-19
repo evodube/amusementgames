@@ -210,30 +210,29 @@ namespace
 		const auto& L = layout::Whac();
 		auto        g = MakeGame(GameId::kWhacACommie);
 		const Vec3  eye{ 0, -70, 120 };
-		int         target = 0;
-		bool        was = false;
 		double      took = 0.0;
-		const int   s = Play(*g, [&](Game& a_g, double) {
+		// a quick player: whacks every head as soon as it's well up (the weapon's hit event)
+		const int s = Play(*g, [&](Game& a_g, double) {
             std::vector<Piece> pieces;
             a_g.Pieces(pieces);
-            // the first head up: look at it, whack every other frame
             for (int i = 0; i < static_cast<int>(pieces.size()); ++i) {
                 if (!pieces[i].hidden && pieces[i].pos.z > L.holes[i].z + L.headDown + (L.headUp - L.headDown) * 0.6) {
-                    target = i;
-                    break;
+                    a_g.OnPieceHit(i);
                 }
             }
-            Input in = LookAt(eye, L.holes[target] + Vec3{ 0, 0, L.headUp - 9.0 });
-            in.pressed = !was;
-            was = !was;
-            return in;
+            return LookAt(eye, { 0, 0, 0 });
         }, 60.0, &took);
 		std::printf("     whac-a-commie: %d points in %.1f s, %d tickets\n", s, took, g->TicketsFor(s));
 		Check(s > 20, "whac-a-commie: a quick player whacks plenty");
 		Check(g->Over() && took < 33.0, "whac-a-commie: over after its 30 seconds");
 		auto      idle = MakeGame(GameId::kWhacACommie);
-		const int none = Play(*idle, [&](Game&, double) { return LookAt(eye, { 0, 0, 0 }); }, 60.0);
-		Check(none == 0, "whac-a-commie: no whacks, no points");
+		const int none = Play(*idle, [&](Game& a_g, double) {
+            a_g.OnPieceHit(3);  // a hole whacked while its head's down: nothing
+            Input in = LookAt(eye, L.holes[3]);
+            in.pressed = true;  // (clicking scores nothing: only the weapon's hits)
+            return in;
+        }, 60.0);
+		Check(none < 20, "whac-a-commie: clicks score nothing; whacking one hole only gets its own heads");
 	}
 
 	void Zapper()

@@ -7,7 +7,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   balls over the hump and up the board, its ring walls funnelling them into the holes: 100 to 500 up the middle,
   700 in the top corners, nothing in the gutter or over the top.
 - **Hoop Shot**: hold to charge, let go to lob it at the hoop, as many baskets as you can in 45 seconds.
-- **Whac-a-Commie**: seven holes; swing the Commie Whacker at the commies popping up, for 30 seconds.
+- **Whac-a-Commie**: seven holes; swing the Commie Whacker at the commies popping up, for 30 seconds: a point is
+  your mallet landing on a commie (its hit), not a click. Just the clock on screen while you play.
 - **Nuka-Zapper Race**: six lanes. Hold the button with your Thirst Zapper's stream on your target and your rocket
   climbs; ten steps up and you've won (the other lanes race you, streams and all).
 - **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with Far Harbor's Lever-Action Rifle

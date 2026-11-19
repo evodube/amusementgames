@@ -338,7 +338,7 @@ namespace ag::Hud
 			switch (a_st.game) {
 			case sim::GameId::kAtomicRollers: what = "LEFT MOUSE: HOLD TO CHARGE, LET GO TO ROLL · LOOK TO AIM"; break;
 			case sim::GameId::kHoopShot: what = "LEFT MOUSE: HOLD TO CHARGE, LET GO TO SHOOT · LOOK TO AIM"; break;
-			case sim::GameId::kWhacACommie: what = "LOOK AT A COMMIE · LEFT MOUSE: SWING THE COMMIE WHACKER"; break;
+			case sim::GameId::kWhacACommie: what = "SWING THE COMMIE WHACKER AT THE COMMIES"; break;
 			case sim::GameId::kNukaZapperRace: what = "AIM AT YOUR TARGET · LEFT MOUSE: SQUIRT THE THIRST ZAPPER"; break;
 			case sim::GameId::kBanditRoundup: what = "AIM AT A TARGET · LEFT MOUSE: SHOOT"; break;
 			default: break;
@@ -371,6 +371,10 @@ namespace ag::Hud
 			v.h = viewport->Size.y / v.s;
 			if (st.results) {
 				Results(v, st);
+				return;
+			}
+			if (st.info.timerOnly) {
+				Timer(v, st);  // (Whac-a-Commie: just the clock while you play)
 				return;
 			}
 			Status(v, st);

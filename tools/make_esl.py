@@ -32,6 +32,8 @@ Form IDs (src/Forms.h expects these):
     xx000813  ACTI AmusementGamesNukaZapperRace runs the game)
     xx000814  ACTI AmusementGamesBanditRoundup
     xx000820+ STAT AmusementGamesPiece*         what the games move about, each a Nuka-World model: 820 the skee-ball,
+                                               (822, the commie's head, an ACTI: hit by your Commie Whacker, its hit
+                                               event is the whack)
                                                821 the basketball, 822 a commie's head, 823 a zapper rocket, 824 a
                                                drop of the zapper's water, 825-829 the gallery's duck, bunny, pig,
                                                bottle and star, 82A the zapper's target
@@ -275,7 +277,17 @@ def build() -> bytes:
     # ---- the machines and their pieces
     for off, name, title, mesh, bounds, preview in GAMES:
         acti.append(machine(OWN | (FIRST_ID + off), f"AmusementGames{name}", title, GAMES_DIR + mesh, bounds, preview))
-    stats = [stat(OWN | (FIRST_ID + off), f"AmusementGamesPiece{name}", mesh, bounds) for off, name, mesh, bounds in PIECES]
+    stats = [stat(OWN | (FIRST_ID + off), f"AmusementGamesPiece{name}", mesh, bounds) for off, name, mesh, bounds in PIECES
+             if name != "CommieHead"]
+    # the commie's head: an activator (no script, nothing to activate), as Nuka-World's own heads are: it gets hit events
+    for off, name, mesh, bounds in PIECES:
+        if name == "CommieHead":
+            acti.append(record(
+                b"ACTI", 0, OWN | (FIRST_ID + off),
+                subrecord(b"EDID", zstring(f"AmusementGamesPiece{name}"))
+                + subrecord(b"OBND", struct.pack("<6h", *bounds))
+                + subrecord(b"MODL", zstring(mesh))
+                + subrecord(b"FNAM", struct.pack("<H", 0))))
 
     count = len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats)
     header = record(

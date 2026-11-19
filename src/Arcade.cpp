@@ -49,6 +49,26 @@ namespace ag
 			}
 		};
 
+		// you hitting something: one of the game's pieces (a commie's head, by your Commie Whacker)
+		struct HitSink final : RE::BSTEventSink<RE::TESHitEvent>
+		{
+			RE::BSEventNotifyControl ProcessEvent(const RE::TESHitEvent& a_event, RE::BSTEventSource<RE::TESHitEvent>*) override
+			{
+				auto* player = RE::PlayerCharacter::GetSingleton();
+				if (a_event.target && a_event.cause && a_event.cause.get() == player) {
+					auto handle = a_event.target->GetHandle();
+					if (auto* tasks = F4SE::GetTaskInterface()) {
+						tasks->AddTask([handle]() {
+							if (auto ref = handle.get()) {
+								Arcade::Get().OnHit(ref.get());
+							}
+						});
+					}
+				}
+				return RE::BSEventNotifyControl::kContinue;
+			}
+		};
+
 		// a load or the main menu while you're playing: the game's dropped
 		struct MenuSink final : RE::BSTEventSink<RE::MenuOpenCloseEvent>
 		{
@@ -81,6 +101,7 @@ namespace ag
 	void Arcade::Listen()
 	{
 		static ActivateSink activate;
+		static HitSink      hits;
 		static MenuSink     menus;
 		static bool         registered = false;
 		if (registered) {
@@ -94,6 +115,11 @@ namespace ag
 		}
 		if (auto* ui = RE::UI::GetSingleton()) {
 			ui->RegisterSink<RE::MenuOpenCloseEvent>(&menus);
+		}
+		if (auto* source = RE::TESHitEvent::GetEventSource()) {
+			source->RegisterSink(&hits);
+		} else {
+			log::warn("no hit event source: Whac-a-Commie's whacks won't count");
 		}
 		log::info("listening for the machines");
 	}
@@ -119,6 +145,24 @@ namespace ag
 			Tick();
 			_tickPending = false;
 		});
+	}
+
+	void Arcade::OnHit(RE::TESObjectREFR* a_target)
+	{
+		if (!_playing || !_game || !a_target) {
+			return;
+		}
+		for (std::size_t i = 0; i < _pieces.size(); ++i) {
+			if (auto ref = _pieces[i].get(); ref && ref.get() == a_target) {
+				static bool told = false;
+				if (!told) {
+					told = true;
+					log::info("{}: your weapon's hits on its pieces are coming through", sim::GameName(_gameId));
+				}
+				_game->OnPieceHit(static_cast<int>(i));
+				return;
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------ starting and ending
