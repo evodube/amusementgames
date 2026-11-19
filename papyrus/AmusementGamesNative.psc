@@ -140,7 +140,7 @@ EndFunction
 ; a settler to Bandit Roundup: not if they're busy; walking to the marker. 1: on their way; anything else: not coming
 ; (for the plugin's log: 10 missing forms, 11 dead, 12 fighting, 13 following you, 14 knocked out, 15 doing something
 ; for you, 16x sitting or at a workstation (160 + sit state), 17 bleeding out, 18 the walk couldn't be given them,
-; 20 not a person: a dog, brahmin or robot, 21 at a Wasteland Wagers table)
+; 20 not a person: a dog, brahmin or robot, 21 at a Wasteland Wagers table, 22 dealing at one)
 Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
@@ -166,11 +166,27 @@ Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	ElseIf !a.HasKeyword(Game.GetFormFromFile(0x00013794, "Fallout4.esm") as Keyword)
 		Return 20
 	EndIf
-	; (Wasteland Wagers' players: walking to or standing at its tables, or sat at them)
+	; Wasteland Wagers' players: those sat at its tables (cards, slots) and its dealers are left be; a roulette bettor
+	; standing about between spins is called over (out of its Bettors first: back to the table after, if it wants them)
 	Keyword wagersSpot = Game.GetFormFromFile(0x806, "WastelandWagers.esl") as Keyword
 	Keyword wagersSeat = Game.GetFormFromFile(0x848, "WastelandWagers.esl") as Keyword
-	If (wagersSpot && a.GetLinkedRef(wagersSpot)) || (wagersSeat && a.GetLinkedRef(wagersSeat))
+	If wagersSeat && a.GetLinkedRef(wagersSeat)
 		Return 21
+	EndIf
+	If wagersSpot && a.GetLinkedRef(wagersSpot)
+		ScriptObject wq = Game.GetFormFromFile(0x808, "WastelandWagers.esl").CastAs("WastelandWagersQuest")
+		If !wq
+			Return 21
+		EndIf
+		RefCollectionAlias dealers = wq.GetPropertyValue("Dealers") as RefCollectionAlias
+		RefCollectionAlias bettors = wq.GetPropertyValue("Bettors") as RefCollectionAlias
+		If (dealers && dealers.Find(a) >= 0) || !bettors || bettors.Find(a) < 0
+			Return 22
+		EndIf
+		Var[] args = new Var[2]
+		args[0] = aiActor
+		args[1] = wagersSpot.GetFormID()
+		wq.CallFunction("Leave", args)
 	EndIf
 	If !q.Join(aiActor, aiMarker, k.GetFormID())
 		Return 18

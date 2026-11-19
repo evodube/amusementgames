@@ -27,7 +27,7 @@ Form IDs (src/Forms.h expects these):
     xx00080D  KYWD AmusementGamesLinkSpot      a settler's linked ref: the spot at a machine they're to walk to
     xx00080E  PACK AmusementGamesWalkToSpot    Travel to that linked ref, walking, facing the marker at the end (as
                                                Wasteland Wagers' WastelandWagersWalkToSpot)
-    xx00080F  QUST AmusementGamesQuest         priority 100, start game enabled; collection alias 0 Players carrying the
+    xx00080F  QUST AmusementGamesQuest         priority 101, start game enabled; collection alias 0 Players carrying the
                                                package (alias packages go by quest priority: it outranks settler
                                                sandboxes); scripts AmusementGamesQuest, AmusementGamesGroupAlias
     xx00080C  GLOB AmusementGamesIncomePerSettler  caps each machine earns its settlement a day for each settler (1)
@@ -333,7 +333,8 @@ def build() -> bytes:
     walk = OWN | (FIRST_ID + 0xE)
     keywords.append(keyword(link, "AmusementGamesLinkSpot"))
     packages = [travel_package(walk, "AmusementGamesWalkToSpot", link)]
-    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk)]
+    # (priority 101: above Wasteland Wagers' 100, so a roulette bettor called over isn't pulled back mid-walk)
+    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk, priority=101)]
     # the category's picture: its first item, Whac-a-Commie, framed as its own workshop preview
     # (DLC04workshop_NukaCade_WhackACommie01) with its bounds
     art = [menu_art(OWN | (FIRST_ID + 1), "AmusementGamesWorkshopMenuArt", menu,
