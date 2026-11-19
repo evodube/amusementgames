@@ -843,7 +843,7 @@ namespace ag
 				if (auto m = _show.marker.get(); m && actor) {
 					away = (actor->data.location - m->data.location).Length();
 				}
-				log::info("{}: the settler ({:08X}) couldn't come: {} ({}; {:.0f} from the spot)", sim::GameName(_show.gameId), _show.actorID, why, r, away);
+				log::info("{}: {} ({:08X}) couldn't come: {} ({}; {:.0f} from the spot)", sim::GameName(_show.gameId), _show.name, _show.actorID, why, r, away);
 				_refused.push_back(_show.actorID);
 				EndShow(nullptr);
 				_nextShow = kShowNextTry;  // (someone else, soon)
@@ -852,7 +852,12 @@ namespace ag
 			if (r < 0) {
 				_show.walkLeft -= a_dt;
 				if (_show.walkLeft <= 0.0) {
-					EndShow("the settler took too long");
+					float away = -1.0f;
+					if (auto m = _show.marker.get(); m) {
+						away = (actor->data.location - m->data.location).Length();
+					}
+					log::info("{}: {} ({:08X}) took too long, {:.0f} from the spot", sim::GameName(_show.gameId), _show.name, _show.actorID, away);
+					EndShow(nullptr);
 				}
 				return;
 			}
@@ -873,7 +878,7 @@ namespace ag
 			}
 			Sounds::Music(_show.gameId, machine.get(), true);
 			_show.phase = Show::Phase::kPlaying;
-			log::info("{}: a settler ({:08X}) playing (spread {:.3f})", sim::GameName(_show.gameId), _show.actorID, spread);
+			log::info("{}: {} ({:08X}) playing (spread {:.3f})", sim::GameName(_show.gameId), _show.name, _show.actorID, spread);
 			return;
 		}
 
@@ -889,7 +894,7 @@ namespace ag
 		PlacePieces(f, *_show.game, _show.gameId, machine.get(), _show.pieces, _show.pieceModel, _show.frozen);
 		if (_show.game->Over()) {
 			_lastScores[_show.machineID] = _show.game->Score();
-			log::info("{}: the settler ({:08X}) scored {}", sim::GameName(_show.gameId), _show.actorID, _show.game->Score());
+			log::info("{}: {} ({:08X}) scored {}", sim::GameName(_show.gameId), _show.name, _show.actorID, _show.game->Score());
 			EndShow(nullptr);
 		}
 	}
@@ -949,6 +954,9 @@ namespace ag
 			_show.phase = Show::Phase::kWalking;
 			_show.actor = who->GetHandle();
 			_show.actorID = who->GetFormID();
+			if (const char* n = who->GetDisplayFullName(); n && *n) {
+				_show.name = n;
+			}
 			_show.machine = h;
 			_show.machineID = machine->GetFormID();
 			_show.gameId = sim::GameId::kBanditRoundup;
@@ -959,7 +967,7 @@ namespace ag
 			auto ready = _show.ready;
 			Papyrus::Call("NpcStartGallery", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()) },
 				[ready](std::int32_t a_r) { *ready = a_r; });
-			log::info("{}: a settler ({:08X}) coming to play", sim::GameName(_show.gameId), _show.actorID);
+			log::info("{}: {} ({:08X}) coming to play", sim::GameName(_show.gameId), _show.name, _show.actorID);
 			return true;
 		}
 		return false;
@@ -971,7 +979,7 @@ namespace ag
 			return;
 		}
 		if (a_why) {
-			log::info("{}: the settler's game called off ({})", sim::GameName(_show.gameId), a_why);
+			log::info("{}: {}'s game called off ({})", sim::GameName(_show.gameId), _show.name.empty() ? "the settler" : _show.name, a_why);
 		}
 		const auto weaponID = _show.weapon ? _show.weapon->GetFormID() : 0;
 		if (_show.phase == Show::Phase::kPlaying) {

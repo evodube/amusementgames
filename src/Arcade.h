@@ -196,6 +196,7 @@ namespace ag
 			Phase                                  phase{ Phase::kNone };
 			RE::ObjectRefHandle                    actor;
 			RE::TESFormID                          actorID{ 0 };
+			std::string                            name;    // (for the log)
 			RE::ObjectRefHandle                    machine;
 			RE::TESFormID                          machineID{ 0 };
 			sim::GameId                            gameId{ sim::GameId::kCount };
