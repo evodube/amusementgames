@@ -378,6 +378,13 @@ namespace ag::Scoreboards
 					root->SetLocalTransform(t);
 					RE::NiUpdateData update;
 					root->Update(update);
+					// and where it was last frame, too: a static's isn't updated by the game, so left as it was the
+					// renderer sees it forever moving from its old place to its new (a ghost smeared between the
+					// two, till something like the pause menu updates everything)
+					RE::BSVisit::TraverseScenegraphObjects(root, [](RE::NiAVObject* a_o) {
+						a_o->previousWorld = a_o->world;
+						return RE::BSVisitControl::kContinue;
+					});
 				};
 				bool moved = false;
 				if (p.rolls) {

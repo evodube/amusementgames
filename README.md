@@ -8,7 +8,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   700 in the top corners, nothing in the gutter or over the top.
 - **Hoop Shot**: hold to charge, let go to lob it at the hoop, as many baskets as you can in 45 seconds.
 - **Whac-a-Commie**: seven holes; swing the Commie Whacker at the commies popping up, for 30 seconds: a point is
-  your mallet landing on a commie (its hit), not a click.
+  your mallet landing on a commie (its hit), not a click. The more Agility you have, the quicker you swing (3% a
+  point past 1, up to twice as quick).
 - **Nuka-Zapper Race**: six lanes; yours is the one with a Thirst Zapper lying on the counter, so stand behind it.
   Squirt your target with the Thirst Zapper: each hit sends your rocket a step up, ten and you've won (the other
   lanes race you). Unlimited ammo while you play.
@@ -38,7 +39,7 @@ counter in front of your lane and the rifle on the gallery's counter (not to be 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,
 bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own like Playable Pool's.
 
-**Status: 0.3.0.**
+**Status: 0.3.1.**
 
 ## Requirements
 
