@@ -300,9 +300,9 @@ namespace ag
 	void Arcade::Abort(const char* a_why)
 	{
 		// a load: a settler's game just dropped (the save being loaded says who to let go)
-		if (_show.phase != Show::Phase::kNone || !_held.empty()) {
+		if (_show.phase != Show::Phase::kNone || !_letGo.empty()) {
 			_show = {};
-			_held.clear();
+			_letGo.clear();
 			_nextShow = 20.0;
 		}
 		if (!_playing && _pieces.empty()) {
@@ -733,7 +733,7 @@ namespace ag
 	void Arcade::TickShow(double a_dt)
 	{
 		// settlers on their way when a game was called off: let go once they get there
-		std::erase_if(_held, [&](const Held& a_h) {
+		std::erase_if(_letGo, [&](const Held& a_h) {
 			const auto r = a_h.ready ? a_h.ready->load() : 1;
 			if (r < 0) {
 				return false;
@@ -902,7 +902,7 @@ namespace ag
 				Sounds::Music(_show.gameId, machine.get(), false);
 			}
 		} else if (_show.ready) {
-			_held.push_back({ _show.ready, _show.actorID, weaponID, false });  // (let go once they're there)
+			_letGo.push_back({ _show.ready, _show.actorID, weaponID, false });  // (let go once they're there)
 		}
 		for (auto& h : _show.pieces) {
 			Remove(h);
@@ -926,7 +926,7 @@ namespace ag
 			} else if (self._show.phase == Show::Phase::kWalking) {
 				held.push_back({ nullptr, self._show.actorID, self._show.weapon ? self._show.weapon->GetFormID() : 0, false });
 			}
-			for (const auto& h : self._held) {
+			for (const auto& h : self._letGo) {
 				held.push_back({ nullptr, h.actor, h.weapon, h.added });
 			}
 			if (!held.empty() && a_intfc->OpenRecord(kHeldType, 1)) {

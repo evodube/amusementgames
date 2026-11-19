@@ -217,7 +217,7 @@ namespace ag
 		void EndShow(const char* a_why);
 		void Release(RE::TESFormID a_actor, RE::TESFormID a_weapon, bool a_added);
 		Show               _show;
-		std::vector<Held>  _held;
+		std::vector<Held>  _letGo;  // (on their way when called off)
 		double             _nextShow{ 20.0 };
 		std::mt19937       _showRng{ std::random_device{}() };
 		std::vector<Held>  _heldFromSave;  // (read from the cosave: let go after the load)
