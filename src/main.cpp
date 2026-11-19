@@ -4,6 +4,7 @@
 #include "Hud.h"
 #include "MenuWatch.h"
 #include "Scoreboard.h"
+#include "Settings.h"
 
 namespace
 {
@@ -18,6 +19,7 @@ namespace
 		case F4SE::MessagingInterface::kPostPostLoad:
 			ag::menus::Watch();
 			ag::Hud::Install();  // F4SE Menu Framework is loaded by now, if it's installed
+			ag::SettingsMenu::Install();
 			break;
 		case F4SE::MessagingInterface::kGameDataReady:
 			ag::log::info("game data ready");

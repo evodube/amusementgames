@@ -5,6 +5,7 @@
 #include "Forms.h"
 #include "Hud.h"
 #include "Scoreboard.h"
+#include "Settings.h"
 #include "MenuWatch.h"
 #include "Papyrus.h"
 #include "Sounds.h"
@@ -609,8 +610,6 @@ namespace ag
 			return RE::TESForm::GetFormByEditorID<RE::ActorValueInfo>(a_editorID);
 		}
 
-		constexpr float kSwingPerAgility = 0.03f;  // each point of Agility past 1: this much quicker...
-		constexpr float kSwingMost = 2.0f;         // ...up to twice as quick
 	}
 
 	void Arcade::Quicken(bool a_on)
@@ -618,6 +617,9 @@ namespace ag
 		auto*       player = RE::PlayerCharacter::GetSingleton();
 		const auto* speed = AV("WeaponSpeedMult");
 		if (!player || !speed) {
+			if (a_on && !speed) {
+				log::warn("Whac-a-Commie: no WeaponSpeedMult actor value found: your swing can't be quickened");
+			}
 			return;
 		}
 		if (!a_on) {
@@ -627,9 +629,13 @@ namespace ag
 			}
 			return;
 		}
+		const auto& set = Settings::Get();
+		if (!set.swingOn) {
+			return;
+		}
 		const auto* agility = AV("Agility");
 		const float agi = agility ? player->GetActorValue(*agility) : 1.0f;
-		const float mult = std::clamp(1.0f + kSwingPerAgility * (agi - 1.0f), 1.0f, kSwingMost);
+		const float mult = std::clamp(1.0f + set.swingPerAgility / 100.0f * (agi - 1.0f), 1.0f, set.swingMost);
 		// (0: the game's default, as quick as normal)
 		const float now = player->GetActorValue(*speed);
 		const float base = now > 0.0f ? now : 1.0f;
@@ -637,7 +643,8 @@ namespace ag
 		if (_swingBoost != 0.0f) {
 			player->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kTemporary, *speed, _swingBoost);
 		}
-		log::info("Whac-a-Commie: Agility {}: your swing x{:.2f}", agi, mult);
+		log::info("Whac-a-Commie: Agility {}: your swing x{:.2f} (WeaponSpeedMult {:.2f} -> {:.2f})", agi, mult, now,
+			player->GetActorValue(*speed));
 	}
 
 	// unlimited ammo while you play: the weapon's magazine is put back to full after every shot, so it's never
@@ -758,7 +765,6 @@ namespace ag
 		constexpr double    kShowFirst = 20.0;                 // the first chance after you're about
 		constexpr double    kShowRetry = 20.0;                 // no one free: try again in this long
 		constexpr double    kShowNextTry = 5.0;                // the one asked couldn't come: someone else this soon
-		constexpr double    kShowGapShortest = 45.0, kShowGapLongest = 120.0;  // between games
 		constexpr double    kShowWalk = 90.0;                  // not there by then: near enough, or called off
 		constexpr float     kShowArrived = 12.0f;              // this near the spot: there
 		constexpr float     kShowAtSpot = 40.0f;               // ...or this near and no closer for a moment
@@ -807,6 +813,9 @@ namespace ag
 
 		auto* player = RE::PlayerCharacter::GetSingleton();
 		if (_show.phase == Show::Phase::kNone) {
+			if (!Settings::Get().settlersOn) {
+				return;
+			}
 			_nextShow -= a_dt;
 			if (_nextShow <= 0.0) {
 				_nextShow = StartShow() ? 0.0 : kShowRetry;
@@ -1041,7 +1050,8 @@ namespace ag
 		}
 		Remove(_show.marker);
 		_show = {};
-		_nextShow = std::uniform_real_distribution<double>(kShowGapShortest, kShowGapLongest)(_showRng);
+		const auto& set = Settings::Get();
+		_nextShow = std::uniform_real_distribution<double>(set.settlersGapShortest, std::max(set.settlersGapShortest, set.settlersGapLongest))(_showRng);
 	}
 
 	// ------------------------------------------------------------------------ saves
