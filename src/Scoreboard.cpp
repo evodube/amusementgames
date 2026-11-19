@@ -35,6 +35,7 @@ namespace ag::Scoreboards
 				RE::NiMatrix3       rot;              // ...turned so (world: rows its axes)
 				bool                weapon{ false };
 				bool                settled{ false }; // frozen in place (and, a weapon, made not to be picked up)
+				std::shared_ptr<std::atomic<std::uint32_t>> placed;  // a weapon: its ref's id once Papyrus has placed it
 			};
 			std::vector<Prop> props;  // the machine's things: the balls, the mallet, the gun on the counter
 		};
@@ -127,7 +128,15 @@ namespace ag::Scoreboards
 					return;
 				}
 				Board::Prop p;
-				p.ref = Place(a_machine, a_form, a_pos);
+				if (a_weapon) {
+					// placed whole by Papyrus (PlaceAtMe), then laid down here once it's in
+					p.placed = std::make_shared<std::atomic<std::uint32_t>>(0);
+					auto into = p.placed;
+					Papyrus::Call("PlaceWeapon", { Papyrus::Id(a_machine), Papyrus::Id(a_form), Papyrus::Id(a_mod) },
+						[into](std::int32_t a_id) { *into = static_cast<std::uint32_t>(a_id); });
+				} else {
+					p.ref = Place(a_machine, a_form, a_pos);
+				}
 				p.mod = a_mod;
 				p.weapon = a_weapon;
 				p.at = a_pos;
@@ -298,6 +307,12 @@ namespace ag::Scoreboards
 			const int shown = arcade.PropsShown(b.id, static_cast<int>(b.props.size()));
 			for (int k = 0; k < static_cast<int>(b.props.size()); ++k) {
 				auto& p = b.props[k];
+				if (!p.ref && p.placed && *p.placed != 0) {
+					if (auto* form = RE::TESForm::GetFormByID(*p.placed); form && form->As<RE::TESObjectREFR>()) {
+						p.ref = form->As<RE::TESObjectREFR>()->GetHandle();
+					}
+					*p.placed = 0;
+				}
 				auto  ref = p.ref.get();
 				auto* root = ref ? ref->Get3D() : nullptr;
 				if (!root) {
@@ -325,9 +340,6 @@ namespace ag::Scoreboards
 					root->SetLocalTransform(t);
 					RE::NiUpdateData update;
 					root->Update(update);
-					if (p.weapon) {
-						Papyrus::Call("Prop", { Papyrus::Id(ref.get()), Papyrus::Id(p.mod) });
-					}
 				}
 				const bool hide = k >= shown;
 				if (root->GetAppCulled() != hide) {

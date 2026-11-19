@@ -371,12 +371,17 @@ namespace sim
 					return;
 				}
 				const double speed = L.minSpeed + (L.maxSpeed - L.minSpeed) * a_power;
-				// from your hand toward where you look (past the hand, at the distance of the hoop)
-				const Vec3 from = Hand(a_in.eye, a_in.dir);
+				// from your hand toward where you look (past the hand, at the distance of the hoop). No two throws alike: the
+				// ball's a little elsewhere in your hand each time, and leaves it a little off line and off pace
+				std::normal_distribution<double> n(0.0, 1.0);
+				const Vec3 right = a_in.dir.Cross({ 0, 0, 1 }).Normalized();
+				const Vec3 from = Hand(a_in.eye, a_in.dir) + right * (n(_rng) * L.handWobble) + Vec3{ 0, 0, n(_rng) * L.handWobble * 0.6 };
 				const Vec3 aimAt = a_in.eye + a_in.dir * std::max(60.0, (L.rim - a_in.eye).Length());
 				Vec3       toward = (aimAt - from).Normalized();
 				toward.z += L.arcLift;
-				_world.Launch(free, from, toward.Normalized() * speed);
+				toward = toward.Normalized();
+				toward = (toward + right * (n(_rng) * L.aimWobble) + Vec3{ 0, 0, n(_rng) * L.aimWobble }).Normalized();
+				_world.Launch(free, from, toward * (speed * (1.0 + n(_rng) * L.paceWobble)));
 				_world.balls[free].spin = Vec3{ 1, 0, 0 } * -8.0;  // backspin
 				_cool = L.reloadSeconds;
 			}
@@ -547,6 +552,7 @@ namespace sim
 			void Hud(HudInfo& a_out) const override
 			{
 				a_out.timeLeft = _time;
+				a_out.showPoints = true;  // (+1 each whack)
 				a_out.line1 = std::format("COMMIES WHACKED {}", _hits);
 				a_out.line2 = std::format("GOT AWAY {}", _misses);
 			}

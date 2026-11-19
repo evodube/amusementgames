@@ -29,6 +29,11 @@ nodes) with Blender + PyNifly on the PC: the BA2 entries were pulled out to `C:\
 Nuka-World's scripts' properties (ScoreEvents PointValue, ScorePerTicket): Atomic Rollers holes 0/100-500/700 at
 100 a ticket; Hoop Shot 100 a basket, Whac-a-Commie 100 a whack, Bandit Roundup 100-300 a target, all 200 a ticket.
 
+## Hoop Shot's throws
+
+No two alike (HoopLayout handWobble / aimWobble / paceWobble): a dead-on aim at the best power scores about half the
+time, not every time.
+
 ## Collision
 
 Atomic Rollers and Hoop Shot run on the models' own Havok collision triangles (src/sim/Collision.inc, written by
@@ -64,7 +69,9 @@ games (your swing or shot is the real one; the game reads the click and where yo
 Put up with the scoreboard: Atomic Rollers' 9 balls in the right-hand pocket (RollersLayout::pocket, back along its
 channel), Hoop Shot's 3 basketballs on the front shelf, Whac-a-Commie's mallet (STAT 82B, the Nuka-Cade's own
 DLC04_Nukacade_CommieWhacker01.nif) at its whacker01 node, the Thirst Zapper and the rifle as real weapon refs laid
-on their counters (BlockActivation through AmusementGamesNative.Prop, the rifle's iron sights attached). Havok
+on their counters: placed by AmusementGamesNative.PlaceWeapon (PlaceAtMe: a ref made from the plugin got only the
+modular rifle's first piece, its lever), BlockActivation, the rifle's iron sights attached, then laid down by the
+plugin. Havok
 keyframed once loaded. While you play they're hidden, but for the balls still waiting in Atomic Rollers' pocket
 (HudInfo::waiting).
 
