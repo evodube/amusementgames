@@ -1,7 +1,7 @@
 # AmusementGames: project handoff
 
-**Amusement Games** (repo `evodube/amusementgames`): the Nuka-Cade's five arcade games (and its token dispenser),
-buildable in settlements under Furniture > Amusement Games. F4SE plugin + generated ESL, OG 1.10.163 first (NG/AE
+**Amusement Games** (repo `evodube/amusementgames`): the Nuka-Cade's five arcade games, playable in settlements
+(Furniture > Amusement Games), a Token Stand (caps for tokens) and tickets by score. F4SE plugin + generated ESL, OG 1.10.163 first (NG/AE
 built too). Set up like Wasteland Wagers (`evodube/WastelandWagers`): same CommonLibF4 commit, xmake, CI.
 
 ## Where things live
@@ -10,6 +10,26 @@ built too). Set up like Wasteland Wagers (`evodube/WastelandWagers`): same Commo
   and `src/Forms.h`.
 - `src/Forms.h` `AddWorkshopMenu`: puts the category (KYWD xx000800) in the Furniture menu after Tables at game data
   ready, in every form list that has Tables (no FLST override in the .esl).
+
+- `src/sim/`: the games, no game dependencies. `Ball3D` (sphere physics: rects, rails, rims, catch discs; fixed
+  substeps), `Arcade` (the five games' rules: sim::Game; what's shown, heard and on the HUD; tickets), `Layouts`
+  (each machine's geometry in its model's space). Tests: `tests/games_test.cpp` (CI's Linux job).
+- `src/Arcade.cpp`: the machines in game: activation (a token taken), first person + an input layer holding
+  movement/attacks/activation, the look ray into the machine's space each frame, the pieces (refs of our STATs with
+  Nuka-World's models, Havok keyframed) moved by the sim, sounds, tickets paid, best scores (F4SE serialization).
+- `src/Sounds.cpp`: Nuka-World's Nuka-Cade sound descriptors through Papyrus Sound.Play / StopInstance.
+- `src/Hud.cpp`: the terminal HUD (F4SE Menu Framework), fonts in `dist/Data/F4SE/Plugins/AmusementGames/hud`.
+- `papyrus/AmusementGamesTokenStand.psc`: the stand's message box (compiled by Caprica in CI).
+
+## Still to do
+
+- **Measure the machine models** and put the numbers in `src/sim/Layouts.h`: the values there are guesses from the
+  machines' bounds (lane, ramp, board and rings for Atomic Rollers; rim, backboard, return for Hoop Shot; the holes
+  for Whac-a-Commie; each lane's gun, target and rocket for the zapper; the gallery's rows). The models are in
+  `DLCNukaWorld - Main.ba2` (Meshes\DLC04\SetDressing\Games\), too big to stage: pull them out with Blender's MCP
+  on the PC (a BA2 GNRL reader in Python) and read the node and shape positions.
+- The score on the machine's own number display (Score01..08 nodes, DLC04_Nukacade_Numbers).
+- Settlers coming to play (as Wasteland Wagers' bettors); the ticket store.
 
 ## Nuka-World's machines (DLCNukaWorld.esm)
 

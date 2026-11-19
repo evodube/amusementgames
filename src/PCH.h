@@ -8,11 +8,24 @@
 #pragma warning(pop)
 
 #include <algorithm>
+#include <array>
+#include <atomic>
+#include <chrono>
+#include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <format>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <string>
 #include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include <Windows.h>
+#include <dxgi.h>
 
 // wingdi.h defines ERROR, which collides with REX::ERROR.
 #ifdef ERROR
