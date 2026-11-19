@@ -29,7 +29,10 @@ Form IDs (src/Forms.h expects these):
                                                Wasteland Wagers' WastelandWagersWalkToSpot)
     xx00080F  QUST AmusementGamesQuest         priority 101, start game enabled; collection alias 0 Players carrying the
                                                package (alias packages go by quest priority: it outranks settler
-                                               sandboxes); scripts AmusementGamesQuest, AmusementGamesGroupAlias
+                                               sandboxes); collection alias 1 Shooters carrying
+                                               AmusementGamesHoldAtSpot (xx00082C: the spot held once
+                                               there, weapon drawn, no interruptions); scripts AmusementGamesQuest,
+                                               AmusementGamesGroupAlias
     xx00080C  GLOB AmusementGamesIncomePerSettler  caps each machine earns its settlement a day for each settler (1)
 
     xx000810  ACTI AmusementGamesAtomicRollers  the five machines: Nuka-World's own models (DLCNukaWorld's
@@ -169,14 +172,15 @@ def keyword(form_id: int, editor_id: str) -> bytes:
 TRAVEL_TEMPLATE = 0x00002CB0  # Fallout4.esm "Travel"
 
 
-def travel_package(form_id: int, editor_id: str, link_keyword: int, radius: int = 10) -> bytes:
+def travel_package(form_id: int, editor_id: str, link_keyword: int, radius: int = 10, general: int = 0x00002000,
+                   interrupts: int = 0x00FD) -> bytes:
     """A Travel package to the actor's linked ref (with link_keyword), like vanilla
     VRWorkshopShared_WorkshopSummonedByBellPackage (and Wasteland Wagers' walk): same template, data inputs and event
     blocks, walking."""
     no_event = subrecord(b"INAM", struct.pack("<I", 0)) + subrecord(b"PDTO", bytes(8))
     body = (
         subrecord(b"EDID", zstring(editor_id))
-        + subrecord(b"PKDT", struct.pack("<IBBBBHH", 0x00002000, 18, 0, 0, 0x4D, 0x00FD, 0))
+        + subrecord(b"PKDT", struct.pack("<IBBBBHH", general, 18, 0, 0, 0x4D, interrupts, 0))
         + subrecord(b"PSDT", bytes.fromhex("00ff00ffff000000") + struct.pack("<i", 0))
         + subrecord(b"PKCU", struct.pack("<III", 4, TRAVEL_TEMPLATE, 1))
         + subrecord(b"ANAM", zstring("Location")) + subrecord(b"PLDT", struct.pack("<IIiI", 6, link_keyword, radius, 0))
@@ -192,34 +196,37 @@ def travel_package(form_id: int, editor_id: str, link_keyword: int, radius: int 
     return record(b"PACK", 0, form_id, body)
 
 
-def quest(form_id: int, editor_id: str, package: int, priority: int = 100) -> bytes:
+def quest(form_id: int, editor_id: str, package: int, hold: int, priority: int = 100) -> bytes:
     """AmusementGamesQuest: start game enabled, priority 100, collection alias 0 'Players' with the walk package.
     Scripts: AmusementGamesQuest on the quest (property Players), AmusementGamesGroupAlias on the alias (papyrus/).
     Laid out as Wasteland Wagers' WastelandWagersQuest (itself as Fallout4.esm's DialogueGlowingSeaAtom)."""
     def entry(name: str, props: list[bytes]) -> bytes:
         return wstring(name) + b"\x00" + struct.pack("<H", len(props)) + b"".join(props)
-    alias_prop = wstring("Players") + bytes([1, 1]) + struct.pack("<HhI", 0, 0, form_id)
-    vmad = (struct.pack("<HHH", 6, 2, 1) + entry("AmusementGamesQuest", [alias_prop])
+    aliases = [(0, "Players", package), (1, "Shooters", hold)]
+    props = [wstring(n) + bytes([1, 1]) + struct.pack("<HhI", 0, i, form_id) for i, n, _ in aliases]
+    vmad = (struct.pack("<HHH", 6, 2, 1) + entry("AmusementGamesQuest", props)
             + b"\x03" + struct.pack("<H", 0) + wstring("")
-            + struct.pack("<H", 1)
-            + struct.pack("<HhI", 0, 0, form_id) + struct.pack("<HHH", 6, 2, 1) + entry("AmusementGamesGroupAlias", []))
-    collection = (
-        subrecord(b"ALCS", struct.pack("<I", 0))
-        + subrecord(b"ALMI", b"\x00")
-        + subrecord(b"ALST", struct.pack("<I", 0))
-        + subrecord(b"ALID", zstring("Players"))
-        + subrecord(b"FNAM", struct.pack("<I", 0x0000020A))  # optional, allow reuse in quest, allow reserved
-        + subrecord(b"ALPC", struct.pack("<I", package))
-        + subrecord(b"VTCK", struct.pack("<I", 0))
-        + subrecord(b"ALED", b"")
-    )
+            + struct.pack("<H", len(aliases))
+            + b"".join(struct.pack("<HhI", 0, i, form_id) + struct.pack("<HHH", 6, 2, 1) + entry("AmusementGamesGroupAlias", [])
+                       for i, _, _ in aliases))
+    def collection(alias_id: int, name: str, pack: int) -> bytes:
+        return (
+            subrecord(b"ALCS", struct.pack("<I", alias_id))
+            + subrecord(b"ALMI", b"\x00")
+            + subrecord(b"ALST", struct.pack("<I", alias_id))
+            + subrecord(b"ALID", zstring(name))
+            + subrecord(b"FNAM", struct.pack("<I", 0x0000020A))  # optional, allow reuse in quest, allow reserved
+            + subrecord(b"ALPC", struct.pack("<I", pack))
+            + subrecord(b"VTCK", struct.pack("<I", 0))
+            + subrecord(b"ALED", b"")
+        )
     body = (
         subrecord(b"EDID", zstring(editor_id))
         + subrecord(b"VMAD", vmad)
         + subrecord(b"DNAM", struct.pack("<HBBfI", 0x0011, priority, 0, 0.0, 0))
         + subrecord(b"NEXT", b"")
-        + subrecord(b"ANAM", struct.pack("<I", 1))
-        + collection
+        + subrecord(b"ANAM", struct.pack("<I", len(aliases)))
+        + b"".join(collection(i, n, p) for i, n, p in aliases)
     )
     return record(b"QUST", 0, form_id, body)
 
@@ -332,9 +339,14 @@ def build() -> bytes:
     link = OWN | (FIRST_ID + 0xD)
     walk = OWN | (FIRST_ID + 0xE)
     keywords.append(keyword(link, "AmusementGamesLinkSpot"))
-    packages = [travel_package(walk, "AmusementGamesWalkToSpot", link)]
+    # ...and once they're there with the rifle: the same spot held, weapon drawn (general flag 0x01000000), and none of
+    # the interruptions a package allows (no hellos, chatter, idle chatter, world interactions: interrupt flags 0), so
+    # they stand with the rifle up and shoot, nothing else
+    hold = OWN | (FIRST_ID + 0x2C)
+    packages = [travel_package(walk, "AmusementGamesWalkToSpot", link),
+                travel_package(hold, "AmusementGamesHoldAtSpot", link, general=0x00002000 | 0x01000000, interrupts=0)]
     # (priority 101: above Wasteland Wagers' 100, so a roulette bettor called over isn't pulled back mid-walk)
-    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk, priority=101)]
+    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk, hold, priority=101)]
     # the category's picture: its first item, Whac-a-Commie, framed as its own workshop preview
     # (DLC04workshop_NukaCade_WhackACommie01) with its bounds
     art = [menu_art(OWN | (FIRST_ID + 1), "AmusementGamesWorkshopMenuArt", menu,
@@ -373,7 +385,7 @@ def build() -> bytes:
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x2C))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x2D))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))

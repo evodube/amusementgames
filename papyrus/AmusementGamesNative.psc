@@ -214,6 +214,11 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker) Global
 		Return 0
 	EndIf
 	a.MoveTo(m)
+	AmusementGamesQuest q = TheQuest()
+	Keyword k = LinkSpot()
+	If q && k
+		q.Hold(aiActor, aiMarker, k.GetFormID())  ; (the spot held, weapon drawn, no other idles or chatter)
+	EndIf
 	Int r = 1
 	If a.GetItemCount(w) == 0
 		a.AddItem(w, 1, True)
