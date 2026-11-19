@@ -101,6 +101,8 @@ namespace sim::layout
 		int               mostUp{ 3 };         // most at once by the end
 		double            swingSeconds{ 0.18 };
 		int               points{ 1 };         // a whack
+		Vec3              malletRest{ -10.0, -31.0, 68.8 };  // the mallet lying on its side on the top, along the front
+		                                                    // (its handle's end here, its head toward the front-left corner)
 	};
 
 	// ---------------------------------------------------------------- Nuka-Zapper Race

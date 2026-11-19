@@ -31,6 +31,8 @@ namespace ag::Scoreboards
 			{
 				RE::ObjectRefHandle ref;
 				RE::TESForm*        mod{ nullptr };   // (a weapon's: fitted once it's loaded)
+				RE::NiPoint3        at;               // where it goes (world)...
+				RE::NiMatrix3       rot;              // ...turned so (world: rows its axes)
 				bool                weapon{ false };
 				bool                settled{ false }; // frozen in place (and, a weapon, made not to be picked up)
 			};
@@ -76,7 +78,7 @@ namespace ag::Scoreboards
 		}
 
 		// a digit's ref at the machine's node: where the node is, turned as the machine is
-		RE::ObjectRefHandle Place(RE::TESObjectREFR* a_machine, RE::TESBoundObject* a_form, const RE::NiPoint3& a_at, float a_tilt = 0.0f)
+		RE::ObjectRefHandle Place(RE::TESObjectREFR* a_machine, RE::TESBoundObject* a_form, const RE::NiPoint3& a_at)
 		{
 			auto*              dh = RE::TESDataHandler::GetSingleton();
 			RE::TESObjectCELL* cell = a_machine->GetParentCell();
@@ -94,7 +96,6 @@ namespace ag::Scoreboards
 			RE::NEW_REFR_DATA data;
 			data.location = a_at;
 			data.direction = a_machine->data.angle;
-			data.direction.y += a_tilt;  // (a weapon laid on its side)
 			data.object = a_form;
 			if (cell->IsInterior()) {
 				data.interior = cell;
@@ -120,17 +121,25 @@ namespace ag::Scoreboards
 				const RE::NiPoint3 l{ static_cast<float>(a_local.x), static_cast<float>(a_local.y), static_cast<float>(a_local.z) };
 				return w.translate + w.rotate.Transpose() * (l * scale);
 			};
-			const auto add = [&](RE::TESBoundObject* a_form, const RE::NiPoint3& a_pos, float a_tilt, RE::TESForm* a_mod, bool a_weapon) {
+			// a_side: laid on its side (turned a quarter about its length's crosswise axis: up becomes a_side along x)
+			const auto add = [&](RE::TESBoundObject* a_form, const RE::NiPoint3& a_pos, float a_side, RE::TESForm* a_mod, bool a_weapon) {
 				if (!a_form) {
 					return;
 				}
 				Board::Prop p;
-				p.ref = Place(a_machine, a_form, a_pos, a_tilt);
+				p.ref = Place(a_machine, a_form, a_pos);
 				p.mod = a_mod;
 				p.weapon = a_weapon;
+				p.at = a_pos;
+				// rows: the prop's axes in the machine's space (a quarter turn about y: z -> (a_side, 0, 0)), then the
+				// machine's own turn
+				const RE::NiMatrix3 local = a_side == 0.0f ? RE::NiMatrix3(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0) :
+				                                             RE::NiMatrix3(0, 0, -a_side, 0, 0, 1, 0, 0, a_side, 0, 0, 0);
+				p.rot = local * w.rotate;
 				a_b.props.push_back(p);
 			};
-			constexpr float kOnItsSide = 1.5707963f;
+			constexpr float kOnItsSide = 1.0f;   // up to the machine's right (a gun lies on its left side)
+			constexpr float kHeadLeft = -1.0f;   // up (the mallet's head) to the machine's left
 			switch (a_b.game) {
 			case sim::GameId::kAtomicRollers:
 				{
@@ -151,9 +160,7 @@ namespace ag::Scoreboards
 				}
 				break;
 			case sim::GameId::kWhacACommie:
-				if (auto* node = root->GetObjectByName(RE::BSFixedString("whacker01"))) {
-					add(Forms::Bound(Forms::Own(Forms::kCommieWhackerProp)), node->world.translate, 0.0f, nullptr, false);
-				}
+				add(Forms::Bound(Forms::Own(Forms::kCommieWhackerProp)), at(sim::layout::Whac().malletRest), kHeadLeft, nullptr, false);
 				break;
 			case sim::GameId::kNukaZapperRace:
 				add(Forms::WeaponOf(a_b.game), at(sim::layout::Zapper().gunRest), kOnItsSide, nullptr, true);
@@ -302,6 +309,22 @@ namespace ag::Scoreboards
 						a_c->SetMotionType(RE::hknpMotionPropertiesId::Preset::kKeyframed);
 						return RE::BSVisitControl::kContinue;
 					});
+					// exactly where and how it lies
+					RE::NiTransform t;
+					if (auto* parent = root->parent) {
+						const auto& pw = parent->GetWorldTransform();
+						const float ps = pw.scale != 0.0f ? pw.scale : 1.0f;
+						t.rotate = p.rot * pw.rotate.Transpose();
+						t.translate = (pw.rotate * (p.at - pw.translate)) * (1.0f / ps);
+						t.scale = 1.0f / ps;
+					} else {
+						t.rotate = p.rot;
+						t.translate = p.at;
+						t.scale = 1.0f;
+					}
+					root->SetLocalTransform(t);
+					RE::NiUpdateData update;
+					root->Update(update);
 					if (p.weapon) {
 						Papyrus::Call("Prop", { Papyrus::Id(ref.get()), Papyrus::Id(p.mod) });
 					}
