@@ -753,7 +753,8 @@ namespace ag
 			return;
 		}
 		auto machine = _show.machine.get();
-		auto actor = _show.actor.get();
+		auto  actorRef = _show.actor.get();
+		auto* actor = actorRef ? actorRef->As<RE::Actor>() : nullptr;
 		if (!machine || machine->IsDisabled() || machine->IsDeleted() || !player ||
 			(machine->data.location - player->data.location).Length() > kShowYouAway) {
 			EndShow("the machine's gone or you've left");
@@ -869,7 +870,7 @@ namespace ag
 				return false;
 			}
 			_show.phase = Show::Phase::kWalking;
-			_show.actor = RE::ActorHandle(who);
+			_show.actor = who->GetHandle();
 			_show.actorID = who->GetFormID();
 			_show.machine = h;
 			_show.machineID = machine->GetFormID();

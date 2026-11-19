@@ -188,7 +188,7 @@ namespace ag
 				kPlaying
 			};
 			Phase                                  phase{ Phase::kNone };
-			RE::ActorHandle                        actor;
+			RE::ObjectRefHandle                    actor;
 			RE::TESFormID                          actorID{ 0 };
 			RE::ObjectRefHandle                    machine;
 			RE::TESFormID                          machineID{ 0 };
