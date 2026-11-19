@@ -14,7 +14,7 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   lanes race you). Unlimited ammo while you play.
 - **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with Far Harbor's Lever-Action Rifle
   (the Hunting Rifle without Far Harbor; iron sights, no scope), for 60 seconds. A point a hit, 3 for dead centre of a
-  bullseye on the top row. Unlimited ammo while you play: it never needs reloading.
+  bullseye, either row. Unlimited ammo while you play: it never needs reloading.
 - **Token Stand**: caps in, Nuka-Cade tokens out (5 caps a token). Each game takes a token.
 
 On screen while you play: just the clock (Atomic Rollers: the ball you're on; the zapper race: its countdown), and

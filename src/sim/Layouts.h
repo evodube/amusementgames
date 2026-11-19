@@ -168,12 +168,12 @@ namespace sim::layout
 		double                   seconds{ 60.0 };
 		double                   left{ -224.0 };
 		double                   right{ 232.0 };
-		std::vector<GalleryRow>  rows{ { 418.3, 180.2, 75.0, 6, true }, { 375.0, 111.2, -95.0, 6, false } };
+		std::vector<GalleryRow>  rows{ { 418.3, 180.2, 75.0, 6, true }, { 375.0, 111.2, -95.0, 6, true } };
 		// a point a hit, whatever it is; the bullseyes' centres from the models' bullseye plates (their :173 shapes)
 		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0, -0.7, 11.1 }, { 1, 15.0, 16.0, 3.0, -0.4, 11.0 }, { 1, 13.0, 11.0, 2.0, -1.1, 15.0 },
 			{ 1, 8.0, 22.0, 1.2, 0.0, 20.0 }, { 1, 12.0, 11.0, 0.6, -0.15, 14.15 } };
 		Vec3                     rifleRest{ 0.0, -5.0, 66.0 };  // the rifle lying on the counter (it's at 64)
-		double                   deadCentre{ 2.0 };   // within this of a bullseye's centre (the top row's)...
+		double                   deadCentre{ 2.0 };   // within this of a bullseye's centre (either row's)...
 		int                      bullseyePoints{ 3 }; // ...is worth this
 		double                   flipSeconds{ 0.15 };
 		double                   shotSeconds{ 0.6 };  // the lever between shots

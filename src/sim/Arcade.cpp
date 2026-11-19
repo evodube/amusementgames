@@ -865,7 +865,7 @@ namespace sim
 						t.down = true;
 						t.flip = 0.0;
 						++_hits;
-						// dead centre of a top-row target's bullseye: worth more
+						// dead centre of a target's bullseye: worth more
 						const auto& k = L.kinds[t.kind];
 						const auto& r = L.rows[t.row];
 						const bool  bull = r.bullseyes && std::hypot(bestAt.x - (t.x + k.bullX), bestAt.z - (r.z + k.bullZ)) <= L.deadCentre;
