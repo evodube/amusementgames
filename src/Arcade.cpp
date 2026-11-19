@@ -942,7 +942,24 @@ namespace ag
 		}
 
 		// playing: the shooter aims and fires; the game plays it
-		const sim::Input in = _show.shooter->Next(*_show.game, _show.eye, a_dt);
+		sim::Input in = _show.shooter->Next(*_show.game, _show.eye, a_dt);
+		// a shot only once they've turned onto where it's aimed (their real bullet goes where the rifle points: on a
+		// fast target their turn lags), or after a moment however they stand
+		if (in.pressed && std::abs(in.dir.y) > 0.05) {
+			const double       t = (sim::layout::Gallery().aimAt.y - in.eye.y) / in.dir.y;
+			const RE::NiPoint3 w = ToWorld(f, in.eye + in.dir * t);
+			const float        want = std::atan2(w.x - actor->data.location.x, w.y - actor->data.location.y);
+			float              off = want - actor->data.angle.z;
+			while (off > 3.14159265f) off -= 6.2831853f;
+			while (off < -3.14159265f) off += 6.2831853f;
+			if (std::abs(off) > 0.05f && _show.onTarget < 0.8) {
+				_show.onTarget += a_dt;
+				in.pressed = false;
+				_show.shooter->Again();
+			} else {
+				_show.onTarget = 0.0;
+			}
+		}
 		_show.game->Update(a_dt, in);
 		// what they aim at follows their shot: the marker their hold package aims at put where the shooter's looking,
 		// out at the targets' tracks (so they swing from target to target, and each shot goes where it's aimed)

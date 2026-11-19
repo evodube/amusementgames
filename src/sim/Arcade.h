@@ -157,6 +157,8 @@ namespace sim
 	public:
 		GalleryShooter(std::uint32_t a_seed, double a_spread);
 		Input Next(const Game& a_game, const Vec3& a_eye, double a_dt);
+		// the shot just given wasn't taken (not on target yet): another next frame
+		void Again() { _wait = 0.0; }
 
 	private:
 		std::mt19937 _rng;

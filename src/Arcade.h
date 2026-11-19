@@ -207,6 +207,7 @@ namespace ag
 			RE::TESObjectWEAP*                     weapon{ nullptr };
 			bool                                   added{ false };  // the rifle lent (taken back after)
 			double                                 walked{ 0.0 };   // seconds on the way
+			double                                 onTarget{ 0.0 }; // a shot held back this long, turning onto the target
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been
 			std::shared_ptr<std::atomic<std::int32_t>> ready;  // NpcStartGallery: -1 not yet, 1 walking, 10+ not coming
