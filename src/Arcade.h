@@ -300,11 +300,16 @@ namespace ag
 			}
 			return nullptr;
 		}
-		RE::Actor* PickSettler(RE::TESObjectREFR* a_machine);
+		RE::Actor* PickSettler(RE::TESObjectREFR* a_machine, sim::GameId a_game);
 		std::vector<Race>  _races;
 		double             _nextRace{ 20.0 };
 		std::unordered_map<RE::TESFormID, double> _rest;  // a machine's rest after a settler's game there (seconds)
-		std::unordered_map<RE::TESFormID, double> _played;  // a settler who's just played: not asked again for this long
+		// a settler who's just played a game: not asked to that game again for this long (other games they may play)
+		std::unordered_map<std::uint64_t, double> _played;
+		static std::uint64_t Played(RE::TESFormID a_actor, sim::GameId a_game)
+		{
+			return (static_cast<std::uint64_t>(a_actor) << 8) | static_cast<std::uint64_t>(a_game);
+		}
 		std::vector<Held>  _letGo;  // (on their way when called off)
 		double             _nextShow{ 20.0 };
 		std::mt19937       _showRng{ std::random_device{}() };

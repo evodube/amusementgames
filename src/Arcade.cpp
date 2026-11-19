@@ -812,7 +812,7 @@ namespace ag
 		constexpr double    kShowFirst = 20.0;                 // the first chance after you're about
 		constexpr double    kShowRetry = 20.0;                 // no one free: try again in this long
 		constexpr double    kShowNextTry = 5.0;                // the one asked couldn't come: someone else this soon
-		constexpr double    kShowTurnAbout = 300.0;            // a settler who's played: others asked first for this long
+		constexpr double    kShowTurnAbout = 120.0;            // a settler who's played a game: not asked to it again for this long
 		constexpr double    kShowWalk = 90.0;                  // not there by then: near enough, or called off
 		constexpr float     kShowArrived = 12.0f;              // this near the spot: there
 		constexpr float     kShowAtSpot = 40.0f;               // ...or this near and no closer for a moment
@@ -860,12 +860,14 @@ namespace ag
 		});
 
 		// machines resting after a settler's game there, and settlers who've just played
-		for (auto* m : { &_rest, &_played }) {
-			for (auto it = m->begin(); it != m->end();) {
+		const auto count = [a_dt](auto& a_map) {
+			for (auto it = a_map.begin(); it != a_map.end();) {
 				it->second -= a_dt;
-				it = it->second <= 0.0 ? m->erase(it) : std::next(it);
+				it = it->second <= 0.0 ? a_map.erase(it) : std::next(it);
 			}
-		}
+		};
+		count(_rest);
+		count(_played);
 		// a settler to a free machine now and then (another soon after, while there are machines free)
 		if (Settings::Get().settlersOn) {
 			_nextShow -= a_dt;
@@ -1050,7 +1052,7 @@ namespace ag
 		PlacePieces(f, *a_s.game, a_s.gameId, machine.get(), a_s.pieces, a_s.pieceModel, a_s.frozen);
 		if (a_s.game->Over()) {
 			_lastScores[a_s.machineID] = a_s.game->Score();
-			_played[a_s.actorID] = kShowTurnAbout;
+			_played[Played(a_s.actorID, sim::GameId::kBanditRoundup)] = kShowTurnAbout;
 			log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
 			EndShow(a_s, nullptr);
 		}
@@ -1103,7 +1105,7 @@ namespace ag
 					std::ranges::any_of(_races, [&](const Race& a_r) {
 						return std::ranges::any_of(a_r.racers, [&](const Racer& a_q) { return a_q.actorID == a->GetFormID(); });
 					}) ||
-					_played.contains(a->GetFormID())) {
+					_played.contains(Played(a->GetFormID(), sim::GameId::kBanditRoundup))) {
 					continue;  // (couldn't come lately, at another machine, or had a go lately: someone else's turn)
 				}
 				settlers.push_back(a.get());
@@ -1190,7 +1192,7 @@ namespace ag
 
 	// ------------------------------------------------------------------------ settlers racing (Nuka-Zapper Race)
 
-	RE::Actor* Arcade::PickSettler(RE::TESObjectREFR* a_machine)
+	RE::Actor* Arcade::PickSettler(RE::TESObjectREFR* a_machine, sim::GameId a_game)
 	{
 		auto* player = RE::PlayerCharacter::GetSingleton();
 		auto* lists = RE::ProcessLists::GetSingleton();
@@ -1209,7 +1211,7 @@ namespace ag
 				continue;
 			}
 			const auto id = a->GetFormID();
-			const bool busy = std::ranges::find(_refused, id) != _refused.end() || _played.contains(id) ||
+			const bool busy = std::ranges::find(_refused, id) != _refused.end() || _played.contains(Played(id, a_game)) ||
 			                  std::ranges::any_of(_shows, [&](const Show& a_s) { return a_s.actorID == id; }) ||
 			                  std::ranges::any_of(_races, [&](const Race& a_r) {
 								  return std::ranges::any_of(a_r.racers, [&](const Racer& a_q) { return a_q.actorID == id; });
@@ -1279,7 +1281,7 @@ namespace ag
 				break;
 			}
 		}
-		auto* who = lane >= 0 ? PickSettler(machine.get()) : nullptr;
+		auto* who = lane >= 0 ? PickSettler(machine.get(), sim::GameId::kNukaZapperRace) : nullptr;
 		if (!who) {
 			return false;
 		}
@@ -1536,7 +1538,7 @@ namespace ag
 		const bool raced = a_r.phase == 2;
 		for (auto& q : a_r.racers) {
 			if (raced && q.state == 2) {
-				_played[q.actorID] = kShowTurnAbout;
+				_played[Played(q.actorID, sim::GameId::kNukaZapperRace)] = kShowTurnAbout;
 			}
 			LetGo(q);
 		}
