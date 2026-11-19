@@ -987,7 +987,7 @@ namespace ag
 			// the settlers of its settlement near it (people: not its turrets, dogs, brahmin, robots)
 			static auto*            npcType = RE::TESForm::GetFormByID<RE::BGSKeyword>(0x00013794);  // ActorTypeNPC
 			std::vector<RE::Actor*> settlers;
-			int                     elsewhere = 0, far = 0;
+			int                     elsewhere = 0, farOff = 0;
 			std::string             others;
 			for (auto& ah : lists->highActorHandles) {
 				auto a = ah.get();
@@ -996,7 +996,7 @@ namespace ag
 					continue;
 				}
 				if ((a->data.location - machine->data.location).Length() > kShowReach) {
-					++far;
+					++farOff;
 					continue;
 				}
 				if (a->GetLinkedRef(kw) != workshop) {
@@ -1022,7 +1022,7 @@ namespace ag
 			}
 			auto* who = settlers[std::uniform_int_distribution<std::size_t>(0, settlers.size() - 1)(_showRng)];
 			log::info("{}: {} settler(s) of its settlement about (and {} people not of it near: {}; {} further off)",
-				sim::GameName(sim::GameId::kBanditRoundup), settlers.size(), elsewhere, others.empty() ? "none" : others, far);
+				sim::GameName(sim::GameId::kBanditRoundup), settlers.size(), elsewhere, others.empty() ? "none" : others, farOff);
 			Frame f;
 			if (!FrameOf(machine.get(), f)) {
 				continue;
