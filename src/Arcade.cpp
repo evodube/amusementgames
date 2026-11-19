@@ -557,6 +557,12 @@ namespace ag
 			local.translate = a_pos;
 			local.scale = a_scale;
 		}
+		// where it was last frame kept as such (the renderer's motion: a static's isn't kept by the game, and left at
+		// where it was spawned it would smear a ghost)
+		RE::BSVisit::TraverseScenegraphObjects(root, [](RE::NiAVObject* a_o) {
+			a_o->previousWorld = a_o->world;
+			return RE::BSVisitControl::kContinue;
+		});
 		root->SetLocalTransform(local);
 		RE::NiUpdateData update;
 		root->Update(update);
