@@ -153,8 +153,20 @@ Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
 		Return 160 + a.GetSitState()
 	ElseIf a.IsBleedingOut()
 		Return 17
+	ElseIf !a.HasKeyword(Game.GetFormFromFile(0x00013794, "Fallout4.esm") as Keyword)
+		Return 20
 	EndIf
-	If !a.PathToReference(m, 1.0)
+	; (the way there: PathToReference gives up whenever their own AI package cuts in, so it's asked again, a few times,
+	; and the last few steps taken for them)
+	Int tries = 0
+	While a.GetDistance(m) > 48.0 && tries < 8
+		a.PathToReference(m, 1.0)
+		tries += 1
+		If a.IsDead() || a.IsInCombat()
+			Return 19
+		EndIf
+	EndWhile
+	If a.GetDistance(m) > 300.0
 		Return 18
 	EndIf
 	If a.IsDead() || a.IsInCombat()

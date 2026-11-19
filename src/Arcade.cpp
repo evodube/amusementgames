@@ -759,7 +759,7 @@ namespace ag
 		constexpr double    kShowRetry = 20.0;                 // no one free: try again in this long
 		constexpr double    kShowNextTry = 5.0;                // the one asked couldn't come: someone else this soon
 		constexpr double    kShowGapShortest = 45.0, kShowGapLongest = 120.0;  // between games
-		constexpr double    kShowWalk = 45.0;                  // not there by then: called off
+		constexpr double    kShowWalk = 90.0;                  // not there by then: called off
 		constexpr float     kShowReach = 3000.0f;              // settlers this near the machine
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		const sim::Vec3     kGalleryStand{ 0.0, -75.0, 0.0 };  // where they stand (the counter's front at -32)
@@ -838,6 +838,7 @@ namespace ag
 				const char* why = r == 10 ? "a form's missing" : r == 11 ? "dead" : r == 12 ? "fighting" : r == 13 ? "following you" :
 				                  r == 14 ? "knocked out" : r == 15 ? "doing something for you" : r == 17 ? "bleeding out" :
 				                  r == 18 ? "couldn't find the way (PathToReference)" : r == 19 ? "dead or fighting once there" :
+				                  r == 20 ? "not a person (a dog, brahmin or robot)" :
 				                  r >= 160 ? "sitting, or at a workstation" : "Papyrus didn't say";
 				log::info("{}: the settler ({:08X}) couldn't come: {} ({})", sim::GameName(_show.gameId), _show.actorID, why, r);
 				_refused.push_back(_show.actorID);
