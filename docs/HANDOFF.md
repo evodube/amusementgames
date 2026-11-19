@@ -51,6 +51,17 @@ if you leave (3000), start that machine yourself, or they die/fight/unload; anyo
 once Papyrus is done with them. Anyone held when the game's saved is written to the cosave ('AGHL') and let go after
 that save loads (kPostLoadGame), and the quest's collection is emptied then too (NpcClearAll).
 
+## Settlers racing
+
+Arcade::TickRaces ("settlers racing (Nuka-Zapper Race)"): a race a Nuka-Zapper Race machine near you. Gathering:
+settlers invited every 5 s, a lane each (ZapperLayout::settlerLanes: all but yours), each walked (the same quest and
+Papyrus as the gallery's: NpcStartGallery, NpcWalk, NpcTakeUp with the Thirst Zapper, aiming at their lane's target)
+to stand behind their lane's gun (standY). 10 s after the second is ready (gatherSeconds) the race starts with those
+ready (sim::SetZapperRacers: their lanes by their skill, the rest empty; the score the leader's); given up after
+gatherLongest without two. Their squirts (sim::TakeZapperShots) are NpcShoot. You activating it while they gather
+joins you: your game's lanes are theirs (the empty ones the machine's own racers) and the race starts then; they're
+let go when your game ends (Cleanup). While they race it's theirs ("a race is on").
+
 ## Takings
 
 src/Income.cpp: once a second, each of our machines near you (the boards' list) pays its workshop (linked ref by

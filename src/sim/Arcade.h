@@ -150,6 +150,15 @@ namespace sim
 
 	std::unique_ptr<Game> MakeGame(GameId a_id);
 
+	// Nuka-Zapper Race with settlers at it (after Start): a_skill, one a lane: a settler of that skill (0..1) racing
+	// that lane, named a_names[lane], or negative: nobody there (its rocket stays down); a_you: your lane, or -1 (the
+	// settlers race each other: the game's score is then the winner's)
+	void SetZapperRacers(Game& a_game, int a_you, const std::vector<double>& a_skill, const std::vector<std::string>& a_names);
+	// ...the lanes that squirted since the last call (their settlers' shots to show)
+	std::vector<int> TakeZapperShots(Game& a_game);
+	// ...the lane that won (-1: not yet)
+	int ZapperWinner(const Game& a_game);
+
 	// a settler playing Bandit Roundup: picks an upright target near the middle, aims at its bullseye (off by about
 	// a_spread radians), fires every so often. Next() gives its input for this frame.
 	class GalleryShooter

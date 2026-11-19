@@ -143,6 +143,10 @@ namespace sim::layout
 		double rocketRise{ 3.0 };           // how fast a rocket climbs to its height (a fraction a second)
 		int    pointsPerHit{ 1 };
 		int    winPoints{ 10 };             // a win's bonus
+		double standY{ -80.0 };             // settlers racing stand this far out, behind their lane's gun
+		std::vector<int> settlerLanes{ 2, 4, 1, 5, 0 };  // the lanes settlers take, in turn (all but yours, out from it)
+		double gatherSeconds{ 10.0 };       // the race starts this long after the second settler's ready...
+		double gatherLongest{ 180.0 };      // ...and is given up if two aren't ready in this long
 	};
 
 	// ---------------------------------------------------------------- Bandit Roundup

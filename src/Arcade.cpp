@@ -188,11 +188,38 @@ namespace ag
 			}
 			EndShow(sh, "you got there first");
 		}
+		Race* race = RaceOn(a_machine->GetFormID());
+		if (race && race->phase == 2) {
+			Notify(std::format("{}: a race is on. Wait your turn.", sim::GameName(game)));
+			return;
+		}
 		if (!TakeToken()) {
 			Notify(std::format("{}: insert a Nuka-Cade token. Buy them at a Token Stand.", sim::GameName(game)));
 			return;
 		}
 		Start(a_machine, game);
+		// settlers gathering for a race here: you join them, and it starts now (those not ready yet aren't in it)
+		race = RaceOn(a_machine->GetFormID());
+		if (race && race->phase == 1 && _game) {
+			for (auto& q : race->racers) {
+				if (q.state != 2) {
+					LetGo(q);
+					q.lane = -1;
+				}
+			}
+			std::erase_if(race->racers, [](const Racer& a_q) { return a_q.lane < 0; });
+			const auto&              L = sim::layout::Zapper();
+			std::vector<double>      skill(L.lanes.size(), 0.5);  // (lanes nobody's at: the machine's own racers, as ever)
+			std::vector<std::string> names(L.lanes.size());
+			for (const auto& q : race->racers) {
+				skill[q.lane] = q.skill;
+				names[q.lane] = q.name;
+			}
+			sim::SetZapperRacers(*_game, L.playerLane, skill, names);
+			race->withYou = true;
+			race->phase = 2;
+			log::info("NUKA-ZAPPER RACE {:08X}: you joined {} settlers", race->machineID, race->racers.size());
+		}
 	}
 
 	void Arcade::Start(RE::TESObjectREFR* a_machine, sim::GameId a_game)
@@ -305,8 +332,9 @@ namespace ag
 	void Arcade::Abort(const char* a_why)
 	{
 		// a load: a settler's game just dropped (the save being loaded says who to let go)
-		if (!_shows.empty() || !_letGo.empty()) {
+		if (!_shows.empty() || !_letGo.empty() || !_races.empty()) {
 			_shows.clear();
+			_races.clear();
 			_rest.clear();
 			_letGo.clear();
 			_nextShow = 20.0;
@@ -328,6 +356,9 @@ namespace ag
 
 	void Arcade::Cleanup()
 	{
+		if (Race* race = RaceOn(_machineID); race && race->withYou) {
+			EndRace(*race, nullptr);  // (your race with settlers over: they're let go)
+		}
 		for (auto& h : _pieces) {
 			Remove(h);
 		}
@@ -351,6 +382,7 @@ namespace ag
 		if (!menus::AnyBlocking()) {
 			Scoreboards::Tick(dt);
 			TickShow(dt);
+			TickRaces(dt);
 		} else if (menus::Open(menus::kWorkshop) && !menus::Open(menus::kPause) && !menus::Open(menus::kPipboy) &&
 				   !menus::Open(menus::kLoading) && !menus::Open(menus::kMain) && !menus::Open(menus::kConsole)) {
 			Scoreboards::Tick(dt);  // (build mode: a machine moved gets its board and things back up where it's put)
@@ -400,6 +432,9 @@ namespace ag
 
 		TopUpAmmo();
 		_game->Update(dt, in);
+		if (Race* race = _gameId == sim::GameId::kNukaZapperRace ? RaceOn(_machineID) : nullptr; race && race->withYou) {
+			RaceShots(*race, *_game, dt);  // (settlers racing you: their squirts shown)
+		}
 		for (const auto& s : _game->TakeSounds()) {
 			if (s.cue == sim::Cue::kHurry) {
 				_hurry = true;
@@ -597,14 +632,19 @@ namespace ag
 			_lent.ammoGiven = 200;
 			// loaded from the start: a weapon put in your hands comes with its magazine empty, so it's filled to what it
 			// holds (and kept there)
-			_lent.clip = weapon->weaponData.ammoCapacity;
+			// (a modular gun's base record can say 0 rounds, its magazine coming from its mods, as the Thirst Zapper's
+			// seems to: then a full-looking load all the same, kept so)
+			_lent.clip = weapon->weaponData.ammoCapacity > 0 ? weapon->weaponData.ammoCapacity : 20u;
+		} else if (weapon->weaponData.type == RE::WEAPON_TYPE::kGun) {
+			_lent.clip = weapon->weaponData.ammoCapacity > 0 ? weapon->weaponData.ammoCapacity : 20u;  // (no ammo of its own)
 		}
 		auto had = _lent.had;
 		Papyrus::CallWithBools("ArmPlayer", Papyrus::Id(weapon), _lent.added, Papyrus::Id(_lent.ammo), _lent.ammoGiven,
 			Papyrus::Id(Forms::LentModFor(weapon)),
 			[had](std::int32_t a_had) { *had = a_had; });
-		log::info("{}: {} in your hands{}", sim::GameName(a_game), weapon->GetFormEditorID() ? weapon->GetFormEditorID() : "its weapon",
-			_lent.added ? " (lent)" : "");
+		log::info("{}: {} in your hands{} (ammo {:08X}, kept loaded with {} rounds; its record says {})", sim::GameName(a_game),
+			weapon->GetFormEditorID() ? weapon->GetFormEditorID() : "its weapon", _lent.added ? " (lent)" : "",
+			_lent.ammo ? _lent.ammo->GetFormID() : 0, _lent.clip, weapon->weaponData.ammoCapacity);
 		if (a_game == sim::GameId::kWhacACommie) {
 			Quicken(true);
 		}
@@ -658,7 +698,7 @@ namespace ag
 	// reloaded (the rounds come off the lent ammo, all taken back after: your own ammo's never touched)
 	void Arcade::TopUpAmmo()
 	{
-		if (!_lent.weapon || !_lent.ammo) {
+		if (!_lent.weapon || _lent.clip == 0) {
 			return;
 		}
 		auto* player = RE::PlayerCharacter::GetSingleton();
@@ -1060,6 +1100,9 @@ namespace ag
 				}
 				if (std::ranges::find(_refused, a->GetFormID()) != _refused.end() ||
 					std::ranges::any_of(_shows, [&](const Show& a_s) { return a_s.actorID == a->GetFormID(); }) ||
+					std::ranges::any_of(_races, [&](const Race& a_r) {
+						return std::ranges::any_of(a_r.racers, [&](const Racer& a_q) { return a_q.actorID == a->GetFormID(); });
+					}) ||
 					_played.contains(a->GetFormID())) {
 					continue;  // (couldn't come lately, at another machine, or had a go lately: someone else's turn)
 				}
@@ -1144,6 +1187,376 @@ namespace ag
 		a_s = {};
 	}
 
+
+	// ------------------------------------------------------------------------ settlers racing (Nuka-Zapper Race)
+
+	RE::Actor* Arcade::PickSettler(RE::TESObjectREFR* a_machine)
+	{
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		auto* lists = RE::ProcessLists::GetSingleton();
+		auto* kw = Forms::WorkshopItemKeyword();
+		auto* workshop = a_machine && kw ? a_machine->GetLinkedRef(kw) : nullptr;
+		if (!player || !lists || !workshop) {
+			return nullptr;
+		}
+		static auto*            npcType = RE::TESForm::GetFormByID<RE::BGSKeyword>(0x00013794);  // ActorTypeNPC
+		std::vector<RE::Actor*> settlers;
+		for (auto& ah : lists->highActorHandles) {
+			auto a = ah.get();
+			if (!a || a.get() == player || a->IsDead(false) || a->IsDisabled() || !a->Get3D() || a->IsInCombat() ||
+				(npcType && !a->HasKeywordHelper(npcType, nullptr)) || a->GetLinkedRef(kw) != workshop ||
+				(a->data.location - a_machine->data.location).Length() > kShowReach) {
+				continue;
+			}
+			const auto id = a->GetFormID();
+			const bool busy = std::ranges::find(_refused, id) != _refused.end() || _played.contains(id) ||
+			                  std::ranges::any_of(_shows, [&](const Show& a_s) { return a_s.actorID == id; }) ||
+			                  std::ranges::any_of(_races, [&](const Race& a_r) {
+								  return std::ranges::any_of(a_r.racers, [&](const Racer& a_q) { return a_q.actorID == id; });
+							  });
+			if (!busy) {
+				settlers.push_back(a.get());
+			}
+		}
+		if (settlers.empty()) {
+			_refused.clear();  // (those who couldn't come may be free by the next try)
+			return nullptr;
+		}
+		return settlers[std::uniform_int_distribution<std::size_t>(0, settlers.size() - 1)(_showRng)];
+	}
+
+	void Arcade::LetGo(Racer& a_q)
+	{
+		const auto weaponID = Forms::WeaponOf(sim::GameId::kNukaZapperRace) ? Forms::WeaponOf(sim::GameId::kNukaZapperRace)->GetFormID() : 0;
+		if (a_q.state == 2) {
+			Release(a_q.actorID, weaponID, a_q.added);
+		} else if (a_q.state == 1 && a_q.armed) {
+			_letGo.push_back({ a_q.armed, a_q.actorID, weaponID, false });
+		} else if (a_q.ready) {
+			_letGo.push_back({ a_q.ready, a_q.actorID, weaponID, false });
+		}
+		Remove(a_q.marker);
+		Remove(a_q.aimAt);
+	}
+
+	bool Arcade::StartRace()
+	{
+		for (auto& h : Scoreboards::Machines(sim::GameId::kNukaZapperRace)) {
+			auto machine = h.get();
+			if (!machine || (_playing && _machineID == machine->GetFormID()) || RaceOn(machine->GetFormID()) ||
+				_rest.contains(machine->GetFormID())) {
+				continue;
+			}
+			Race r;
+			r.phase = 1;
+			r.machine = h;
+			r.machineID = machine->GetFormID();
+			if (!InviteRacer(r)) {
+				continue;
+			}
+			log::info("NUKA-ZAPPER RACE {:08X}: settlers gathering for a race", r.machineID);
+			_races.push_back(std::move(r));
+			return true;
+		}
+		return false;
+	}
+
+	bool Arcade::InviteRacer(Race& a_r)
+	{
+		const auto& L = sim::layout::Zapper();
+		auto        machine = a_r.machine.get();
+		auto*       weapon = Forms::WeaponOf(sim::GameId::kNukaZapperRace);
+		auto*       markerForm = Forms::Bound(RE::TESForm::GetFormByID(Forms::kXMarkerHeading));
+		Frame       f;
+		if (!machine || !weapon || !markerForm || !FrameOf(machine.get(), f)) {
+			return false;
+		}
+		int lane = -1;
+		for (int l : L.settlerLanes) {
+			if (l >= 0 && l < static_cast<int>(L.lanes.size()) &&
+				std::ranges::none_of(a_r.racers, [&](const Racer& a_q) { return a_q.lane == l; })) {
+				lane = l;
+				break;
+			}
+		}
+		auto* who = lane >= 0 ? PickSettler(machine.get()) : nullptr;
+		if (!who) {
+			return false;
+		}
+		Racer q;
+		q.lane = lane;
+		q.actor = who->GetHandle();
+		q.actorID = who->GetFormID();
+		if (const char* n = who->GetDisplayFullName(); n && *n) {
+			q.name = n;
+		}
+		const auto& ln = L.lanes[lane];
+		q.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::Vec3{ ln.gun.x, L.standY, 0.0 }));
+		q.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, ln.target));
+		auto marker = q.marker.get();
+		if (!marker) {
+			Remove(q.aimAt);
+			return false;
+		}
+		q.skill = std::uniform_real_distribution<double>(0.0, 1.0)(_showRng);
+		q.ready = std::make_shared<std::atomic<std::int32_t>>(-1);
+		auto ready = q.ready;
+		Papyrus::Call("NpcStartGallery", { static_cast<std::int32_t>(q.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()) },
+			[ready](std::int32_t a_r) { *ready = a_r; });
+		log::info("NUKA-ZAPPER RACE {:08X}: {} ({:08X}) coming to race (lane {})", a_r.machineID, q.name, q.actorID, lane + 1);
+		a_r.racers.push_back(std::move(q));
+		return true;
+	}
+
+	void Arcade::TickRaces(double a_dt)
+	{
+		if (Settings::Get().settlersOn) {
+			_nextRace -= a_dt;
+			if (_nextRace <= 0.0) {
+				_nextRace = StartRace() ? kShowNextTry : kShowRetry;
+			}
+		}
+		for (std::size_t i = 0; i < _races.size(); ++i) {
+			TickRace(_races[i], a_dt);
+		}
+		std::erase_if(_races, [](const Race& a_r) { return a_r.phase == 0; });
+	}
+
+	void Arcade::TickRace(Race& a_r, double a_dt)
+	{
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		auto  machine = a_r.machine.get();
+		Frame f;
+		if (!machine || machine->IsDisabled() || machine->IsDeleted() || !player || !FrameOf(machine.get(), f) ||
+			(machine->data.location - player->data.location).Length() > kShowYouAway) {
+			EndRace(a_r, "the machine's gone or you've left");
+			return;
+		}
+		auto* weapon = Forms::WeaponOf(sim::GameId::kNukaZapperRace);
+		// each settler: on their way, taking up the gun, ready
+		for (auto& q : a_r.racers) {
+			auto  ref = q.actor.get();
+			auto* actor = ref ? ref->As<RE::Actor>() : nullptr;
+			if (!actor || actor->IsDead(false) || !actor->Get3D() || actor->IsInCombat()) {
+				log::info("NUKA-ZAPPER RACE {:08X}: {} dropped out (gone, down or fighting)", a_r.machineID, q.name);
+				LetGo(q);
+				q.lane = -1;
+				continue;
+			}
+			if (q.state == 0) {
+				const auto r = q.ready->load();
+				if (r == 0 || r >= 10) {
+					log::info("NUKA-ZAPPER RACE {:08X}: {} couldn't come ({})", a_r.machineID, q.name, r);
+					_refused.push_back(q.actorID);
+					q.ready.reset();
+					LetGo(q);
+					q.lane = -1;
+					continue;
+				}
+				if (r < 0) {
+					continue;
+				}
+				auto marker = q.marker.get();
+				if (!marker) {
+					LetGo(q);
+					q.lane = -1;
+					continue;
+				}
+				const float d = std::hypot(actor->data.location.x - marker->data.location.x, actor->data.location.y - marker->data.location.y);
+				q.walked += a_dt;
+				if (d < q.best - 10.0f) {
+					q.best = d;
+					q.stall = 0.0;
+				} else {
+					q.stall += a_dt;
+				}
+				bool there = d < kShowArrived || (d < kShowAtSpot && q.stall > 1.5) || (q.walked > kShowWalk && d < 120.0f);
+				if (!there && q.walked > kShowWalk) {
+					log::info("NUKA-ZAPPER RACE {:08X}: {} took too long ({:.0f} away)", a_r.machineID, q.name, d);
+					LetGo(q);
+					q.lane = -1;
+					continue;
+				}
+				if (!there) {
+					if (q.stall > kShowStallResend) {
+						q.stall = 0.0;
+						q.best = d;
+						Papyrus::Call("NpcWalk", { static_cast<std::int32_t>(q.actorID), Papyrus::Id(marker.get()), 1 });
+					}
+					continue;
+				}
+				q.state = 1;
+				q.armed = std::make_shared<std::atomic<std::int32_t>>(-1);
+				auto armed = q.armed;
+				auto aimAt = q.aimAt.get();
+				Papyrus::Call("NpcTakeUp", { static_cast<std::int32_t>(q.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()), Papyrus::Id(aimAt.get()) },
+					[armed](std::int32_t a_r2) { *armed = a_r2; });
+				continue;
+			}
+			if (q.state == 1) {
+				const auto r = q.armed->load();
+				if (r == 0) {
+					LetGo(q);
+					q.lane = -1;
+				} else if (r > 0) {
+					q.state = 2;
+					q.added = r == 2;
+					log::info("NUKA-ZAPPER RACE {:08X}: {} ready in lane {}", a_r.machineID, q.name, q.lane + 1);
+				}
+			}
+		}
+		std::erase_if(a_r.racers, [](const Racer& a_q) { return a_q.lane < 0; });
+
+		if (a_r.phase == 1) {
+			a_r.gathered += a_dt;
+			const auto ready = std::ranges::count_if(a_r.racers, [](const Racer& a_q) { return a_q.state == 2; });
+			// more settlers, a lane each (all but yours), while they gather
+			a_r.invite -= a_dt;
+			if (a_r.invite <= 0.0) {
+				a_r.invite = kShowNextTry;
+				if (a_r.racers.size() < sim::layout::Zapper().settlerLanes.size()) {
+					InviteRacer(a_r);
+				}
+			}
+			if (ready >= 2 && a_r.countdown < 0.0) {
+				a_r.countdown = sim::layout::Zapper().gatherSeconds;
+				log::info("NUKA-ZAPPER RACE {:08X}: two ready: the race starts in {:.0f}s", a_r.machineID, a_r.countdown);
+			}
+			if (a_r.countdown >= 0.0) {
+				a_r.countdown -= a_dt;
+				if (a_r.countdown <= 0.0) {
+					BeginRace(a_r);
+				}
+			} else if (a_r.gathered > sim::layout::Zapper().gatherLongest) {
+				EndRace(a_r, "not two settlers ready to race");
+			} else if (a_r.racers.empty() && a_r.gathered > 20.0) {
+				EndRace(a_r, "nobody came");
+			}
+			return;
+		}
+		if (a_r.phase == 2 && a_r.withYou) {
+			return;  // (your game runs the race: its shots shown from your Tick)
+		}
+		if (a_r.phase == 2 && a_r.game) {
+			a_r.game->Update(a_dt, sim::Input{});
+			RaceShots(a_r, *a_r.game, a_dt);
+			for (const auto& s : a_r.game->TakeSounds()) {
+				Sounds::Play(sim::GameId::kNukaZapperRace, s.cue, machine.get(), s.gain);
+			}
+			PlacePieces(f, *a_r.game, sim::GameId::kNukaZapperRace, machine.get(), a_r.pieces, a_r.pieceModel, a_r.frozen);
+			const auto& lanes = sim::layout::Zapper().lanes;
+			for (std::size_t i = 0; i < a_r.fixtures.size() && i < lanes.size(); ++i) {
+				if (auto ref = a_r.fixtures[i].get()) {
+					Freeze(ref.get(), a_r.frozen);
+					PlaceNode(ref.get(), ToWorld(f, lanes[i].target), f.rot, f.scale, false);
+				}
+			}
+			if (a_r.game->Over()) {
+				const int w = sim::ZapperWinner(*a_r.game);
+				const auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == w; });
+				_lastScores[a_r.machineID] = a_r.game->Score();
+				log::info("NUKA-ZAPPER RACE {:08X}: {} won (lane {})", a_r.machineID, it != a_r.racers.end() ? it->name : "?", w + 1);
+				EndRace(a_r, nullptr);
+			}
+		}
+	}
+
+	void Arcade::RaceShots(Race& a_r, sim::Game& a_game, double a_dt)
+	{
+		auto* weapon = Forms::WeaponOf(sim::GameId::kNukaZapperRace);
+		for (auto& q : a_r.racers) {
+			q.sinceShot += a_dt;
+		}
+		for (int lane : sim::TakeZapperShots(a_game)) {
+			auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == lane && a_q.state == 2; });
+			if (it == a_r.racers.end() || it->sinceShot < 0.35 || !weapon) {
+				continue;  // (a squirt's animation still going: the next one shown)
+			}
+			it->sinceShot = 0.0;
+			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(it->actorID), Papyrus::Id(weapon), Papyrus::Id(weapon->weaponData.ammo) });
+		}
+	}
+
+	void Arcade::BeginRace(Race& a_r)
+	{
+		auto machine = a_r.machine.get();
+		Frame f;
+		if (!machine || !FrameOf(machine.get(), f)) {
+			EndRace(a_r, "the machine's not loaded");
+			return;
+		}
+		// those not ready by now: not in this one
+		for (auto& q : a_r.racers) {
+			if (q.state != 2) {
+				LetGo(q);
+				q.lane = -1;
+			}
+		}
+		std::erase_if(a_r.racers, [](const Racer& a_q) { return a_q.lane < 0; });
+		if (a_r.racers.size() < 2) {
+			a_r.countdown = -1.0;  // (back to gathering)
+			return;
+		}
+		const auto&              L = sim::layout::Zapper();
+		std::vector<double>      skill(L.lanes.size(), -1.0);
+		std::vector<std::string> names(L.lanes.size());
+		for (const auto& q : a_r.racers) {
+			skill[q.lane] = q.skill;
+			names[q.lane] = q.name;
+		}
+		a_r.game = sim::MakeGame(sim::GameId::kNukaZapperRace);
+		a_r.game->Start(static_cast<std::uint32_t>(_showRng()));
+		sim::SetZapperRacers(*a_r.game, -1, skill, names);
+		std::vector<sim::Piece> pieces;
+		a_r.game->Pieces(pieces);
+		const auto models = Forms::PiecesOf(sim::GameId::kNukaZapperRace);
+		for (const auto& p : pieces) {
+			auto* form = p.model >= 0 && p.model < static_cast<int>(models.size()) ? Forms::Bound(Forms::Own(models[p.model])) : nullptr;
+			a_r.pieces.push_back(form ? Spawn(form, machine.get(), ToWorld(f, p.pos)) : RE::ObjectRefHandle{});
+			a_r.pieceModel.push_back(p.model);
+		}
+		if (auto* target = Forms::Bound(Forms::Own(Forms::kZapperTarget))) {
+			for (const auto& lane : L.lanes) {
+				a_r.fixtures.push_back(Spawn(target, machine.get(), ToWorld(f, lane.target)));
+			}
+		}
+		Sounds::Music(sim::GameId::kNukaZapperRace, machine.get(), true);
+		a_r.phase = 2;
+		log::info("NUKA-ZAPPER RACE {:08X}: {} settlers racing", a_r.machineID, a_r.racers.size());
+	}
+
+	void Arcade::EndRace(Race& a_r, const char* a_why)
+	{
+		if (a_r.phase == 0) {
+			return;
+		}
+		if (a_why) {
+			log::info("NUKA-ZAPPER RACE {:08X}: called off ({})", a_r.machineID, a_why);
+		}
+		const bool raced = a_r.phase == 2;
+		for (auto& q : a_r.racers) {
+			if (raced && q.state == 2) {
+				_played[q.actorID] = kShowTurnAbout;
+			}
+			LetGo(q);
+		}
+		if (raced && !a_r.withYou) {
+			if (auto machine = a_r.machine.get()) {
+				Sounds::Music(sim::GameId::kNukaZapperRace, machine.get(), false);
+			}
+		}
+		for (auto& h : a_r.pieces) {
+			Remove(h);
+		}
+		for (auto& h : a_r.fixtures) {
+			Remove(h);
+		}
+		const auto& set = Settings::Get();
+		_rest[a_r.machineID] = raced ? std::uniform_real_distribution<double>(set.settlersGapShortest, std::max(set.settlersGapShortest, set.settlersGapLongest))(_showRng) :
+		                               kShowRetry;
+		a_r = {};
+	}
+
 	// ------------------------------------------------------------------------ saves
 
 	void Arcade::Save(const F4SE::SerializationInterface* a_intfc)
@@ -1156,6 +1569,12 @@ namespace ag
 		// settlers held at a machine (AI off): let go after a load of this save
 		{
 			std::vector<Held> held;
+			for (const auto& r : self._races) {
+				const auto* zw = Forms::WeaponOf(sim::GameId::kNukaZapperRace);
+				for (const auto& q : r.racers) {
+					held.push_back({ nullptr, q.actorID, zw ? zw->GetFormID() : 0, q.state == 2 && q.added });
+				}
+			}
 			for (const auto& sh : self._shows) {
 				if (sh.phase == Show::Phase::kPlaying) {
 					held.push_back({ nullptr, sh.actorID, sh.weapon ? sh.weapon->GetFormID() : 0, sh.added });
