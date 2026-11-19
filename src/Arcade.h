@@ -190,7 +190,8 @@ namespace ag
 			enum class Phase
 			{
 				kNone,
-				kWalking,  // on their way (Papyrus: AmusementGamesNative.NpcStartGallery)
+				kWalking,  // on their way (AmusementGamesQuest's walk package: AmusementGamesNative.NpcStartGallery)
+				kArming,   // there: the rifle being taken up (NpcTakeUp)
 				kPlaying
 			};
 			Phase                                  phase{ Phase::kNone };
@@ -204,8 +205,11 @@ namespace ag
 			sim::Vec3                              eye;     // their eye, in the machine's space
 			RE::TESObjectWEAP*                     weapon{ nullptr };
 			bool                                   added{ false };  // the rifle lent (taken back after)
-			double                                 walkLeft{ 0.0 };
-			std::shared_ptr<std::atomic<std::int32_t>> ready;  // -1 on the way, 0 didn't make it, 1 ready, 2 ready (lent)
+			double                                 walked{ 0.0 };   // seconds on the way
+			double                                 stall{ 0.0 };    // ...no closer for this long
+			float                                  best{ 1e9f };    // ...the closest they've been
+			std::shared_ptr<std::atomic<std::int32_t>> ready;  // NpcStartGallery: -1 not yet, 1 walking, 10+ not coming
+			std::shared_ptr<std::atomic<std::int32_t>> armed;  // NpcTakeUp: -1 not yet, 0 didn't, 1 ready, 2 ready (lent)
 			std::unique_ptr<sim::Game>             game;
 			std::unique_ptr<sim::GalleryShooter>   shooter;
 			std::vector<RE::ObjectRefHandle>       pieces;

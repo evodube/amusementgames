@@ -24,6 +24,12 @@ Form IDs (src/Forms.h expects these):
     xx000809  (unused: was the stand's how-many menu)
     xx00080A  MESG AmusementGamesNotEnoughCapsMessage  the corner message when you can't pay
     xx00080B  GLOB AmusementGamesTokenPrice    caps a token (5)
+    xx00080D  KYWD AmusementGamesLinkSpot      a settler's linked ref: the spot at a machine they're to walk to
+    xx00080E  PACK AmusementGamesWalkToSpot    Travel to that linked ref, walking, facing the marker at the end (as
+                                               Wasteland Wagers' WastelandWagersWalkToSpot)
+    xx00080F  QUST AmusementGamesQuest         priority 100, start game enabled; collection alias 0 Players carrying the
+                                               package (alias packages go by quest priority: it outranks settler
+                                               sandboxes); scripts AmusementGamesQuest, AmusementGamesGroupAlias
     xx00080C  GLOB AmusementGamesIncomePerSettler  caps each machine earns its settlement a day for each settler (1)
 
     xx000810  ACTI AmusementGamesAtomicRollers  the five machines: Nuka-World's own models (DLCNukaWorld's
@@ -152,6 +158,72 @@ def object_vmad(script: str, properties: list[tuple[str, int]]) -> bytes:
     return struct.pack("<HHH", 6, 2, 1) + wstring(script) + b"\x00" + struct.pack("<H", len(props)) + b"".join(props)
 
 
+def keyword(form_id: int, editor_id: str) -> bytes:
+    # colour (white), type 0 (none): as vanilla link keywords (RELinkTravel)
+    return record(
+        b"KYWD", 0, form_id,
+        subrecord(b"EDID", zstring(editor_id)) + subrecord(b"CNAM", bytes.fromhex("ffffff00")) + subrecord(b"TNAM", struct.pack("<I", 0)),
+    )
+
+
+TRAVEL_TEMPLATE = 0x00002CB0  # Fallout4.esm "Travel"
+
+
+def travel_package(form_id: int, editor_id: str, link_keyword: int, radius: int = 10) -> bytes:
+    """A Travel package to the actor's linked ref (with link_keyword), like vanilla
+    VRWorkshopShared_WorkshopSummonedByBellPackage (and Wasteland Wagers' walk): same template, data inputs and event
+    blocks, walking."""
+    no_event = subrecord(b"INAM", struct.pack("<I", 0)) + subrecord(b"PDTO", bytes(8))
+    body = (
+        subrecord(b"EDID", zstring(editor_id))
+        + subrecord(b"PKDT", struct.pack("<IBBBBHH", 0x00002000, 18, 0, 0, 0x4D, 0x00FD, 0))
+        + subrecord(b"PSDT", bytes.fromhex("00ff00ffff000000") + struct.pack("<i", 0))
+        + subrecord(b"PKCU", struct.pack("<III", 4, TRAVEL_TEMPLATE, 1))
+        + subrecord(b"ANAM", zstring("Location")) + subrecord(b"PLDT", struct.pack("<IIiI", 6, link_keyword, radius, 0))
+        + subrecord(b"ANAM", zstring("Bool")) + subrecord(b"CNAM", b"\x00")  # Prefer Preferred Path?
+        + subrecord(b"ANAM", zstring("Bool")) + subrecord(b"CNAM", b"\x00")  # Use "soft radius"?
+        + subrecord(b"ANAM", zstring("Bool")) + subrecord(b"CNAM", b"\x00")  # Ignore marker orientation? (no: face it)
+        + subrecord(b"UNAM", b"\x01") + subrecord(b"UNAM", b"\x03") + subrecord(b"UNAM", b"\x05") + subrecord(b"UNAM", b"\x07")
+        + subrecord(b"XNAM", b"\x08")
+        + subrecord(b"POBA", b"") + no_event
+        + subrecord(b"POEA", b"") + no_event
+        + subrecord(b"POCA", b"") + no_event
+    )
+    return record(b"PACK", 0, form_id, body)
+
+
+def quest(form_id: int, editor_id: str, package: int, priority: int = 100) -> bytes:
+    """AmusementGamesQuest: start game enabled, priority 100, collection alias 0 'Players' with the walk package.
+    Scripts: AmusementGamesQuest on the quest (property Players), AmusementGamesGroupAlias on the alias (papyrus/).
+    Laid out as Wasteland Wagers' WastelandWagersQuest (itself as Fallout4.esm's DialogueGlowingSeaAtom)."""
+    def entry(name: str, props: list[bytes]) -> bytes:
+        return wstring(name) + b"\x00" + struct.pack("<H", len(props)) + b"".join(props)
+    alias_prop = wstring("Players") + bytes([1, 1]) + struct.pack("<HhI", 0, 0, form_id)
+    vmad = (struct.pack("<HHH", 6, 2, 1) + entry("AmusementGamesQuest", [alias_prop])
+            + b"\x03" + struct.pack("<H", 0) + wstring("")
+            + struct.pack("<H", 1)
+            + struct.pack("<HhI", 0, 0, form_id) + struct.pack("<HHH", 6, 2, 1) + entry("AmusementGamesGroupAlias", []))
+    collection = (
+        subrecord(b"ALCS", struct.pack("<I", 0))
+        + subrecord(b"ALMI", b"\x00")
+        + subrecord(b"ALST", struct.pack("<I", 0))
+        + subrecord(b"ALID", zstring("Players"))
+        + subrecord(b"FNAM", struct.pack("<I", 0x0000020A))  # optional, allow reuse in quest, allow reserved
+        + subrecord(b"ALPC", struct.pack("<I", package))
+        + subrecord(b"VTCK", struct.pack("<I", 0))
+        + subrecord(b"ALED", b"")
+    )
+    body = (
+        subrecord(b"EDID", zstring(editor_id))
+        + subrecord(b"VMAD", vmad)
+        + subrecord(b"DNAM", struct.pack("<HBBfI", 0x0011, priority, 0, 0.0, 0))
+        + subrecord(b"NEXT", b"")
+        + subrecord(b"ANAM", struct.pack("<I", 1))
+        + collection
+    )
+    return record(b"QUST", 0, form_id, body)
+
+
 def token_stand(form_id: int, properties: list[tuple[str, int]]) -> bytes:
     """The Token Stand: Nuka-World's token dispenser (DLC04_Nukacade_TokenDispenser01: its model, bounds and workshop
     preview) with our script instead of its pre-war money one."""
@@ -256,6 +328,12 @@ MACHINES = [
 def build() -> bytes:
     menu = OWN | FIRST_ID
     keywords = [menu_keyword(menu, "AmusementGamesWorkshopMenu", "Amusement Games")]
+    # settlers walked to a machine: the link keyword, the walk package, the quest whose alias carries it
+    link = OWN | (FIRST_ID + 0xD)
+    walk = OWN | (FIRST_ID + 0xE)
+    keywords.append(keyword(link, "AmusementGamesLinkSpot"))
+    packages = [travel_package(walk, "AmusementGamesWalkToSpot", link)]
+    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk)]
     # the category's picture: its first item, Whac-a-Commie, framed as its own workshop preview
     # (DLC04workshop_NukaCade_WhackACommie01) with its bounds
     art = [menu_art(OWN | (FIRST_ID + 1), "AmusementGamesWorkshopMenuArt", menu,
@@ -289,7 +367,7 @@ def build() -> bytes:
                 + subrecord(b"MODL", zstring(mesh))
                 + subrecord(b"FNAM", struct.pack("<H", 0))))
 
-    count = len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats)
+    count = len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests)
     header = record(
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
@@ -304,7 +382,8 @@ def build() -> bytes:
     )
     # groups in the order the game's own master has them
     return (header + group(b"GLOB", b"".join(globs)) + group(b"KYWD", b"".join(keywords))
-            + group(b"ACTI", b"".join(acti)) + group(b"STAT", b"".join(stats)) + group(b"MESG", b"".join(messages)) + group(b"ARTO", b"".join(art))
+            + group(b"ACTI", b"".join(acti)) + group(b"STAT", b"".join(stats)) + group(b"QUST", b"".join(quests))
+            + group(b"PACK", b"".join(packages)) + group(b"MESG", b"".join(messages)) + group(b"ARTO", b"".join(art))
             + group(b"COBJ", b"".join(recipes)))
 
 

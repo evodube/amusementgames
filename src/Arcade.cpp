@@ -759,7 +759,10 @@ namespace ag
 		constexpr double    kShowRetry = 20.0;                 // no one free: try again in this long
 		constexpr double    kShowNextTry = 5.0;                // the one asked couldn't come: someone else this soon
 		constexpr double    kShowGapShortest = 45.0, kShowGapLongest = 120.0;  // between games
-		constexpr double    kShowWalk = 90.0;                  // not there by then: called off
+		constexpr double    kShowWalk = 90.0;                  // not there by then: near enough, or called off
+		constexpr float     kShowArrived = 12.0f;              // this near the spot: there
+		constexpr float     kShowAtSpot = 40.0f;               // ...or this near and no closer for a moment
+		constexpr double    kShowStallResend = 6.0;            // no closer for this long: the walk sent again
 		constexpr float     kShowReach = 3000.0f;              // settlers this near the machine
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
@@ -772,6 +775,7 @@ namespace ag
 
 	void Arcade::ReleaseHeld()
 	{
+		Papyrus::Call("NpcClearAll", { 0 });  // (anyone left in the walk to a machine)
 		for (const auto& h : _heldFromSave) {
 			log::info("a settler ({:08X}) held at a game when saved: let go", h.actor);
 			Release(h.actor, h.weapon, h.added);
@@ -795,8 +799,8 @@ namespace ag
 			if (r < 0) {
 				return false;
 			}
-			if (r > 0) {
-				Release(a_h.actor, a_h.weapon, r == 2);
+			if (r <= 2) {
+				Release(a_h.actor, a_h.weapon, r == 2);  // (in the quest, or at the spot with the rifle)
 			}
 			return true;
 		});
@@ -836,32 +840,73 @@ namespace ag
 			if (r == 0 || r >= 10) {
 				const char* why = r == 10 ? "a form's missing" : r == 11 ? "dead" : r == 12 ? "fighting" : r == 13 ? "following you" :
 				                  r == 14 ? "knocked out" : r == 15 ? "doing something for you" : r == 17 ? "bleeding out" :
-				                  r == 18 ? "couldn't find the way (PathToReference)" : r == 19 ? "dead or fighting once there" :
-				                  r == 20 ? "not a person (a dog, brahmin or robot)" :
-				                  r >= 160 ? "sitting, or at a workstation" : "Papyrus didn't say";
-				float away = -1.0f;
-				if (auto m = _show.marker.get(); m && actor) {
-					away = (actor->data.location - m->data.location).Length();
-				}
-				log::info("{}: {} ({:08X}) couldn't come: {} ({}; {:.0f} from the spot)", sim::GameName(_show.gameId), _show.name, _show.actorID, why, r, away);
+				                  r == 18 ? "the walk couldn't be given them" : r == 20 ? "not a person (a dog, brahmin or robot)" :
+				                  r == 21 ? "at a Wasteland Wagers table" : r >= 160 ? "sitting, or at a workstation" : "Papyrus didn't say";
+				log::info("{}: {} ({:08X}) couldn't come: {} ({})", sim::GameName(_show.gameId), _show.name, _show.actorID, why, r);
 				_refused.push_back(_show.actorID);
+				_show.ready.reset();  // (not in the quest: nothing to let go)
 				EndShow(nullptr);
 				_nextShow = kShowNextTry;  // (someone else, soon)
 				return;
 			}
 			if (r < 0) {
-				_show.walkLeft -= a_dt;
-				if (_show.walkLeft <= 0.0) {
-					float away = -1.0f;
-					if (auto m = _show.marker.get(); m) {
-						away = (actor->data.location - m->data.location).Length();
-					}
-					log::info("{}: {} ({:08X}) took too long, {:.0f} from the spot", sim::GameName(_show.gameId), _show.name, _show.actorID, away);
+				return;  // (Papyrus not back yet)
+			}
+			// walking (their package): there, close and no closer for a moment, or near enough after a while; the walk
+			// sent again when they stall (as Wasteland Wagers walks its players)
+			auto marker = _show.marker.get();
+			if (!marker) {
+				EndShow("the spot's gone");
+				return;
+			}
+			const float d = std::hypot(actor->data.location.x - marker->data.location.x, actor->data.location.y - marker->data.location.y);
+			_show.walked += a_dt;
+			if (d < _show.best - 10.0f) {
+				_show.best = d;
+				_show.stall = 0.0;
+			} else {
+				_show.stall += a_dt;
+			}
+			bool there = d < kShowArrived || (d < kShowAtSpot && _show.stall > 1.5);
+			if (!there && _show.walked > kShowWalk) {
+				if (d < 120.0f) {
+					there = true;
+					log::info("{}: {} ({:08X}) {:.0f} from the spot after a while: near enough", sim::GameName(_show.gameId), _show.name, _show.actorID, d);
+				} else {
+					log::info("{}: {} ({:08X}) took too long, {:.0f} from the spot", sim::GameName(_show.gameId), _show.name, _show.actorID, d);
 					EndShow(nullptr);
+					return;
+				}
+			}
+			if (!there) {
+				if (_show.stall > kShowStallResend) {
+					log::info("{}: {} ({:08X}) no closer in {:.0f}s ({:.0f} away): sending the walk again", sim::GameName(_show.gameId), _show.name,
+						_show.actorID, _show.stall, d);
+					_show.stall = 0.0;
+					_show.best = d;
+					Papyrus::Call("NpcWalk", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(marker.get()), 1 });
 				}
 				return;
 			}
-			// there, rifle up: the game starts, its targets put up
+			_show.phase = Show::Phase::kArming;
+			_show.armed = std::make_shared<std::atomic<std::int32_t>>(-1);
+			auto armed = _show.armed;
+			Papyrus::Call("NpcTakeUp", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(_show.weapon), Papyrus::Id(marker.get()) },
+				[armed](std::int32_t a_r) { *armed = a_r; });
+			log::info("{}: {} ({:08X}) at the counter after {:.0f}s", sim::GameName(_show.gameId), _show.name, _show.actorID, _show.walked);
+			return;
+		}
+
+		if (_show.phase == Show::Phase::kArming) {
+			const auto r = _show.armed->load();
+			if (r < 0) {
+				return;
+			}
+			if (r == 0) {
+				EndShow("couldn't take up the rifle");
+				return;
+			}
+			// rifle up: the game starts, its targets put up
 			_show.added = r == 2;
 			_show.game = sim::MakeGame(_show.gameId);
 			const auto seed = static_cast<std::uint32_t>(_showRng());
@@ -962,7 +1007,6 @@ namespace ag
 			_show.gameId = sim::GameId::kBanditRoundup;
 			_show.eye = sim::layout::Gallery().stand + sim::Vec3{ 0.0, 0.0, kGalleryEyeHeight };
 			_show.weapon = weapon;
-			_show.walkLeft = kShowWalk;
 			_show.ready = std::make_shared<std::atomic<std::int32_t>>(-1);
 			auto ready = _show.ready;
 			Papyrus::Call("NpcStartGallery", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()) },
@@ -987,8 +1031,10 @@ namespace ag
 			if (auto machine = _show.machine.get()) {
 				Sounds::Music(_show.gameId, machine.get(), false);
 			}
+		} else if (_show.phase == Show::Phase::kArming && _show.armed) {
+			_letGo.push_back({ _show.armed, _show.actorID, weaponID, false });  // (let go once they've the rifle up)
 		} else if (_show.ready) {
-			_letGo.push_back({ _show.ready, _show.actorID, weaponID, false });  // (let go once they're there)
+			_letGo.push_back({ _show.ready, _show.actorID, weaponID, false });  // (let go once Papyrus has them walking)
 		}
 		for (auto& h : _show.pieces) {
 			Remove(h);
@@ -1012,7 +1058,7 @@ namespace ag
 			std::vector<Held> held;
 			if (self._show.phase == Show::Phase::kPlaying) {
 				held.push_back({ nullptr, self._show.actorID, self._show.weapon ? self._show.weapon->GetFormID() : 0, self._show.added });
-			} else if (self._show.phase == Show::Phase::kWalking) {
+			} else if (self._show.phase == Show::Phase::kWalking || self._show.phase == Show::Phase::kArming) {
 				held.push_back({ nullptr, self._show.actorID, self._show.weapon ? self._show.weapon->GetFormID() : 0, false });
 			}
 			for (const auto& h : self._letGo) {

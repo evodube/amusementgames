@@ -126,18 +126,28 @@ Function AddTo(Int aiRef, Int aiItem, Int aiCount) Global
 EndFunction
 
 ; ---------------------------------------------------------------- settlers at the games
-; a settler to Bandit Roundup: not if they're busy (fighting, following you, sitting, hurt, doing something for you);
-; walks to the spot in front of the gallery (the marker, facing it), takes up the rifle (lent if they've none: aiAdd
-; 0, they have one, so not taken back after), raises it, and is held there (AI off) for the plugin to play the game.
-; 1: ready; 2: ready, the rifle lent; anything else: not coming (below: why)
+; walked over by AmusementGamesQuest's package (as Wasteland Wagers walks its players), then the plugin takes it from
+; there: NpcStartGallery, NpcWalk (again, if they stall), NpcTakeUp (there: the rifle up, held), NpcEnd
+
+AmusementGamesQuest Function TheQuest() Global
+	Return Game.GetFormFromFile(0x80F, "AmusementGames.esl") as AmusementGamesQuest
+EndFunction
+
+Keyword Function LinkSpot() Global
+	Return Game.GetFormFromFile(0x80D, "AmusementGames.esl") as Keyword
+EndFunction
+
+; a settler to Bandit Roundup: not if they're busy; walking to the marker. 1: on their way; anything else: not coming
+; (for the plugin's log: 10 missing forms, 11 dead, 12 fighting, 13 following you, 14 knocked out, 15 doing something
+; for you, 16x sitting or at a workstation (160 + sit state), 17 bleeding out, 18 the walk couldn't be given them,
+; 20 not a person: a dog, brahmin or robot, 21 at a Wasteland Wagers table)
 Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
-	; (not coming: why, for the plugin's log: 10 missing forms, 11 dead, 12 fighting, 13 following you, 14 knocked out,
-	; 15 doing something for you, 16 sitting or at a workstation (its sit state + 160), 17 bleeding out, 18 couldn't
-	; find the way, 19 dead or fighting once there)
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
-	If !a || !w || !m
+	AmusementGamesQuest q = TheQuest()
+	Keyword k = LinkSpot()
+	If !a || !w || !m || !q || !k
 		Return 10
 	ElseIf a.IsDead()
 		Return 11
@@ -156,21 +166,39 @@ Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	ElseIf !a.HasKeyword(Game.GetFormFromFile(0x00013794, "Fallout4.esm") as Keyword)
 		Return 20
 	EndIf
-	; (the way there: PathToReference gives up whenever their own AI package cuts in, so it's asked again, a few times,
-	; and the last few steps taken for them)
-	Int tries = 0
-	While a.GetDistance(m) > 48.0 && tries < 8
-		a.PathToReference(m, 1.0)
-		tries += 1
-		If a.IsDead() || a.IsInCombat()
-			Return 19
-		EndIf
-	EndWhile
-	If a.GetDistance(m) > 300.0
+	; (Wasteland Wagers' players: walking to or standing at its tables, or sat at them)
+	Keyword wagersSpot = Game.GetFormFromFile(0x806, "WastelandWagers.esl") as Keyword
+	Keyword wagersSeat = Game.GetFormFromFile(0x848, "WastelandWagers.esl") as Keyword
+	If (wagersSpot && a.GetLinkedRef(wagersSpot)) || (wagersSeat && a.GetLinkedRef(wagersSeat))
+		Return 21
+	EndIf
+	If !q.Join(aiActor, aiMarker, k.GetFormID())
 		Return 18
 	EndIf
-	If a.IsDead() || a.IsInCombat()
-		Return 19
+	Return 1
+EndFunction
+
+; ...stalled on the way: the walk sent again
+Function NpcWalk(Int aiActor, Int aiMarker, Int aiReset) Global
+	AmusementGamesQuest q = TheQuest()
+	Keyword k = LinkSpot()
+	If q && k
+		q.Walk(aiActor, aiMarker, k.GetFormID(), aiReset != 0)
+	EndIf
+EndFunction
+
+; ...there: put on the spot, facing the targets, the rifle taken up (lent if they've none) and raised, and held (AI
+; off) for the plugin to play the game. 1 ready, 2 ready (the rifle lent), 0 not
+Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker) Global
+	Actor a = Game.GetForm(aiActor) as Actor
+	Weapon w = Game.GetForm(aiWeapon) as Weapon
+	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
+	Keyword k = LinkSpot()
+	If !a || !w || !m || a.IsDead() || a.IsInCombat()
+		Return 0
+	EndIf
+	If k
+		a.SetLinkedRef(None, k)  ; (no destination: the walk doesn't keep stepping them)
 	EndIf
 	a.MoveTo(m)
 	Int r = 1
@@ -194,17 +222,32 @@ Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	EndIf
 EndFunction
 
-; ...and let go: AI back on, the lent rifle taken back
+; ...and let go: out of the quest, AI back on, the lent rifle taken back
 Function NpcEnd(Int aiActor, Int aiWeapon, Int aiLent) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	If !a
 		Return
 	EndIf
-	a.EnableAI(True)
+	AmusementGamesQuest q = TheQuest()
+	Keyword k = LinkSpot()
+	If q && k
+		q.Leave(aiActor, k.GetFormID())
+	Else
+		a.EnableAI(True)
+	EndIf
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	If w && aiLent != 0
 		a.UnequipItem(w, False, True)
 		a.RemoveItem(w, 1, True)
 	EndIf
 	a.EvaluatePackage()
+EndFunction
+
+; after a load: nobody left in the quest's walk
+Function NpcClearAll(Int aiUnused) Global
+	AmusementGamesQuest q = TheQuest()
+	Keyword k = LinkSpot()
+	If q && k
+		q.ClearAll(k.GetFormID())
+	EndIf
 EndFunction
