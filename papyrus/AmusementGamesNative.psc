@@ -94,3 +94,24 @@ Function Prop(Int aiRef, Int aiMod) Global
 		EndIf
 	EndIf
 EndFunction
+
+; a machine's gun to lie on its counter: placed whole (PlaceAtMe builds a weapon's parts; a ref made from the plugin
+; gets only its first piece), not to be picked up, its mod fitted (the rifle's iron sights). Its id, for the plugin to
+; lay it down where it goes
+Int Function PlaceWeapon(Int aiAt, Int aiWeapon, Int aiMod) Global
+	ObjectReference at = Game.GetForm(aiAt) as ObjectReference
+	Form w = Game.GetForm(aiWeapon)
+	If !at || !w
+		Return 0
+	EndIf
+	ObjectReference r = at.PlaceAtMe(w, 1, False, False, True)
+	If !r
+		Return 0
+	EndIf
+	r.BlockActivation(True, True)
+	ObjectMod m = Game.GetForm(aiMod) as ObjectMod
+	If m
+		r.AttachMod(m)
+	EndIf
+	Return r.GetFormID()
+EndFunction

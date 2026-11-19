@@ -29,6 +29,11 @@ nodes) with Blender + PyNifly on the PC: the BA2 entries were pulled out to `C:\
 Nuka-World's scripts' properties (ScoreEvents PointValue, ScorePerTicket): Atomic Rollers holes 0/100-500/700 at
 100 a ticket; Hoop Shot 100 a basket, Whac-a-Commie 100 a whack, Bandit Roundup 100-300 a target, all 200 a ticket.
 
+## Hoop Shot's throws
+
+No two alike (HoopLayout handWobble / aimWobble / paceWobble): a dead-on aim at the best power scores about half the
+time, not every time.
+
 ## Collision
 
 Atomic Rollers and Hoop Shot run on the models' own Havok collision triangles (src/sim/Collision.inc, written by
@@ -51,7 +56,7 @@ own heads are activators scored OnHit. A TESHitEvent with you as the cause and a
 ## Weapons
 
 Whac-a-Commie: DLC04_CommieWhacker; Nuka-Zapper Race: DLC04_ThirstZapper (fired for real, a hit each
-click on target, ten to win; your lane is ZapperLayout::playerLane, marked by a Thirst Zapper model (STAT 82B) lying
+click on target, thirty to win (the bottles climb to the top of the cabinet); your lane is ZapperLayout::playerLane, marked by a Thirst Zapper model (STAT 82B) lying
 on the counter, put up with the scoreboard and hidden while you play); Bandit Roundup:
 DLC03_LeverGun (DLCCoast.esm 0002C8B0, looked up by name so Far Harbor isn't a master), else HuntingRifle
 (Fallout4.esm); shots counted a second apart. Arcade::TopUpAmmo keeps its magazine at the most rounds seen in it
@@ -64,7 +69,9 @@ games (your swing or shot is the real one; the game reads the click and where yo
 Put up with the scoreboard: Atomic Rollers' 9 balls in the right-hand pocket (RollersLayout::pocket, back along its
 channel), Hoop Shot's 3 basketballs on the front shelf, Whac-a-Commie's mallet (STAT 82B, the Nuka-Cade's own
 DLC04_Nukacade_CommieWhacker01.nif) at its whacker01 node, the Thirst Zapper and the rifle as real weapon refs laid
-on their counters (BlockActivation through AmusementGamesNative.Prop, the rifle's iron sights attached). Havok
+on their counters: placed by AmusementGamesNative.PlaceWeapon (PlaceAtMe: a ref made from the plugin got only the
+modular rifle's first piece, its lever), BlockActivation, the rifle's iron sights attached, then laid down by the
+plugin. Havok
 keyframed once loaded. While you play they're hidden, but for the balls still waiting in Atomic Rollers' pocket
 (HudInfo::waiting).
 

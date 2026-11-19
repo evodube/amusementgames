@@ -557,6 +557,9 @@ namespace ag
 		if (_lent.ammo) {
 			_lent.ammoBefore = Count(_lent.ammo);
 			_lent.ammoGiven = 200;
+			// loaded from the start: a weapon put in your hands comes with its magazine empty, so it's filled to what it
+			// holds (and kept there)
+			_lent.clip = weapon->weaponData.ammoCapacity;
 		}
 		auto had = _lent.had;
 		Papyrus::CallWithBools("ArmPlayer", Papyrus::Id(weapon), _lent.added, Papyrus::Id(_lent.ammo), _lent.ammoGiven,

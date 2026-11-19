@@ -294,7 +294,7 @@ namespace
 		std::printf("     bandit roundup: %d points, %d tickets\n", s, g->TicketsFor(s));
 		Check(s > 20, "bandit roundup: aiming at the targets hits them");
 
-		// one shot dead centre at a top-row target's bullseye: 3; one at a bottom-row one's: 1
+		// one shot dead centre at a bullseye, either row: 3
 		for (int row = 0; row < 2; ++row) {
 			auto shot = MakeGame(GameId::kBanditRoundup);
 			shot->Start(5);
@@ -310,8 +310,8 @@ namespace
 			Input in = LookAt(eye, p.pos + Vec3{ k.bullX, 0, k.bullZ });
 			in.pressed = true;
 			shot->Update(0.0, in);
-			Check(shot->Score() == (row == 0 ? 3 : 1), row == 0 ? "bandit roundup: dead centre of a top-row bullseye is 3" :
-			                                                       "bandit roundup: dead centre on the bottom row is just 1");
+			Check(shot->Score() == 3, row == 0 ? "bandit roundup: dead centre of a top-row bullseye is 3" :
+			                                     "bandit roundup: dead centre of a bottom-row bullseye is 3");
 		}
 	}
 

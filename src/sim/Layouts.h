@@ -70,6 +70,9 @@ namespace sim::layout
 		double handForward{ 30.0 };         // the ball in your hand, in front of your eyes...
 		double handDrop{ 28.0 };            // ...down below your sights...
 		double handSide{ 14.0 };            // ...and to the right, out of your way
+		double handWobble{ 3.0 };           // each throw: the ball's place in your hand off by about this...
+		double aimWobble{ 0.02 };           // ...its line by about this (radians)...
+		double paceWobble{ 0.025 };         // ...and its pace by about this much of it
 		double arcLift{ 0.6 };              // the throw goes up this much more than you look (a lob, down into the hoop)
 		double minSpeed{ 400.0 };
 		double maxSpeed{ 640.0 };
@@ -101,6 +104,8 @@ namespace sim::layout
 		int               mostUp{ 3 };         // most at once by the end
 		double            swingSeconds{ 0.18 };
 		int               points{ 1 };         // a whack
+		Vec3              malletRest{ -10.0, -31.0, 68.8 };  // the mallet lying on its side on the top, along the front
+		                                                    // (its handle's end here, its head toward the front-left corner)
 	};
 
 	// ---------------------------------------------------------------- Nuka-Zapper Race
@@ -116,7 +121,7 @@ namespace sim::layout
 
 	inline ZapperLane ZapLane(double a_x)
 	{
-		return { { a_x, 20.0, 76.0 }, { a_x, 160.0, 79.0 }, { a_x, 161.1, 119.9 }, { a_x, 161.1, 175.0 } };  // (topping out under the scoreboard)
+		return { { a_x, 20.0, 76.0 }, { a_x, 160.0, 79.0 }, { a_x, 161.1, 119.9 }, { a_x, 161.1, 228.0 } };  // (topping out just under the cabinet's ceiling, at 254: the bottle's 46 tall)
 	}
 
 	struct ZapperLayout
@@ -125,15 +130,15 @@ namespace sim::layout
 		int    playerLane{ 3 };             // yours: the one nearest the machine's middle, a Thirst Zapper on the counter by it
 		Vec3   gunRest{ 34.1, 0.0, 68.0 };  // where that Thirst Zapper lies (the counter's at 64): stand behind it to play
 		double targetRadius{ 11.0 };        // DLC04_Nukacade_NukaZapperTarget01: 30 across
-		int    hitsToWin{ 10 };             // Nuka-World's: ten hits up, then the win
-		double shotSeconds{ 0.3 };          // your squirts, counted at most this often
-		double aiShotShortest{ 0.35 };      // the other lanes' squirts: between these apart...
-		double aiShotLongest{ 0.8 };
-		double aiHitWorst{ 0.3 };           // ...each hitting with this chance (the worst player)...
-		double aiHitBest{ 0.6 };            // ...to this (the best)
+		int    hitsToWin{ 30 };             // hits up to the top, then the win (a race of 15 seconds or so)
+		double shotSeconds{ 0.4 };          // your squirts, counted at most this often
+		double aiShotShortest{ 0.3 };       // the other lanes' squirts: between these apart...
+		double aiShotLongest{ 0.6 };
+		double aiHitWorst{ 0.4 };           // ...each hitting with this chance (the worst player)...
+		double aiHitBest{ 0.75 };           // ...to this (the best)
 		double rocketRise{ 3.0 };           // how fast a rocket climbs to its height (a fraction a second)
 		int    pointsPerHit{ 1 };
-		int    winPoints{ 10 };             // (Nuka-World's win: ten hits' worth)
+		int    winPoints{ 10 };             // a win's bonus
 	};
 
 	// ---------------------------------------------------------------- Bandit Roundup
@@ -163,12 +168,13 @@ namespace sim::layout
 		double                   seconds{ 60.0 };
 		double                   left{ -224.0 };
 		double                   right{ 232.0 };
-		std::vector<GalleryRow>  rows{ { 418.3, 180.2, 75.0, 6, true }, { 375.0, 111.2, -95.0, 6, false } };
+		std::vector<GalleryRow>  rows{ { 418.3, 180.2, 75.0, 6, true }, { 375.0, 111.2, -95.0, 6, true } };
 		// a point a hit, whatever it is; the bullseyes' centres from the models' bullseye plates (their :173 shapes)
 		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0, -0.7, 11.1 }, { 1, 15.0, 16.0, 3.0, -0.4, 11.0 }, { 1, 13.0, 11.0, 2.0, -1.1, 15.0 },
 			{ 1, 8.0, 22.0, 1.2, 0.0, 20.0 }, { 1, 12.0, 11.0, 0.6, -0.15, 14.15 } };
-		Vec3                     rifleRest{ 0.0, -5.0, 66.0 };  // the rifle lying on the counter (it's at 64)
-		double                   deadCentre{ 2.0 };   // within this of a bullseye's centre (the top row's)...
+		Vec3                     rifleRest{ 12.0, 3.0, 67.0 };  // the rifle lying along the counter (its top at 64, from y -32 to
+		                                                        // 38: too shallow for it to point at the targets), its grip here
+		double                   deadCentre{ 2.0 };   // within this of a bullseye's centre (either row's)...
 		int                      bullseyePoints{ 3 }; // ...is worth this
 		double                   flipSeconds{ 0.15 };
 		double                   shotSeconds{ 0.6 };  // the lever between shots
