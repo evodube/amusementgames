@@ -45,6 +45,7 @@ namespace ag
 			bool                       newBest{ false };
 			double                     resultsAge{ 0.0 };
 			std::string                leaveKey{ "X" };
+			std::vector<std::array<float, 2>> guide;  // the aim line on the screen (0..1), from the ball out
 		};
 		HudState Hud() const
 		{
@@ -102,7 +103,7 @@ namespace ag
 		void                BlockControls(bool a_block, bool a_allowFighting = false);
 		void                Arm(sim::GameId a_game);
 		void                Disarm();
-		void                PublishHud();
+		void                PublishHud(const Frame* a_frame = nullptr);
 		void                Notify(const std::string& a_text);
 
 		int  Count(RE::TESBoundObject* a_item) const;

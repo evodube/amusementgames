@@ -70,11 +70,19 @@ namespace sim
 				sinceLastPoints += a_dt;
 				switch (_phase) {
 				case Phase::kAim:
-					// across the lane where you look (the guide), charged while held, rolled on release
+					// where you look on the lane is where it goes (the guide line shows it), charged while held, rolled on
+					// release
 					{
 						Vec3 at;
-						if (RayPlane(a_in, L.release + Vec3{ 0, 40, 0 }, { 0, -1, 0 }, at)) {
-							_aim = std::clamp(at.x / L.aimHalfWidth, -1.0, 1.0);
+						if (RayPlane(a_in, Vec3{ 0, 0, L.laneFrontZ }, { 0, 0, 1 }, at) && at.y > L.release.y + 20.0) {
+							Vec3 d{ at.x - L.release.x, at.y - L.release.y, 0.0 };
+							d = d.Normalized();
+							// no further across than the lane's edge by the hump
+							const double most = L.aimHalfWidth / (L.rampStartY - L.release.y);
+							if (std::abs(d.x / d.y) > most) {
+								d = Vec3{ std::copysign(most, d.x), 1.0, 0.0 }.Normalized();
+							}
+							_aimDir = d;
 						}
 						HoldBall();
 						if (a_in.pressed) {
@@ -148,8 +156,18 @@ namespace sim
 				a_out.line2 = _last >= 0 ? std::format("LAST BALL: {}", _last) : std::string("HOLD TO CHARGE, LET GO TO ROLL");
 				a_out.power = _charge.on ? _charge.Power(L.chargeSeconds) : (_phase == Phase::kAim ? 0.0 : -1.0);
 				a_out.clock = _phase == Phase::kDone ? std::string() : std::format("BALL {}/{}", n, L.balls);
-				a_out.aimX = _aim;
-				a_out.showAim = _phase == Phase::kAim;
+				a_out.showPoints = true;
+				if (_phase == Phase::kAim) {
+					// along the aim from the ball, on the lane's surface, to the hump (or the lane's edge)
+					const Vec3& from = L.release;
+					for (double t = L.ballRadius + 2.0;; t += 8.0) {
+						const Vec3 p = from + _aimDir * t;
+						if (p.y > L.rampStartY || std::abs(p.x) > L.laneHalfWidth - L.ballRadius) {
+							break;
+						}
+						a_out.guide.push_back({ p.x, p.y, LaneZ(p.y) + 0.6 });
+					}
+				}
 			}
 
 			int TicketsFor(int a_score) const override { return TicketTable{ 100, 1, 70, 0, 0 }.For(a_score); }  // Nuka-World's: 100 a ticket
@@ -168,21 +186,27 @@ namespace sim
 				const auto& L = layout::Rollers();
 				auto&       b = _world.balls[_ball];
 				b.state = BallState::kHeld;
-				b.pos = L.release + Vec3{ _aim * L.aimHalfWidth * 0.5, 0, 0 };
+				b.pos = L.release;
 				b.vel = {};
+			}
+
+			// the lane's surface height a distance along it
+			static double LaneZ(double a_y)
+			{
+				const auto& L = layout::Rollers();
+				if (a_y <= L.laneBendY) {
+					return L.laneFrontZ + (L.laneBendZ - L.laneFrontZ) * (a_y - L.laneFrontY) / (L.laneBendY - L.laneFrontY);
+				}
+				return L.laneBendZ + (L.laneTopZ - L.laneBendZ) * (a_y - L.laneBendY) / (L.rampStartY - L.laneBendY);
 			}
 
 			void Roll(double a_power)
 			{
 				const auto&  L = layout::Rollers();
 				const double speed = L.minSpeed + (L.maxSpeed - L.minSpeed) * a_power;
-				// up the lane, turned toward the aim point (across the lane at the ramp)
+				// along the guide line
 				const Vec3 from = _world.balls[_ball].pos;
-				const Vec3 to{ _aim * L.aimHalfWidth, L.rampStartY, from.z };
-				Vec3       d = (to - from).Normalized();
-				d.z = L.laneSlope;  // along the lane's rise
-				d = d.Normalized();
-				_world.Launch(_ball, from, d * speed);
+				_world.Launch(_ball, from, _aimDir * speed);
 				_phase = Phase::kRolling;
 			}
 
@@ -218,7 +242,7 @@ namespace sim
 			int    _left{ 9 };
 			Phase  _phase{ Phase::kAim };
 			double _wait{ 0.0 };
-			double _aim{ 0.0 };
+			Vec3   _aimDir{ 0, 1, 0 };
 			int    _last{ -1 };
 			Charge _charge;
 		};
@@ -823,6 +847,7 @@ namespace sim
 				_score = 0;
 				_shots = 0;
 				_hits = 0;
+				_bullseyes = 0;
 				_ending = 1.5;
 				_hurried = false;
 				Say(Cue::kStart, { 0, L.rows.empty() ? 0.0 : L.rows[0].y, L.rows.empty() ? 0.0 : L.rows[0].z });
@@ -869,6 +894,7 @@ namespace sim
 					// the nearest upright target the shot passes through
 					int    best = -1;
 					double bestT = 1e30;
+					Vec3   bestAt;
 					for (int i = 0; i < static_cast<int>(_targets.size()); ++i) {
 						const auto& t = _targets[i];
 						if (t.down) {
@@ -885,6 +911,7 @@ namespace sim
 							if (d < bestT) {
 								bestT = d;
 								best = i;
+								bestAt = at;
 							}
 						}
 					}
@@ -893,7 +920,14 @@ namespace sim
 						t.down = true;
 						t.flip = 0.0;
 						++_hits;
-						Add(L.kinds[t.kind].points);
+						// dead centre of a top-row target's bullseye: worth more
+						const auto& k = L.kinds[t.kind];
+						const auto& r = L.rows[t.row];
+						const bool  bull = r.bullseyes && std::hypot(bestAt.x - (t.x + k.bullX), bestAt.z - (r.z + k.bullZ)) <= L.deadCentre;
+						if (bull) {
+							++_bullseyes;
+						}
+						Add(bull ? L.bullseyePoints : k.points);
 						const auto& row = L.rows[t.row];
 						Say(Cue::kTargetHit, { t.x, row.y, row.z });
 					}
@@ -910,19 +944,8 @@ namespace sim
 					Piece       p;
 					p.model = t.kind;
 					p.pos = { t.x, row.y, row.z };
-					// facing you, flipped back on its hinge when hit; turned to face the way it goes
+					// facing you (both rows: turned round, they'd show you their backs), flipped back on its hinge when hit
 					RotX(-t.flip * kPi * 0.5, p.rot);
-					if (row.speed < 0.0) {
-						double flip[3][3];
-						RotZ(kPi, flip);
-						double m[3][3];
-						for (int r = 0; r < 3; ++r) {
-							for (int c = 0; c < 3; ++c) {
-								m[r][c] = p.rot[r][0] * flip[0][c] + p.rot[r][1] * flip[1][c] + p.rot[r][2] * flip[2][c];
-							}
-						}
-						std::copy(&m[0][0], &m[0][0] + 9, &p.rot[0][0]);
-					}
 					a_out.push_back(p);
 				}
 			}
@@ -969,6 +992,7 @@ namespace sim
 			double              _ending{ 1.5 };
 			int                 _shots{ 0 };
 			int                 _hits{ 0 };
+			int                 _bullseyes{ 0 };
 			bool                _hurried{ false };
 		};
 	}

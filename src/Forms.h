@@ -38,6 +38,8 @@ namespace ag::Forms
 	inline constexpr std::uint32_t kThirstZapper = 0x007BC8;    // WEAP DLC04_ThirstZapper: the zapper race's water gun
 	inline constexpr std::uint32_t kLeverGun = 0x02C8B0;        // WEAP DLC03_LeverGun (DLCCoast.esm): Bandit Roundup's lever-action rifle...
 	inline constexpr RE::TESFormID kHuntingRifle = 0x0004F46A;  // WEAP HuntingRifle (Fallout4.esm): ...or this, without Far Harbor
+	inline constexpr std::uint32_t kLeverGunIronSights = 0x042E6F;      // OMOD DLC03_mod_LeverGun_Scope_SightsIron: no scope
+	inline constexpr RE::TESFormID kHuntingRifleIronSights = 0x00148418;  // OMOD mod_HuntingRifle_Scope_SightsIron
 	inline constexpr std::uint32_t kNumbers = 0x04E138;       // ACTI DLC04_Nukacade_Numbers: a scoreboard digit
 	inline constexpr std::uint32_t kNumbersLarge = 0x053653;  // ACTI DLC04_Nukacade_Numbers_Large: the zapper's and gallery's
 
@@ -113,6 +115,21 @@ namespace ag::Forms
 		default: return nullptr;
 		}
 		return form ? form->As<RE::TESObjectWEAP>() : nullptr;
+	}
+
+	// the mod fitted to a lent weapon: the rifles' iron sights (no scope)
+	inline RE::TESForm* LentModFor(const RE::TESObjectWEAP* a_weapon)
+	{
+		if (!a_weapon) {
+			return nullptr;
+		}
+		if (a_weapon == From("DLCCoast.esm", kLeverGun)) {
+			return From("DLCCoast.esm", kLeverGunIronSights);
+		}
+		if (a_weapon->GetFormID() == kHuntingRifle) {
+			return RE::TESForm::GetFormByID(kHuntingRifleIronSights);
+		}
+		return nullptr;
 	}
 
 	// The workshop menu's Amusement Games category: in the Furniture menu, right after Tables, when the game's data is

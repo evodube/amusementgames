@@ -28,9 +28,9 @@ Bool Function ShowDigit(Int aiDigit, Int aiNumber) Global
 	Return False
 EndFunction
 
-; the game's weapon in your hands (added first if you haven't one), with ammo for it, drawn. Returns the weapon you
-; had out (its id, 0 for none), to be given back after
-Int Function ArmPlayer(Int aiWeapon, Bool abAdd, Int aiAmmo, Int aiAmmoCount) Global
+; the game's weapon in your hands (added first if you haven't one: with aiMod fitted, its iron sights in place of a
+; scope), with ammo for it, drawn. Returns the weapon you had out (its id, 0 for none), to be given back after
+Int Function ArmPlayer(Int aiWeapon, Bool abAdd, Int aiAmmo, Int aiAmmoCount, Int aiMod) Global
 	Actor p = Game.GetPlayer()
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	If !w
@@ -39,6 +39,10 @@ Int Function ArmPlayer(Int aiWeapon, Bool abAdd, Int aiAmmo, Int aiAmmoCount) Gl
 	Weapon had = p.GetEquippedWeapon()
 	If abAdd
 		p.AddItem(w, 1, True)
+		ObjectMod m = Game.GetForm(aiMod) as ObjectMod
+		If m
+			p.AttachModToInventoryItem(w, m)
+		EndIf
 	EndIf
 	Form ammo = Game.GetForm(aiAmmo)
 	If ammo && aiAmmoCount > 0

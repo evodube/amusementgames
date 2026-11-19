@@ -12,11 +12,13 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Nuka-Zapper Race**: six lanes. Hold the button with your Thirst Zapper's stream on your target and your rocket
   climbs; ten steps up and you've won (the other lanes race you, streams and all).
 - **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with Far Harbor's Lever-Action Rifle
-  (the Hunting Rifle without Far Harbor), for 60 seconds. Unlimited ammo while you play: it never needs reloading.
+  (the Hunting Rifle without Far Harbor; iron sights, no scope), for 60 seconds. A point a hit, 3 for dead centre of a
+  bullseye on the top row. Unlimited ammo while you play: it never needs reloading.
 - **Token Stand**: caps in, Nuka-Cade tokens out (5 caps a token). Each game takes a token.
 
 On screen while you play: just the clock (Atomic Rollers: the ball you're on; the zapper race: its countdown), and
-the power meter while you charge a throw; at the end, the result. The machine's own scoreboard has the score.
+the power meter while you charge a throw; Atomic Rollers also shows each ball's points as they come and a green aim
+line up the lane to where you look (as fo4bowling's). At the end, the result. The machine's own scoreboard has the score.
 
 A point a hit (a basket, a whack, a target, a step up the zapper race; a race won is 10 more); Atomic Rollers' holes are
 worth what they say. Tickets come out at Nuka-World's own rates: a ticket every 100 at Atomic Rollers, every 2

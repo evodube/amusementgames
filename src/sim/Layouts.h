@@ -26,8 +26,11 @@ namespace sim::layout
 		double ballRadius{ 4.0 };              // DLC04_Nukacade_Ball01: 8 across
 		Vec3   release{ 0.0, -148.0, 42.6 };   // the ball in your hand: on the lane's near end
 		double aimHalfWidth{ 32.0 };           // how far either side of the lane's middle you can aim
+		double laneHalfWidth{ 38.4 };
+		double laneFrontY{ -160.0 }, laneFrontZ{ 38.4 };  // the lane's surface: flat...
+		double laneBendY{ -80.0 }, laneBendZ{ 37.5 };     // ...to here, then rising...
+		double laneTopZ{ 46.0 };                          // ...to this at the hump (rampStartY)
 		double rampStartY{ 8.6 };              // where the hump starts (what you aim at across the lane)
-		double laneSlope{ 0.0 };
 		std::vector<RollersCup> cups{ { { 0.0, 81.7, 38.0 }, 100 }, { { 0.0, 98.7, 46.5 }, 200 }, { { 0.0, 115.7, 55.0 }, 300 },
 			{ { 0.0, 134.1, 64.2 }, 400 }, { { 0.0, 153.8, 74.0 }, 500 }, { { -38.5, 153.8, 74.0 }, 700 }, { { 38.5, 153.8, 74.0 }, 700 } };
 		Vec3   gutter{ 0.0, 57.6, 38.0 };      // BallHole00: the gutter before the board
@@ -140,6 +143,7 @@ namespace sim::layout
 		double z{ 150.0 };    // the targets' feet
 		double speed{ 60.0 }; // across: + to the right, - to the left
 		int    count{ 6 };
+		bool   bullseyes{ false };  // a bullseye dead centre is worth more here
 	};
 
 	struct GalleryKind  // the five cut-outs, in the plugin's model order: duck, bunny, pig, bottle, star
@@ -148,6 +152,8 @@ namespace sim::layout
 		double radius{ 10.0 };  // how big a target it is
 		double height{ 10.0 };  // its middle above its feet
 		double weight{ 1.0 };   // how often it comes up
+		double bullX{ 0.0 };    // its bullseye's centre (the round plate on it, from its model)...
+		double bullZ{ 10.0 };   // ...above its feet
 	};
 
 	struct GalleryLayout
@@ -155,9 +161,12 @@ namespace sim::layout
 		double                   seconds{ 60.0 };
 		double                   left{ -224.0 };
 		double                   right{ 232.0 };
-		std::vector<GalleryRow>  rows{ { 418.3, 180.2, 75.0, 6 }, { 375.0, 111.2, -95.0, 6 } };
-		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0 }, { 1, 15.0, 16.0, 3.0 }, { 1, 13.0, 11.0, 2.0 }, { 1, 8.0, 22.0, 1.2 },
-			{ 1, 12.0, 11.0, 0.6 } };  // a point a hit, whatever it is
+		std::vector<GalleryRow>  rows{ { 418.3, 180.2, 75.0, 6, true }, { 375.0, 111.2, -95.0, 6, false } };
+		// a point a hit, whatever it is; the bullseyes' centres from the models' bullseye plates (their :173 shapes)
+		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0, -0.7, 11.1 }, { 1, 15.0, 16.0, 3.0, -0.4, 11.0 }, { 1, 13.0, 11.0, 2.0, -1.1, 15.0 },
+			{ 1, 8.0, 22.0, 1.2, 0.0, 20.0 }, { 1, 12.0, 11.0, 0.6, -0.15, 14.15 } };
+		double                   deadCentre{ 2.0 };   // within this of a bullseye's centre (the top row's)...
+		int                      bullseyePoints{ 3 }; // ...is worth this
 		double                   flipSeconds{ 0.15 };
 		double                   shotSeconds{ 0.6 };  // the lever between shots
 	};

@@ -85,10 +85,10 @@ namespace sim
 		std::string line2;            // e.g. "LAST: 40"
 		double      timeLeft{ -1.0 }; // seconds (-1: not a timed game)
 		double      power{ -1.0 };    // 0..1 while charging a throw (-1: no meter)
-		double      aimX{ 0.0 };      // -1..1: where your throw goes across the lane (rollers' guide), 0 centre
-		bool        showAim{ false };
 		std::vector<std::pair<std::string, double>> race;  // the zapper race: each lane's name and how far up (0..1)
 		std::string clock;               // an untimed game's stand-in for the clock (Atomic Rollers' ball, the race's countdown)
+		bool        showPoints{ false }; // the points as they come, on screen (Atomic Rollers)
+		std::vector<Vec3> guide;         // the aim line, machine space, from the ball out (Atomic Rollers, as fo4bowling's)
 	};
 
 	class Game

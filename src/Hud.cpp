@@ -267,6 +267,38 @@ namespace ag::Hud
 			}
 		}
 
+		// the points as they come (Atomic Rollers): big in the middle, rising and fading
+		void Points(const View& a_v, const Arcade::HudState& a_st)
+		{
+			if (a_st.sinceLastPoints > 1.2 || a_st.lastPoints <= 0) {
+				return;
+			}
+			const float t = static_cast<float>(a_st.sinceLastPoints / 1.2);
+			const float a = 1.0f - t * t;
+			Print(a_v, Title(), std::format("+{}", a_st.lastPoints), a_v.w * 0.5f, a_v.h * 0.36f - 40.0f * t, 54, Fade(kBright, a), Fade(kGlow, a), 2.0f,
+				Align::kCentre);
+		}
+
+		// the aim line (Atomic Rollers), as fo4bowling's: green, glowing, fading as it goes
+		void Guide(ImGuiViewport* a_viewport, const View& a_v, const Arcade::HudState& a_st)
+		{
+			if (a_st.guide.size() < 2) {
+				return;
+			}
+			const auto at = [&](const std::array<float, 2>& a_p) {
+				return ImVec2{ a_viewport->Pos.x + a_p[0] * a_viewport->Size.x, a_viewport->Pos.y + a_p[1] * a_viewport->Size.y };
+			};
+			const float       scale = std::max(0.1f, a_viewport->Size.y / 720.0f);
+			const std::size_t n = a_st.guide.size();
+			for (std::size_t i = 1; i < n; ++i) {
+				const float  fade = 1.0f - static_cast<float>(i) / static_cast<float>(n);
+				const ImVec2 a = at(a_st.guide[i - 1]);
+				const ImVec2 b = at(a_st.guide[i]);
+				DL::AddLine(a_v.dl, a, b, Fade(kGlow, 0.45f * fade), 7.0f * scale);
+				DL::AddLine(a_v.dl, a, b, Fade(kBright, 0.95f * fade + 0.05f), 2.5f * scale);
+			}
+		}
+
 		// the end of a game: the score, the tickets out, a new best
 		void Results(const View& a_v, const Arcade::HudState& a_st)
 		{
@@ -308,6 +340,10 @@ namespace ag::Hud
 			// while you play: the clock, and the power meter only while you're charging a throw (the machine's own
 			// scoreboard has the score)
 			Timer(v, st);
+			Guide(viewport, v, st);
+			if (st.info.showPoints) {
+				Points(v, st);
+			}
 			if (st.info.power > 0.0) {
 				Meter(v, st);
 			}

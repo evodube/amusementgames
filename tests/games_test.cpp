@@ -145,6 +145,21 @@ namespace
 		}
 		Check(any, "atomic rollers: some power gets a straight ball into a ring");
 
+		// the guide line follows where you look on the lane
+		{
+			auto g2 = MakeGame(GameId::kAtomicRollers);
+			g2->Start(1);
+			const Vec3 eye{ 0, L.release.y - 40, L.release.z + 60 };
+			g2->Update(1.0 / 60.0, LookAt(eye, { 20, -40, 38.4 }));
+			HudInfo h;
+			g2->Hud(h);
+			Check(h.guide.size() > 5 && h.guide.back().x > 5.0, "atomic rollers: looking right of the middle, the guide line goes right");
+			g2->Update(1.0 / 60.0, LookAt(eye, { 0, -40, 38.4 }));
+			HudInfo h2;
+			g2->Hud(h2);
+			Check(!h2.guide.empty() && std::abs(h2.guide.back().x) < 1.0, "atomic rollers: looking down the middle, it's straight");
+		}
+
 		// a whole game, full power every time
 		auto   g = MakeGame(GameId::kAtomicRollers);
 		double took = 0.0;
@@ -278,6 +293,26 @@ namespace
         }, 60.0);
 		std::printf("     bandit roundup: %d points, %d tickets\n", s, g->TicketsFor(s));
 		Check(s > 20, "bandit roundup: aiming at the targets hits them");
+
+		// one shot dead centre at a top-row target's bullseye: 3; one at a bottom-row one's: 1
+		for (int row = 0; row < 2; ++row) {
+			auto shot = MakeGame(GameId::kBanditRoundup);
+			shot->Start(5);
+			std::vector<Piece> pieces;
+			shot->Pieces(pieces);
+			const auto& L = layout::Gallery();
+			int         first = 0;
+			for (int r = 0; r < row; ++r) {
+				first += L.rows[r].count;
+			}
+			const auto& p = pieces[first];
+			const auto& k = L.kinds[p.model];
+			Input in = LookAt(eye, p.pos + Vec3{ k.bullX, 0, k.bullZ });
+			in.pressed = true;
+			shot->Update(0.0, in);
+			Check(shot->Score() == (row == 0 ? 3 : 1), row == 0 ? "bandit roundup: dead centre of a top-row bullseye is 3" :
+			                                                       "bandit roundup: dead centre on the bottom row is just 1");
+		}
 	}
 
 	void Tickets()

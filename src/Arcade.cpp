@@ -387,7 +387,7 @@ namespace ag
 			Finish(false);
 			return;
 		}
-		PublishHud();
+		PublishHud(&f);
 	}
 
 	void Arcade::PlacePieces(const Frame& a_f)
@@ -561,7 +561,8 @@ namespace ag
 			_lent.ammoGiven = 200;
 		}
 		auto had = _lent.had;
-		Papyrus::CallWithBools("ArmPlayer", Papyrus::Id(weapon), _lent.added, Papyrus::Id(_lent.ammo), _lent.ammoGiven, 0,
+		Papyrus::CallWithBools("ArmPlayer", Papyrus::Id(weapon), _lent.added, Papyrus::Id(_lent.ammo), _lent.ammoGiven,
+			Papyrus::Id(Forms::LentModFor(weapon)),
 			[had](std::int32_t a_had) { *had = a_had; });
 		log::info("{}: {} in your hands{}", sim::GameName(a_game), weapon->GetFormEditorID() ? weapon->GetFormEditorID() : "its weapon",
 			_lent.added ? " (lent)" : "");
@@ -647,7 +648,7 @@ namespace ag
 		RE::SendHUDMessage::ShowHUDMessage(a_text.c_str(), nullptr, false, false);
 	}
 
-	void Arcade::PublishHud()
+	void Arcade::PublishHud(const Frame* a_frame)
 	{
 		HudState st;
 		st.playing = _playing && _game;
@@ -657,6 +658,17 @@ namespace ag
 			_game->Hud(st.info);
 			st.lastPoints = _game->lastPoints;
 			st.sinceLastPoints = _game->sinceLastPoints;
+		}
+		// the aim line onto the screen, as fo4bowling does it
+		if (a_frame && !st.info.guide.empty()) {
+			if (auto* camera = RE::Main::WorldRootCamera()) {
+				for (const auto& p : st.info.guide) {
+					float x = 0.0f, y = 0.0f, z = 0.0f;
+					if (camera->WorldPtToScreenPt3(ToWorld(*a_frame, p), x, y, z, 1e-5f) && z > 0.0f) {
+						st.guide.push_back({ x, 1.0f - y });
+					}
+				}
+			}
 		}
 		st.best = _gameId != sim::GameId::kCount ? _best[static_cast<int>(_gameId)] : 0;
 		st.tokens = Count(Forms::Token());

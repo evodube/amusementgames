@@ -78,10 +78,6 @@ namespace ag::Papyrus
 	bool CallWithBools(const char* a_function, std::int32_t a_a, bool a_b, std::int32_t a_c, std::int32_t a_d, std::int32_t a_e,
 		std::function<void(std::int32_t)> a_done)
 	{
-		// (ArmPlayer takes four: the fifth is DisarmPlayer's)
-		if (std::string_view(a_function) == "ArmPlayer") {
-			return Dispatch(a_function, std::move(a_done), a_a, a_b, a_c, a_d);
-		}
 		return Dispatch(a_function, std::move(a_done), a_a, a_b, a_c, a_d, a_e);
 	}
 }
