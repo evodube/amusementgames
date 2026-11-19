@@ -59,6 +59,15 @@ DLC03_LeverGun (DLCCoast.esm 0002C8B0, looked up by name so Far Harbor isn't a m
 back the lent weapon and what's left of the lent ammo and re-equips what you had out. Fighting isn't held for those
 games (your swing or shot is the real one; the game reads the click and where you look).
 
+## Props (src/Scoreboard.cpp PutUpProps)
+
+Put up with the scoreboard: Atomic Rollers' 9 balls in the right-hand pocket (RollersLayout::pocket, back along its
+channel), Hoop Shot's 3 basketballs on the front shelf, Whac-a-Commie's mallet (STAT 82B, the Nuka-Cade's own
+DLC04_Nukacade_CommieWhacker01.nif) at its whacker01 node, the Thirst Zapper and the rifle as real weapon refs laid
+on their counters (BlockActivation through AmusementGamesNative.Prop, the rifle's iron sights attached). Havok
+keyframed once loaded. While you play they're hidden, but for the balls still waiting in Atomic Rollers' pocket
+(HudInfo::waiting).
+
 ## Scoreboards (src/Scoreboard.cpp)
 
 Nuka-World's digits (DLC04_Nukacade_Numbers 0004E138; the _Large 00053653 on the zapper and gallery) are placed at

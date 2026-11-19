@@ -88,6 +88,8 @@ namespace sim
 		std::vector<std::pair<std::string, double>> race;  // the zapper race: each lane's name and how far up (0..1)
 		std::string clock;               // an untimed game's stand-in for the clock (Atomic Rollers' ball, the race's countdown)
 		bool        showPoints{ false }; // the points as they come, on screen (Atomic Rollers)
+		int         waiting{ -1 };       // the machine's things on show while you play (Atomic Rollers: the balls left in its
+		                                 // pocket); -1: none (they're in your hands)
 		std::vector<Vec3> guide;         // the aim line, machine space, from the ball out (Atomic Rollers, as fo4bowling's)
 	};
 

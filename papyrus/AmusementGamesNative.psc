@@ -82,3 +82,15 @@ Function DisarmPlayer(Int aiWeapon, Bool abRemove, Int aiAmmo, Int aiAmmoCount, 
 		p.EquipItem(had, False, True)
 	EndIf
 EndFunction
+
+; a machine's prop (a weapon lying on its counter): not to be picked up, its mod fitted (the rifle's iron sights)
+Function Prop(Int aiRef, Int aiMod) Global
+	ObjectReference r = Game.GetForm(aiRef) as ObjectReference
+	If r
+		r.BlockActivation(True, True)
+		ObjectMod m = Game.GetForm(aiMod) as ObjectMod
+		If m
+			r.AttachMod(m)
+		EndIf
+	EndIf
+EndFunction

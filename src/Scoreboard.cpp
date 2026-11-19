@@ -27,7 +27,14 @@ namespace ag::Scoreboards
 			Row                 score;
 			Row                 high;
 			double              refresh{ 0.0 };
-			RE::ObjectRefHandle prop;  // the zapper race's Thirst Zapper on the counter: where you stand
+			struct Prop
+			{
+				RE::ObjectRefHandle ref;
+				RE::TESForm*        mod{ nullptr };   // (a weapon's: fitted once it's loaded)
+				bool                weapon{ false };
+				bool                settled{ false }; // frozen in place (and, a weapon, made not to be picked up)
+			};
+			std::vector<Prop> props;  // the machine's things: the balls, the mallet, the gun on the counter
 		};
 
 		std::vector<Board> g_boards;
@@ -50,7 +57,10 @@ namespace ag::Scoreboards
 
 		void Remove(Board& a_b)
 		{
-			Remove(a_b.prop);
+			for (auto& p : a_b.props) {
+				Remove(p.ref);
+			}
+			a_b.props.clear();
 			for (auto* row : { &a_b.score, &a_b.high }) {
 				for (auto& h : row->refs) {
 					Remove(h);
@@ -66,7 +76,7 @@ namespace ag::Scoreboards
 		}
 
 		// a digit's ref at the machine's node: where the node is, turned as the machine is
-		RE::ObjectRefHandle Place(RE::TESObjectREFR* a_machine, RE::TESBoundObject* a_form, const RE::NiPoint3& a_at)
+		RE::ObjectRefHandle Place(RE::TESObjectREFR* a_machine, RE::TESBoundObject* a_form, const RE::NiPoint3& a_at, float a_tilt = 0.0f)
 		{
 			auto*              dh = RE::TESDataHandler::GetSingleton();
 			RE::TESObjectCELL* cell = a_machine->GetParentCell();
@@ -84,6 +94,7 @@ namespace ag::Scoreboards
 			RE::NEW_REFR_DATA data;
 			data.location = a_at;
 			data.direction = a_machine->data.angle;
+			data.direction.y += a_tilt;  // (a weapon laid on its side)
 			data.object = a_form;
 			if (cell->IsInterior()) {
 				data.interior = cell;
@@ -92,6 +103,70 @@ namespace ag::Scoreboards
 			}
 			data.initializeScripts = false;  // (Nuka-World's own number script stays out of it: we set the digits)
 			return dh->CreateReferenceAtLocation(data);
+		}
+
+		// the machine's things, to make it look ready to play: Atomic Rollers' balls waiting in its right-hand pocket,
+		// Hoop Shot's on the front shelf, the mallet on Whac-a-Commie, a Thirst Zapper on the zapper race's counter in
+		// front of your lane, the rifle on the gallery's counter
+		void PutUpProps(Board& a_b, RE::TESObjectREFR* a_machine)
+		{
+			auto* root = a_machine->Get3D();
+			if (!root) {
+				return;
+			}
+			const auto& w = root->world;
+			const float scale = w.scale != 0.0f ? w.scale : 1.0f;
+			const auto  at = [&](const sim::Vec3& a_local) {
+				const RE::NiPoint3 l{ static_cast<float>(a_local.x), static_cast<float>(a_local.y), static_cast<float>(a_local.z) };
+				return w.translate + w.rotate.Transpose() * (l * scale);
+			};
+			const auto add = [&](RE::TESBoundObject* a_form, const RE::NiPoint3& a_pos, float a_tilt, RE::TESForm* a_mod, bool a_weapon) {
+				if (!a_form) {
+					return;
+				}
+				Board::Prop p;
+				p.ref = Place(a_machine, a_form, a_pos, a_tilt);
+				p.mod = a_mod;
+				p.weapon = a_weapon;
+				a_b.props.push_back(p);
+			};
+			constexpr float kOnItsSide = 1.5707963f;
+			switch (a_b.game) {
+			case sim::GameId::kAtomicRollers:
+				{
+					const auto& L = sim::layout::Rollers();
+					auto*       ball = Forms::Bound(Forms::Own(Forms::kSkeeBall));
+					for (int k = 0; k < L.balls; ++k) {
+						add(ball, at(L.pocket + sim::Vec3{ 0.0, L.pocketStep * k, 0.0 }), 0.0f, nullptr, false);
+					}
+				}
+				break;
+			case sim::GameId::kHoopShot:
+				{
+					const auto& L = sim::layout::Hoop();
+					auto*       ball = Forms::Bound(Forms::Own(Forms::kBasketball));
+					for (double x : { -24.0, 0.0, 24.0 }) {
+						add(ball, at({ x, L.shelfBallY, 57.9 + L.ballRadius }), 0.0f, nullptr, false);
+					}
+				}
+				break;
+			case sim::GameId::kWhacACommie:
+				if (auto* node = root->GetObjectByName(RE::BSFixedString("whacker01"))) {
+					add(Forms::Bound(Forms::Own(Forms::kCommieWhackerProp)), node->world.translate, 0.0f, nullptr, false);
+				}
+				break;
+			case sim::GameId::kNukaZapperRace:
+				add(Forms::WeaponOf(a_b.game), at(sim::layout::Zapper().gunRest), kOnItsSide, nullptr, true);
+				break;
+			case sim::GameId::kBanditRoundup:
+				{
+					auto* rifle = Forms::WeaponOf(a_b.game);
+					add(rifle, at(sim::layout::Gallery().rifleRest), kOnItsSide, Forms::LentModFor(rifle), true);
+				}
+				break;
+			default:
+				break;
+			}
 		}
 
 		bool PutUp(Board& a_b, RE::TESObjectREFR* a_machine)
@@ -113,16 +188,7 @@ namespace ag::Scoreboards
 					++placed;
 				}
 			}
-			// the zapper race: a Thirst Zapper lying on the counter in front of your lane's target, where you stand
-			if (a_b.game == sim::GameId::kNukaZapperRace) {
-				if (auto* gun = Forms::Bound(Forms::Own(Forms::kZapperGun))) {
-					const auto&        w = root->world;
-					const auto&        g = sim::layout::Zapper().gunRest;
-					const RE::NiPoint3 local{ static_cast<float>(g.x), static_cast<float>(g.y), static_cast<float>(g.z) };
-					const RE::NiPoint3 at = w.translate + w.rotate.Transpose() * (local * (w.scale != 0.0f ? w.scale : 1.0f));
-					a_b.prop = Place(a_machine, gun, at);
-				}
-			}
+			PutUpProps(a_b, a_machine);
 			log::info("{} {:08X}: its scoreboard up ({} digits)", sim::GameName(a_b.game), a_machine->GetFormID(), placed);
 			return placed > 0;
 		}
@@ -220,11 +286,29 @@ namespace ag::Scoreboards
 		}
 		const auto& arcade = Arcade::Get();
 		for (auto& b : g_boards) {
-			// the zapper's gun on the counter: out of sight while you're playing (it's in your hands)
-			if (auto prop = b.prop.get(); prop && prop->Get3D()) {
-				const bool hide = arcade.PlayingOn(b.id);
-				if (prop->Get3D()->GetAppCulled() != hide) {
-					prop->Get3D()->SetAppCulled(hide);
+			// the props: settled once loaded; on show unless you're playing (then the game says how many: Atomic
+			// Rollers' balls still waiting in the pocket)
+			const int shown = arcade.PropsShown(b.id, static_cast<int>(b.props.size()));
+			for (int k = 0; k < static_cast<int>(b.props.size()); ++k) {
+				auto& p = b.props[k];
+				auto  ref = p.ref.get();
+				auto* root = ref ? ref->Get3D() : nullptr;
+				if (!root) {
+					continue;
+				}
+				if (!p.settled) {
+					p.settled = true;
+					RE::BSVisit::TraverseScenegraphCollision(root, [](RE::bhkNPCollisionObject* a_c) {
+						a_c->SetMotionType(RE::hknpMotionPropertiesId::Preset::kKeyframed);
+						return RE::BSVisitControl::kContinue;
+					});
+					if (p.weapon) {
+						Papyrus::Call("Prop", { Papyrus::Id(ref.get()), Papyrus::Id(p.mod) });
+					}
+				}
+				const bool hide = k >= shown;
+				if (root->GetAppCulled() != hide) {
+					root->SetAppCulled(hide);
 				}
 			}
 			// every few seconds every digit's set again (a digit whose animation didn't take: its 3D not ready, a

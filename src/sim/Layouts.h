@@ -31,6 +31,8 @@ namespace sim::layout
 		double laneBendY{ -80.0 }, laneBendZ{ 37.5 };     // ...to here, then rising...
 		double laneTopZ{ 46.0 };                          // ...to this at the hump (rampStartY)
 		double rampStartY{ 8.6 };              // where the hump starts (what you aim at across the lane)
+		Vec3   pocket{ 48.5, -126.0, 36.4 };   // the right-hand pocket where the balls come back (BallReturn01's channel)...
+		double pocketStep{ 8.4 };              // ...each ball behind the one before
 		std::vector<RollersCup> cups{ { { 0.0, 81.7, 38.0 }, 100 }, { { 0.0, 98.7, 46.5 }, 200 }, { { 0.0, 115.7, 55.0 }, 300 },
 			{ { 0.0, 134.1, 64.2 }, 400 }, { { 0.0, 153.8, 74.0 }, 500 }, { { -38.5, 153.8, 74.0 }, 700 }, { { 38.5, 153.8, 74.0 }, 700 } };
 		Vec3   gutter{ 0.0, 57.6, 38.0 };      // BallHole00: the gutter before the board
@@ -62,6 +64,7 @@ namespace sim::layout
 		double rampFrontY{ -90.0 }, rampFrontZ{ 50.2 };   // the return ramp: up from under the shelf...
 		double rampBackY{ 157.0 }, rampBackZ{ 92.9 };     // ...to the back
 		double shelfFrontY{ -128.0 }, shelfBackY{ -90.0 }, shelfZ{ 57.9 };
+		double shelfBallY{ -109.0 };        // the balls waiting on the front shelf (z: the shelf and the ball's radius)
 		double sideX{ 56.0 };               // the cage's sides...
 		double sideTopZ{ 142.0 };           // ...up to here (open above)
 		double handForward{ 30.0 };         // the ball in your hand, in front of your eyes...
@@ -120,7 +123,7 @@ namespace sim::layout
 	{
 		std::vector<ZapperLane> lanes{ ZapLane(-182.2), ZapLane(-109.5), ZapLane(-37.5), ZapLane(34.1), ZapLane(106.4), ZapLane(178.2) };
 		int    playerLane{ 3 };             // yours: the one nearest the machine's middle, a Thirst Zapper on the counter by it
-		Vec3   gunRest{ 34.1, 0.0, 72.0 };  // where that Thirst Zapper lies (the counter's at 64): stand behind it to play
+		Vec3   gunRest{ 34.1, 0.0, 68.0 };  // where that Thirst Zapper lies (the counter's at 64): stand behind it to play
 		double targetRadius{ 11.0 };        // DLC04_Nukacade_NukaZapperTarget01: 30 across
 		int    hitsToWin{ 10 };             // Nuka-World's: ten hits up, then the win
 		double shotSeconds{ 0.3 };          // your squirts, counted at most this often
@@ -164,6 +167,7 @@ namespace sim::layout
 		// a point a hit, whatever it is; the bullseyes' centres from the models' bullseye plates (their :173 shapes)
 		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0, -0.7, 11.1 }, { 1, 15.0, 16.0, 3.0, -0.4, 11.0 }, { 1, 13.0, 11.0, 2.0, -1.1, 15.0 },
 			{ 1, 8.0, 22.0, 1.2, 0.0, 20.0 }, { 1, 12.0, 11.0, 0.6, -0.15, 14.15 } };
+		Vec3                     rifleRest{ 0.0, -5.0, 66.0 };  // the rifle lying on the counter (it's at 64)
 		double                   deadCentre{ 2.0 };   // within this of a bullseye's centre (the top row's)...
 		int                      bullseyePoints{ 3 }; // ...is worth this
 		double                   flipSeconds{ 0.15 };

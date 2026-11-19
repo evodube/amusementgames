@@ -69,6 +69,16 @@ namespace ag
 			return it != _lastScores.end() ? it->second : 0;
 		}
 		bool PlayingOn(RE::TESFormID a_machine) const { return _playing && _machineID == a_machine; }
+		// how many of a machine's props are on show: all of them, or while you play on it what the game says
+		int PropsShown(RE::TESFormID a_machine, int a_all) const
+		{
+			if (!PlayingOn(a_machine) || !_game) {
+				return a_all;
+			}
+			sim::HudInfo h;
+			_game->Hud(h);
+			return h.waiting < 0 ? 0 : std::min(a_all, h.waiting);
+		}
 		int Best(sim::GameId a_game) const { return a_game != sim::GameId::kCount ? _best[static_cast<int>(a_game)] : 0; }
 
 		// something of the game's hit by you (on the game's thread): Whac-a-Commie's heads are whacked this way

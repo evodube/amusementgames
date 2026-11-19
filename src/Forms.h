@@ -26,7 +26,7 @@ namespace ag::Forms
 		kGalleryBottle = 0x828,
 		kGalleryStar = 0x829,
 		kZapperTarget = 0x82A,
-		kZapperGun = 0x82B  // the Thirst Zapper lying on the counter: where you stand to play
+		kCommieWhackerProp = 0x82B  // the Nuka-Cade's mallet, resting on Whac-a-Commie
 	};
 
 	inline constexpr RE::TESFormID kFurnitureTables = 0x00118F59;  // WorkshopRecipeFilterFurniture02Tables

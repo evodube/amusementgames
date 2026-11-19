@@ -157,6 +157,8 @@ namespace sim
 				a_out.power = _charge.on ? _charge.Power(L.chargeSeconds) : (_phase == Phase::kAim ? 0.0 : -1.0);
 				a_out.clock = _phase == Phase::kDone ? std::string() : std::format("BALL {}/{}", n, L.balls);
 				a_out.showPoints = true;
+				// the balls still to come, waiting in the pocket (the one on the lane or rolling not among them)
+				a_out.waiting = _phase == Phase::kDone ? 0 : std::max(0, _left - 1);
 				if (_phase == Phase::kAim) {
 					// along the aim from the ball, on the lane's surface, to the hump (or the lane's edge)
 					const Vec3& from = L.release;

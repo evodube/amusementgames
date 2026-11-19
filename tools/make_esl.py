@@ -36,8 +36,8 @@ Form IDs (src/Forms.h expects these):
                                                event is the whack)
                                                821 the basketball (the base game's, BasketBall01), 822 a commie's head, 823 a zapper rocket, 824 a
                                                drop of the zapper's water, 825-829 the gallery's duck, bunny, pig,
-                                               bottle and star, 82A the zapper's target, 82B a Thirst Zapper lying
-                                               on the zapper race's counter (where you stand to play)
+                                               bottle and star, 82A the zapper's target, 82B the Nuka-Cade's mallet
+                                               resting on Whac-a-Commie (its whacker01 node)
 
 Tokens and tickets are Nuka-World's own items (DLC04_Nukacade_Token01 0001998A, DLC04_Nukacade_Ticket01 00019988),
 so the Nuka-Cade's machines and prize terminal take ours and ours take theirs.
@@ -238,7 +238,7 @@ PIECES = [
     (0x28, "GalleryBottle", GAMES_DIR + "DLC04_Nukacade_ShootingGallerybottle01.nif", (-9, 0, -6, 9, 1, 48)),
     (0x29, "GalleryStar", GAMES_DIR + "DLC04_Nukacade_ShootingGalleryStar01.nif", (-13, 0, -6, 13, 0, 28)),
     (0x2A, "ZapperTarget", GAMES_DIR + "DLC04_Nukacade_NukaZapperTarget01.nif", (-15, -8, -21, 15, 9, 21)),
-    (0x2B, "ZapperGun", "DLC04\\Weapons\\ThirstZapper\\ThirstZapper.nif", (-4, -5, -8, 4, 22, 8)),  # the Thirst Zapper's own model
+    (0x2B, "CommieWhacker", GAMES_DIR + "DLC04_Nukacade_CommieWhacker01.nif", (-20, -20, -20, 20, 20, 20)),  # the machine's own mallet
 ]
 
 # (recipe form id offset, editor id suffix, what it makes, components as Nuka-World's recipe, sounds)
