@@ -322,6 +322,17 @@ namespace ag::Scoreboards
 		}
 	}
 
+	std::vector<RE::ObjectRefHandle> Machines(sim::GameId a_game)
+	{
+		std::vector<RE::ObjectRefHandle> out;
+		for (const auto& b : g_boards) {
+			if (b.game == a_game) {
+				out.push_back(b.machine);
+			}
+		}
+		return out;
+	}
+
 	constexpr float kRollSlotsPerSecond = 5.0f;  // the pocket's balls rolling down
 
 	void Tick(double a_dt)

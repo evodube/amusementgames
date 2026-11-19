@@ -150,6 +150,20 @@ namespace sim
 
 	std::unique_ptr<Game> MakeGame(GameId a_id);
 
+	// a settler playing Bandit Roundup: picks an upright target near the middle, aims at its bullseye (off by about
+	// a_spread radians), fires every so often. Next() gives its input for this frame.
+	class GalleryShooter
+	{
+	public:
+		GalleryShooter(std::uint32_t a_seed, double a_spread);
+		Input Next(const Game& a_game, const Vec3& a_eye, double a_dt);
+
+	private:
+		std::mt19937 _rng;
+		double       _spread;
+		double       _wait{ 1.5 };  // till the next shot (the first: once they've the rifle up)
+	};
+
 	// rows of a rotation of a_angle radians about z (a piece turned to face along y)
 	void RotZ(double a_angle, double a_out[3][3]);
 	// ...about x (a target flipping back, a head tipping)

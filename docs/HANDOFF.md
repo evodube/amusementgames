@@ -29,6 +29,21 @@ nodes) with Blender + PyNifly on the PC: the BA2 entries were pulled out to `C:\
 Nuka-World's scripts' properties (ScoreEvents PointValue, ScorePerTicket): Atomic Rollers holes 0/100-500/700 at
 100 a ticket; Hoop Shot 100 a basket, Whac-a-Commie 100 a whack, Bandit Roundup 100-300 a target, all 200 a ticket.
 
+## Settlers playing
+
+Arcade::TickShow (src/Arcade.cpp, "settlers at the games"): one settler's game at a time. Every 45-120 s (20 s at
+first, 20 s retries) a Bandit Roundup machine near you (Scoreboards::Machines) that you're not at gets a settler of its
+settlement (linked to the same workshop by WorkshopItemKeyword, within 3000 of it, not in combat). An XMarkerHeading
+is put at kGalleryStand (machine space, 0,-75,0, facing the targets); AmusementGamesNative.NpcStartGallery checks
+they're free (not following you, sitting, fighting, hurt, doing a favour), PathToReference's them there, MoveTo's
+onto it, equips the gun (lent if they've none), draws it and turns their AI off. Then the sim game runs with a
+sim::GalleryShooter (aims at the upright target nearest the middle, at its bullseye, off by a random spread 0.006-0.03
+rad a settler, a shot every 0.9-1.8 s; each shot also Weapon.Fire'd from them for its sound and flash) and the
+scoreboard shows its score (ScoreOn). NpcEnd lets them go (AI on, lent gun taken back). Called off if you leave
+(3000), start that machine yourself, or they die/fight/unload; a settler still walking when called off is let go
+when they arrive. Anyone held when the game's saved is written to the cosave ('AGHL') and let go after that save
+loads (kPostLoadGame).
+
 ## Takings
 
 src/Income.cpp: once a second, each of our machines near you (the boards' list) pays its workshop (linked ref by

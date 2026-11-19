@@ -65,6 +65,9 @@ namespace ag
 			if (_playing && _game && _machineID == a_machine) {
 				return _game->Score();
 			}
+			if (_show.phase == Show::Phase::kPlaying && _show.game && _show.machineID == a_machine) {
+				return _show.game->Score();  // (a settler's game)
+			}
 			const auto it = _lastScores.find(a_machine);
 			return it != _lastScores.end() ? it->second : 0;
 		}
@@ -72,6 +75,9 @@ namespace ag
 		// how many of a machine's props are on show: all of them, or while you play on it what the game says
 		int PropsShown(RE::TESFormID a_machine, int a_all) const
 		{
+			if (_show.phase == Show::Phase::kPlaying && _show.machineID == a_machine) {
+				return 0;  // (a settler's playing: the rifle's in their hands)
+			}
 			if (!PlayingOn(a_machine) || !_game) {
 				return a_all;
 			}
@@ -86,6 +92,10 @@ namespace ag
 
 		// a machine activated by you (on the game's thread)
 		void OnActivated(RE::TESObjectREFR* a_machine);
+
+		// after a load: settlers held at a machine when the game was saved let go (their AI back on, the lent rifle
+		// taken back)
+		void ReleaseHeld();
 
 	private:
 		Arcade() = default;
@@ -107,10 +117,12 @@ namespace ag
 		void Finish(bool a_early);
 		void Cleanup();
 		void PlacePieces(const Frame& a_f);
+		void PlacePieces(const Frame& a_f, const sim::Game& a_game, sim::GameId a_id, RE::TESObjectREFR* a_machine,
+			std::vector<RE::ObjectRefHandle>& a_pieces, std::vector<int>& a_models, std::vector<RE::NiAVObject*>& a_frozen);
 		RE::ObjectRefHandle Spawn(RE::TESBoundObject* a_form, RE::TESObjectREFR* a_near, const RE::NiPoint3& a_pos);
 		void                Remove(RE::ObjectRefHandle& a_handle);
 		void                PlaceNode(RE::TESObjectREFR* a_ref, const RE::NiPoint3& a_pos, const RE::NiMatrix3& a_rot, float a_scale, bool a_hidden);
-		void                Freeze(RE::TESObjectREFR* a_ref);
+		void Freeze(RE::TESObjectREFR* a_ref, std::vector<RE::NiAVObject*>& a_frozen);
 		void                BlockControls(bool a_block, bool a_allowFighting = false);
 		void                Arm(sim::GameId a_game);
 		void                Disarm();
@@ -163,5 +175,51 @@ namespace ag
 
 		mutable std::mutex _hudMutex;
 		HudState           _hud;
+
+		// a settler playing a game (Bandit Roundup) while you're about: one at a time, on a machine you're not at. They
+		// walk to the spot in front of it, take up the rifle (lent if they've none), and are held there (their AI off)
+		// while the game plays them; then let go
+		struct Show
+		{
+			enum class Phase
+			{
+				kNone,
+				kWalking,  // on their way (Papyrus: AmusementGamesNative.NpcStartGallery)
+				kPlaying
+			};
+			Phase                                  phase{ Phase::kNone };
+			RE::ActorHandle                        actor;
+			RE::TESFormID                          actorID{ 0 };
+			RE::ObjectRefHandle                    machine;
+			RE::TESFormID                          machineID{ 0 };
+			sim::GameId                            gameId{ sim::GameId::kCount };
+			RE::ObjectRefHandle                    marker;  // where they stand
+			sim::Vec3                              eye;     // their eye, in the machine's space
+			RE::TESObjectWEAP*                     weapon{ nullptr };
+			bool                                   added{ false };  // the rifle lent (taken back after)
+			double                                 walkLeft{ 0.0 };
+			std::shared_ptr<std::atomic<std::int32_t>> ready;  // -1 on the way, 0 didn't make it, 1 ready, 2 ready (lent)
+			std::unique_ptr<sim::Game>             game;
+			std::unique_ptr<sim::GalleryShooter>   shooter;
+			std::vector<RE::ObjectRefHandle>       pieces;
+			std::vector<int>                       pieceModel;
+			std::vector<RE::NiAVObject*>           frozen;
+		};
+		struct Held  // a settler to let go once Papyrus is done with them
+		{
+			std::shared_ptr<std::atomic<std::int32_t>> ready;  // (null: known held)
+			RE::TESFormID                          actor{ 0 };
+			RE::TESFormID                          weapon{ 0 };
+			bool                                   added{ false };
+		};
+		void TickShow(double a_dt);
+		bool StartShow();
+		void EndShow(const char* a_why);
+		void Release(RE::TESFormID a_actor, RE::TESFormID a_weapon, bool a_added);
+		Show               _show;
+		std::vector<Held>  _held;
+		double             _nextShow{ 20.0 };
+		std::mt19937       _showRng{ std::random_device{}() };
+		std::vector<Held>  _heldFromSave;  // (read from the cosave: let go after the load)
 	};
 }

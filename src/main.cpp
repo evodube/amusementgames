@@ -34,6 +34,9 @@ namespace
 			ag::Scoreboards::Clear();  // (no digits saved into the cells: they go back up after)
 			break;
 		case F4SE::MessagingInterface::kPostLoadGame:
+			ag::Hook::Install();  // no-op if already hooked
+			ag::Arcade::Get().ReleaseHeld();
+			break;
 		case F4SE::MessagingInterface::kNewGame:
 			ag::Hook::Install();  // no-op if already hooked
 			break;

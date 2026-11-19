@@ -18,12 +18,6 @@ namespace ag::Income
 			return cal && cal->gameDaysPassed ? cal->gameDaysPassed->GetValue() : -1.0f;
 		}
 
-		RE::BGSKeyword* WorkshopItemKeyword()
-		{
-			static RE::BGSKeyword* kw = RE::TESForm::GetFormByEditorID<RE::BGSKeyword>("WorkshopItemKeyword");
-			return kw;
-		}
-
 		// the settlement's population (the workshop's rating; its editor ID looked up, the way WorkshopParent names it)
 		const RE::ActorValueInfo* Population()
 		{
@@ -61,7 +55,7 @@ namespace ag::Income
 			}
 			it->second += days;
 		}
-		auto* kw = WorkshopItemKeyword();
+		auto* kw = Forms::WorkshopItemKeyword();
 		auto* workshop = kw ? a_machine->GetLinkedRef(kw) : nullptr;
 		const auto* pop = Population();
 		auto* rate = Forms::Own(Forms::kIncomePerSettler);

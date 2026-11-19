@@ -963,6 +963,46 @@ namespace sim
 		return std::clamp(n, min, std::max(min, max));
 	}
 
+	GalleryShooter::GalleryShooter(std::uint32_t a_seed, double a_spread) :
+		_rng(a_seed), _spread(a_spread)
+	{}
+
+	Input GalleryShooter::Next(const Game& a_game, const Vec3& a_eye, double a_dt)
+	{
+		Input in;
+		in.eye = a_eye;
+		in.dir = Vec3{ 0, 1, 0 };
+		_wait -= a_dt;
+		std::vector<Piece> pieces;
+		a_game.Pieces(pieces);
+		const auto& L = layout::Gallery();
+		// the upright target nearest the middle, in front of you
+		const Piece* pick = nullptr;
+		for (const auto& p : pieces) {
+			if (p.hidden || p.rot[2][2] < 0.999 || std::abs(p.pos.x - a_eye.x) > 150.0) {
+				continue;
+			}
+			if (!pick || std::abs(p.pos.x - a_eye.x) < std::abs(pick->pos.x - a_eye.x)) {
+				pick = &p;
+			}
+		}
+		if (!pick) {
+			return in;
+		}
+		const auto& k = L.kinds[pick->model];
+		const Vec3  at = pick->pos + Vec3{ k.bullX, 0, k.bullZ };
+		in.dir = (at - a_eye).Normalized();
+		if (_wait <= 0.0) {
+			std::normal_distribution<double> n(0.0, _spread);
+			const Vec3 right = in.dir.Cross({ 0, 0, 1 }).Normalized();
+			const Vec3 up = right.Cross(in.dir).Normalized();
+			in.dir = (in.dir + right * n(_rng) + up * n(_rng)).Normalized();
+			in.pressed = true;
+			_wait = std::uniform_real_distribution<double>(0.9, 1.8)(_rng);
+		}
+		return in;
+	}
+
 	std::unique_ptr<Game> MakeGame(GameId a_id)
 	{
 		switch (a_id) {

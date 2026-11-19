@@ -65,6 +65,15 @@ namespace ag::Forms
 	inline RE::TESForm* Own(std::uint32_t a_rawID) { return From(kPlugin, a_rawID); }
 	inline RE::TESForm* Nuka(std::uint32_t a_rawID) { return From(kNukaWorld, a_rawID); }
 
+	// a workshop item's link to its settlement's workshop
+	inline RE::BGSKeyword* WorkshopItemKeyword()
+	{
+		static RE::BGSKeyword* kw = RE::TESForm::GetFormByEditorID<RE::BGSKeyword>("WorkshopItemKeyword");
+		return kw;
+	}
+
+	inline constexpr RE::TESFormID kXMarkerHeading = 0x00000034;  // STAT XMarkerHeading
+
 	inline RE::TESBoundObject* Bound(RE::TESForm* a_form)
 	{
 		return a_form && a_form->IsBoundObject() ? static_cast<RE::TESBoundObject*>(a_form) : nullptr;
