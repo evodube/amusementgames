@@ -31,7 +31,9 @@ Form IDs (src/Forms.h expects these):
                                                package (alias packages go by quest priority: it outranks settler
                                                sandboxes); collection alias 1 Shooters carrying
                                                AmusementGamesHoldAtSpot (xx00082C: the spot held once
-                                               there, weapon drawn, no interruptions); scripts AmusementGamesQuest,
+                                               there, aiming at the targets without firing (UseWeapon, as
+                                               MinRecruit00AimWeapon), no interruptions; xx00082D KYWD
+                                               AmusementGamesLinkTarget, what they aim at); scripts AmusementGamesQuest,
                                                AmusementGamesGroupAlias
     xx00080C  GLOB AmusementGamesIncomePerSettler  caps each machine earns its settlement a day for each settler (1)
 
@@ -196,6 +198,59 @@ def travel_package(form_id: int, editor_id: str, link_keyword: int, radius: int 
     return record(b"PACK", 0, form_id, body)
 
 
+USE_WEAPON_TEMPLATE = 0x0008F677  # Fallout4.esm's UseWeapon package template (as MinRecruit00AimWeapon uses it)
+
+
+def aim_package(form_id: int, editor_id: str, spot_keyword: int, target_keyword: int) -> bytes:
+    """Stand at the actor's linked ref (spot_keyword) with the weapon drawn, aiming at their other linked ref
+    (target_keyword) without firing (the plugin fires the shots): laid out as Fallout4.esm's MinRecruit00AimWeapon
+    (the UseWeapon template, its 23 data inputs in its order), its location and target our linked refs, any time, and
+    no interruptions (no hellos, chatter, idle chatter)."""
+    no_event = subrecord(b"INAM", struct.pack("<I", 0)) + subrecord(b"PDTO", bytes(8))
+    def b(v):
+        return subrecord(b"ANAM", zstring("Bool")) + subrecord(b"CNAM", bytes([v]))
+    def fl(v):
+        return subrecord(b"ANAM", zstring("Float")) + subrecord(b"CNAM", struct.pack("<f", v))
+    def it(v):
+        return subrecord(b"ANAM", zstring("Int")) + subrecord(b"CNAM", struct.pack("<i", v))
+    body = (
+        subrecord(b"EDID", zstring(editor_id))
+        # general flags 0x00800000 (weapon drawn), type 18, interrupt override 0, preferred speed 2, unknown 0, interrupt
+        # flags 0 (none)
+        + subrecord(b"PKDT", struct.pack("<IBBBBHH", 0x00800000, 18, 0, 2, 0, 0, 0))
+        + subrecord(b"PSDT", bytes.fromhex("00ff00ffff000000") + struct.pack("<i", 0))
+        + subrecord(b"PKCU", struct.pack("<III", 23, USE_WEAPON_TEMPLATE, 11))
+        # 00 Location: near the linked ref (spot), radius 10
+        + subrecord(b"ANAM", zstring("Location")) + subrecord(b"PLDT", struct.pack("<IIiI", 6, spot_keyword, 10, 0))
+        # 01 Weapon to Use (as vanilla: the equipped one)
+        + subrecord(b"ANAM", zstring("TargetSelector")) + subrecord(b"PTDA", bytes.fromhex("020000001400000000000000"))
+        # 02 Target: the linked ref (target)
+        + subrecord(b"ANAM", zstring("SingleRef")) + subrecord(b"PTDA", struct.pack("<IiI", 3, target_keyword, 0))
+        + b(0)   # 1f Move while aiming?
+        + b(0)   # 03 Always Hit?
+        + b(1)   # 04 Head-track the Target?
+        + b(0)   # 05 Volley Fire?
+        + b(0)   # 06 Crouch Reload?
+        + b(1)   # 07 Do No Damage?
+        + b(1)   # 08 Hold When Blocked?
+        + b(0)   # 0f Allow Combat to Start?
+        + b(1)   # 10 Aim Without Firing?
+        + fl(0.0) + fl(0.0) + fl(25.0)   # 09 Volley Wait Min, 0a Max, 14 Power Attack Percent
+        + b(0)   # 11 (deprecated)
+        + it(0) + it(0) + it(0)          # 0b Volleys To Fire, 0c Volley Shots Min, 0d Max
+        + fl(0.0)  # 13 Block Percent
+        + b(1) + b(0)  # 18 True, 19 False
+        + subrecord(b"ANAM", zstring("SingleRef")) + subrecord(b"PTDA", bytes.fromhex("060000000000000000000000"))  # 21 self
+        + b"".join(subrecord(b"UNAM", bytes([u])) for u in (0x00, 0x01, 0x02, 0x1F, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x0F, 0x10,
+                                                           0x09, 0x0A, 0x14, 0x11, 0x0B, 0x0C, 0x0D, 0x13, 0x18, 0x19, 0x21))
+        + subrecord(b"XNAM", b"\x22")
+        + subrecord(b"POBA", b"") + no_event
+        + subrecord(b"POEA", b"") + no_event
+        + subrecord(b"POCA", b"") + no_event
+    )
+    return record(b"PACK", 0, form_id, body)
+
+
 def quest(form_id: int, editor_id: str, package: int, hold: int, priority: int = 100) -> bytes:
     """AmusementGamesQuest: start game enabled, priority 100, collection alias 0 'Players' with the walk package.
     Scripts: AmusementGamesQuest on the quest (property Players), AmusementGamesGroupAlias on the alias (papyrus/).
@@ -342,9 +397,12 @@ def build() -> bytes:
     # ...and once they're there with the rifle: the same spot held, weapon drawn (general flag 0x01000000), and none of
     # the interruptions a package allows (no hellos, chatter, idle chatter, world interactions: interrupt flags 0), so
     # they stand with the rifle up and shoot, nothing else
+    # (aiming at their second linked ref, keyword AmusementGamesLinkTarget: the middle of the targets)
     hold = OWN | (FIRST_ID + 0x2C)
+    target = OWN | (FIRST_ID + 0x2D)
+    keywords.append(keyword(target, "AmusementGamesLinkTarget"))
     packages = [travel_package(walk, "AmusementGamesWalkToSpot", link),
-                travel_package(hold, "AmusementGamesHoldAtSpot", link, general=0x00002000 | 0x01000000, interrupts=0)]
+                aim_package(hold, "AmusementGamesHoldAtSpot", link, target)]
     # (priority 101: above Wasteland Wagers' 100, so a roulette bettor called over isn't pulled back mid-walk)
     quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk, hold, priority=101)]
     # the category's picture: its first item, Whac-a-Commie, framed as its own workshop preview
@@ -385,7 +443,7 @@ def build() -> bytes:
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x2D))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x2E))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))

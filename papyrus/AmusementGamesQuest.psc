@@ -49,7 +49,7 @@ Function Walk(Int aiActor, Int aiTarget, Int aiLink, Bool abReset)
 EndFunction
 
 ; there: from the walk to the hold (the spot kept, weapon drawn, nothing else: no hellos, chatter or wandering looks)
-Function Hold(Int aiActor, Int aiTarget, Int aiLink)
+Function Hold(Int aiActor, Int aiTarget, Int aiLink, Int aiAimAt, Int aiAimLink)
 	Actor a = Game.GetForm(aiActor) as Actor
 	ObjectReference t = Game.GetForm(aiTarget) as ObjectReference
 	Keyword k = Game.GetForm(aiLink) as Keyword
@@ -59,6 +59,10 @@ Function Hold(Int aiActor, Int aiTarget, Int aiLink)
 	Players.RemoveRef(a)
 	Shooters.AddRef(a)
 	a.SetLinkedRef(t, k)
+	Keyword ak = Game.GetForm(aiAimLink) as Keyword
+	If ak
+		a.SetLinkedRef(Game.GetForm(aiAimAt) as ObjectReference, ak)  ; (what they aim at)
+	EndIf
 	a.SetHeadTracking(False)
 	a.EvaluatePackage()
 EndFunction
@@ -76,6 +80,10 @@ Function Leave(Int aiActor, Int aiLink)
 	a.SetHeadTracking(True)
 	If k
 		a.SetLinkedRef(None, k)
+	EndIf
+	Keyword ak = Game.GetFormFromFile(0x82D, "AmusementGames.esl") as Keyword
+	If ak
+		a.SetLinkedRef(None, ak)
 	EndIf
 	a.EvaluatePackage()
 EndFunction
