@@ -32,17 +32,23 @@ Nuka-World's scripts' properties (ScoreEvents PointValue, ScorePerTicket): Atomi
 ## Settlers playing
 
 Arcade::TickShow (src/Arcade.cpp, "settlers at the games"): one settler's game at a time. Every 45-120 s (20 s at
-first, 20 s retries) a Bandit Roundup machine near you (Scoreboards::Machines) that you're not at gets a settler of its
-settlement (linked to the same workshop by WorkshopItemKeyword, within 3000 of it, not in combat). An XMarkerHeading
-is put at kGalleryStand (machine space, 0,-75,0, facing the targets); AmusementGamesNative.NpcStartGallery checks
-they're free (not following you, sitting, fighting, hurt, doing a favour), PathToReference's them there, MoveTo's
-onto it, equips the gun (lent if they've none), draws it and turns their AI off. Then the sim game runs with a
+first, 20 s retries, 5 s after someone couldn't come) a Bandit Roundup machine near you (Scoreboards::Machines) that
+you're not at gets a settler of its settlement (linked to the same workshop by WorkshopItemKeyword, within 3000 of it,
+not in combat). An XMarkerHeading is put at GalleryLayout::stand (machine space -15,-62,0, facing the targets, where
+you'd stand). Walking them there is done as Wasteland Wagers does: AmusementGamesQuest (QUST xx00080F, priority 100,
+start game enabled) has a Players collection carrying AmusementGamesWalkToSpot (PACK xx00080E: Travel to the linked
+ref with keyword AmusementGamesLinkSpot, KYWD xx00080D), which outranks settler sandboxes. AmusementGamesNative:
+NpcStartGallery checks they're free (not following you, sitting, fighting, hurt, doing a favour, a person, not at a
+Wasteland Wagers table: linked by its WastelandWagersLinkSpot/LinkSeat) and Joins them (collection + linked ref); the
+plugin watches the distance: there under 12, or under 40 and no closer for 1.5 s, or under 120 after 90 s (else
+called off); no closer for 6 s, NpcWalk sends the walk again (AI reset). NpcTakeUp unlinks them, MoveTo's them onto
+the spot, equips the gun (lent if they've none), draws it and turns their AI off. Then the sim game runs with a
 sim::GalleryShooter (aims at the upright target nearest the middle, at its bullseye, off by a random spread 0.006-0.03
 rad a settler, a shot every 0.9-1.8 s; each shot also Weapon.Fire'd from them for its sound and flash) and the
-scoreboard shows its score (ScoreOn). NpcEnd lets them go (AI on, lent gun taken back). Called off if you leave
-(3000), start that machine yourself, or they die/fight/unload; a settler still walking when called off is let go
-when they arrive. Anyone held when the game's saved is written to the cosave ('AGHL') and let go after that save
-loads (kPostLoadGame).
+scoreboard shows its score (ScoreOn). NpcEnd lets them go (out of the quest, AI on, lent gun taken back). Called off
+if you leave (3000), start that machine yourself, or they die/fight/unload; anyone mid-way when called off is let go
+once Papyrus is done with them. Anyone held when the game's saved is written to the cosave ('AGHL') and let go after
+that save loads (kPostLoadGame), and the quest's collection is emptied then too (NpcClearAll).
 
 ## Takings
 
