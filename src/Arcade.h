@@ -65,8 +65,8 @@ namespace ag
 			if (_playing && _game && _machineID == a_machine) {
 				return _game->Score();
 			}
-			if (_show.phase == Show::Phase::kPlaying && _show.game && _show.machineID == a_machine) {
-				return _show.game->Score();  // (a settler's game)
+			if (const auto* s = ShowOn(a_machine); s && s->phase == Show::Phase::kPlaying && s->game) {
+				return s->game->Score();  // (a settler's game)
 			}
 			const auto it = _lastScores.find(a_machine);
 			return it != _lastScores.end() ? it->second : 0;
@@ -75,7 +75,7 @@ namespace ag
 		// how many of a machine's props are on show: all of them, or while you play on it what the game says
 		int PropsShown(RE::TESFormID a_machine, int a_all) const
 		{
-			if (_show.phase == Show::Phase::kPlaying && _show.machineID == a_machine) {
+			if (const auto* s = ShowOn(a_machine); s && s->phase == Show::Phase::kPlaying) {
 				return 0;  // (a settler's playing: the rifle's in their hands)
 			}
 			if (!PlayingOn(a_machine) || !_game) {
@@ -226,10 +226,21 @@ namespace ag
 			bool                                   added{ false };
 		};
 		void TickShow(double a_dt);
+		void TickOne(Show& a_s, double a_dt);
 		bool StartShow();
-		void EndShow(const char* a_why);
+		void EndShow(Show& a_s, const char* a_why);
 		void Release(RE::TESFormID a_actor, RE::TESFormID a_weapon, bool a_added);
-		Show               _show;
+		const Show* ShowOn(RE::TESFormID a_machine) const
+		{
+			for (const auto& s : _shows) {
+				if (s.phase != Show::Phase::kNone && s.machineID == a_machine) {
+					return &s;
+				}
+			}
+			return nullptr;
+		}
+		std::vector<Show>  _shows;  // settlers' games: one a machine, as many as there are machines free
+		std::unordered_map<RE::TESFormID, double> _rest;  // a machine's rest after a settler's game there (seconds)
 		std::vector<Held>  _letGo;  // (on their way when called off)
 		double             _nextShow{ 20.0 };
 		std::mt19937       _showRng{ std::random_device{}() };

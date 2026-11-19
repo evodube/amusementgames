@@ -178,12 +178,15 @@ namespace ag
 		if (game == sim::GameId::kCount || _playing) {
 			return;
 		}
-		if (_show.phase != Show::Phase::kNone && _show.machineID == a_machine->GetFormID()) {
-			if (_show.phase == Show::Phase::kPlaying) {
+		for (auto& sh : _shows) {
+			if (sh.phase == Show::Phase::kNone || sh.machineID != a_machine->GetFormID()) {
+				continue;
+			}
+			if (sh.phase == Show::Phase::kPlaying) {
 				Notify(std::format("{}: someone's playing. Wait your turn.", sim::GameName(game)));
 				return;
 			}
-			EndShow("you got there first");
+			EndShow(sh, "you got there first");
 		}
 		if (!TakeToken()) {
 			Notify(std::format("{}: insert a Nuka-Cade token. Buy them at a Token Stand.", sim::GameName(game)));
@@ -302,8 +305,9 @@ namespace ag
 	void Arcade::Abort(const char* a_why)
 	{
 		// a load: a settler's game just dropped (the save being loaded says who to let go)
-		if (_show.phase != Show::Phase::kNone || !_letGo.empty()) {
-			_show = {};
+		if (!_shows.empty() || !_letGo.empty()) {
+			_shows.clear();
+			_rest.clear();
 			_letGo.clear();
 			_nextShow = 20.0;
 		}
@@ -814,50 +818,63 @@ namespace ag
 			return true;
 		});
 
-		auto* player = RE::PlayerCharacter::GetSingleton();
-		if (_show.phase == Show::Phase::kNone) {
-			if (!Settings::Get().settlersOn) {
-				return;
-			}
+		// machines resting after a settler's game there
+		for (auto it = _rest.begin(); it != _rest.end();) {
+			it->second -= a_dt;
+			it = it->second <= 0.0 ? _rest.erase(it) : std::next(it);
+		}
+		// a settler to a free machine now and then (another soon after, while there are machines free)
+		if (Settings::Get().settlersOn) {
 			_nextShow -= a_dt;
 			if (_nextShow <= 0.0) {
-				_nextShow = StartShow() ? 0.0 : kShowRetry;
+				_nextShow = StartShow() ? kShowNextTry : kShowRetry;
 			}
+		}
+		for (std::size_t i = 0; i < _shows.size(); ++i) {
+			TickOne(_shows[i], a_dt);
+		}
+		std::erase_if(_shows, [](const Show& a_s) { return a_s.phase == Show::Phase::kNone; });
+	}
+
+	void Arcade::TickOne(Show& a_s, double a_dt)
+	{
+		if (a_s.phase == Show::Phase::kNone) {
 			return;
 		}
-		auto machine = _show.machine.get();
-		auto  actorRef = _show.actor.get();
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		auto machine = a_s.machine.get();
+		auto  actorRef = a_s.actor.get();
 		auto* actor = actorRef ? actorRef->As<RE::Actor>() : nullptr;
 		if (!machine || machine->IsDisabled() || machine->IsDeleted() || !player ||
 			(machine->data.location - player->data.location).Length() > kShowYouAway) {
-			EndShow("the machine's gone or you've left");
+			EndShow(a_s, "the machine's gone or you've left");
 			return;
 		}
 		if (!actor || actor->IsDead(false) || !actor->Get3D() || actor->IsInCombat()) {
-			EndShow("the settler's gone, down or fighting");
+			EndShow(a_s, "the settler's gone, down or fighting");
 			return;
 		}
-		if (_playing && _machineID == _show.machineID) {
-			EndShow("you're at it");
+		if (_playing && _machineID == a_s.machineID) {
+			EndShow(a_s, "you're at it");
 			return;
 		}
 		Frame f;
 		if (!FrameOf(machine.get(), f)) {
-			EndShow("the machine's not loaded");
+			EndShow(a_s, "the machine's not loaded");
 			return;
 		}
 
-		if (_show.phase == Show::Phase::kWalking) {
-			const auto r = _show.ready->load();
+		if (a_s.phase == Show::Phase::kWalking) {
+			const auto r = a_s.ready->load();
 			if (r == 0 || r >= 10) {
 				const char* why = r == 10 ? "a form's missing" : r == 11 ? "dead" : r == 12 ? "fighting" : r == 13 ? "following you" :
 				                  r == 14 ? "knocked out" : r == 15 ? "doing something for you" : r == 17 ? "bleeding out" :
 				                  r == 18 ? "the walk couldn't be given them" : r == 20 ? "not a person (a dog, brahmin or robot)" :
 				                  r == 21 ? "sat at a Wasteland Wagers table" : r == 22 ? "dealing at a Wasteland Wagers table" : r >= 160 ? "sitting, or at a workstation" : "Papyrus didn't say";
-				log::info("{}: {} ({:08X}) couldn't come: {} ({})", sim::GameName(_show.gameId), _show.name, _show.actorID, why, r);
-				_refused.push_back(_show.actorID);
-				_show.ready.reset();  // (not in the quest: nothing to let go)
-				EndShow(nullptr);
+				log::info("{}: {} ({:08X}) couldn't come: {} ({})", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, why, r);
+				_refused.push_back(a_s.actorID);
+				a_s.ready.reset();  // (not in the quest: nothing to let go)
+				EndShow(a_s, nullptr);
 				_nextShow = kShowNextTry;  // (someone else, soon)
 				return;
 			}
@@ -866,83 +883,83 @@ namespace ag
 			}
 			// walking (their package): there, close and no closer for a moment, or near enough after a while; the walk
 			// sent again when they stall (as Wasteland Wagers walks its players)
-			auto marker = _show.marker.get();
+			auto marker = a_s.marker.get();
 			if (!marker) {
-				EndShow("the spot's gone");
+				EndShow(a_s, "the spot's gone");
 				return;
 			}
 			const float d = std::hypot(actor->data.location.x - marker->data.location.x, actor->data.location.y - marker->data.location.y);
-			_show.walked += a_dt;
-			if (d < _show.best - 10.0f) {
-				_show.best = d;
-				_show.stall = 0.0;
+			a_s.walked += a_dt;
+			if (d < a_s.best - 10.0f) {
+				a_s.best = d;
+				a_s.stall = 0.0;
 			} else {
-				_show.stall += a_dt;
+				a_s.stall += a_dt;
 			}
-			bool there = d < kShowArrived || (d < kShowAtSpot && _show.stall > 1.5);
-			if (!there && _show.walked > kShowWalk) {
+			bool there = d < kShowArrived || (d < kShowAtSpot && a_s.stall > 1.5);
+			if (!there && a_s.walked > kShowWalk) {
 				if (d < 120.0f) {
 					there = true;
-					log::info("{}: {} ({:08X}) {:.0f} from the spot after a while: near enough", sim::GameName(_show.gameId), _show.name, _show.actorID, d);
+					log::info("{}: {} ({:08X}) {:.0f} from the spot after a while: near enough", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, d);
 				} else {
-					log::info("{}: {} ({:08X}) took too long, {:.0f} from the spot", sim::GameName(_show.gameId), _show.name, _show.actorID, d);
-					EndShow(nullptr);
+					log::info("{}: {} ({:08X}) took too long, {:.0f} from the spot", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, d);
+					EndShow(a_s, nullptr);
 					return;
 				}
 			}
 			if (!there) {
-				if (_show.stall > kShowStallResend) {
-					log::info("{}: {} ({:08X}) no closer in {:.0f}s ({:.0f} away): sending the walk again", sim::GameName(_show.gameId), _show.name,
-						_show.actorID, _show.stall, d);
-					_show.stall = 0.0;
-					_show.best = d;
-					Papyrus::Call("NpcWalk", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(marker.get()), 1 });
+				if (a_s.stall > kShowStallResend) {
+					log::info("{}: {} ({:08X}) no closer in {:.0f}s ({:.0f} away): sending the walk again", sim::GameName(a_s.gameId), a_s.name,
+						a_s.actorID, a_s.stall, d);
+					a_s.stall = 0.0;
+					a_s.best = d;
+					Papyrus::Call("NpcWalk", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(marker.get()), 1 });
 				}
 				return;
 			}
-			_show.phase = Show::Phase::kArming;
-			_show.armed = std::make_shared<std::atomic<std::int32_t>>(-1);
-			auto armed = _show.armed;
-			auto aimAt = _show.aimAt.get();
-			Papyrus::Call("NpcTakeUp", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(_show.weapon), Papyrus::Id(marker.get()),
+			a_s.phase = Show::Phase::kArming;
+			a_s.armed = std::make_shared<std::atomic<std::int32_t>>(-1);
+			auto armed = a_s.armed;
+			auto aimAt = a_s.aimAt.get();
+			Papyrus::Call("NpcTakeUp", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(a_s.weapon), Papyrus::Id(marker.get()),
 										   Papyrus::Id(aimAt.get()) },
 				[armed](std::int32_t a_r) { *armed = a_r; });
-			log::info("{}: {} ({:08X}) at the counter after {:.0f}s", sim::GameName(_show.gameId), _show.name, _show.actorID, _show.walked);
+			log::info("{}: {} ({:08X}) at the counter after {:.0f}s", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.walked);
 			return;
 		}
 
-		if (_show.phase == Show::Phase::kArming) {
-			const auto r = _show.armed->load();
+		if (a_s.phase == Show::Phase::kArming) {
+			const auto r = a_s.armed->load();
 			if (r < 0) {
 				return;
 			}
 			if (r == 0) {
-				EndShow("couldn't take up the rifle");
+				EndShow(a_s, "couldn't take up the rifle");
 				return;
 			}
 			// rifle up: the game starts, its targets put up
-			_show.added = r == 2;
-			_show.game = sim::MakeGame(_show.gameId);
+			a_s.added = r == 2;
+			a_s.game = sim::MakeGame(a_s.gameId);
 			const auto seed = static_cast<std::uint32_t>(_showRng());
-			_show.game->Start(seed);
+			a_s.game->Start(seed);
 			const double spread = std::uniform_real_distribution<double>(0.006, 0.03)(_showRng);  // how good a shot
-			_show.shooter = std::make_unique<sim::GalleryShooter>(seed ^ 0x5EED, spread);
+			a_s.shooter = std::make_unique<sim::GalleryShooter>(seed ^ 0x5EED, spread);
 			std::vector<sim::Piece> pieces;
-			_show.game->Pieces(pieces);
-			const auto models = Forms::PiecesOf(_show.gameId);
+			a_s.game->Pieces(pieces);
+			const auto models = Forms::PiecesOf(a_s.gameId);
 			for (const auto& p : pieces) {
 				auto* form = p.model >= 0 && p.model < static_cast<int>(models.size()) ? Forms::Bound(Forms::Own(models[p.model])) : nullptr;
-				_show.pieces.push_back(form ? Spawn(form, machine.get(), ToWorld(f, p.pos)) : RE::ObjectRefHandle{});
-				_show.pieceModel.push_back(p.model);
+				a_s.pieces.push_back(form ? Spawn(form, machine.get(), ToWorld(f, p.pos)) : RE::ObjectRefHandle{});
+				a_s.pieceModel.push_back(p.model);
 			}
-			Sounds::Music(_show.gameId, machine.get(), true);
-			_show.phase = Show::Phase::kPlaying;
-			log::info("{}: {} ({:08X}) playing (spread {:.3f})", sim::GameName(_show.gameId), _show.name, _show.actorID, spread);
+			Sounds::Music(a_s.gameId, machine.get(), true);
+			a_s.phase = Show::Phase::kPlaying;
+			log::info("{}: {} ({:08X}) playing (spread {:.3f})", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, spread);
 			return;
 		}
 
 		// playing: the shooter aims and fires; the game plays it
-		sim::Input in = _show.shooter->Next(*_show.game, _show.eye, a_dt);
+		sim::Input in = a_s.shooter->Next(*a_s.game, a_s.eye, a_dt);
 		// a shot only once they've turned onto where it's aimed (their real bullet goes where the rifle points: on a
 		// fast target their turn lags), or after a moment however they stand
 		if (in.pressed && std::abs(in.dir.y) > 0.05) {
@@ -952,18 +969,18 @@ namespace ag
 			float              off = want - actor->data.angle.z;
 			while (off > 3.14159265f) off -= 6.2831853f;
 			while (off < -3.14159265f) off += 6.2831853f;
-			if (std::abs(off) > 0.05f && _show.onTarget < 0.8) {
-				_show.onTarget += a_dt;
+			if (std::abs(off) > 0.05f && a_s.onTarget < 0.8) {
+				a_s.onTarget += a_dt;
 				in.pressed = false;
-				_show.shooter->Again();
+				a_s.shooter->Again();
 			} else {
-				_show.onTarget = 0.0;
+				a_s.onTarget = 0.0;
 			}
 		}
-		_show.game->Update(a_dt, in);
+		a_s.game->Update(a_dt, in);
 		// what they aim at follows their shot: the marker their hold package aims at put where the shooter's looking,
 		// out at the targets' tracks (so they swing from target to target, and each shot goes where it's aimed)
-		if (auto aimAt = _show.aimAt.get(); aimAt && std::abs(in.dir.y) > 0.05) {
+		if (auto aimAt = a_s.aimAt.get(); aimAt && std::abs(in.dir.y) > 0.05) {
 			const double t = (sim::layout::Gallery().aimAt.y - in.eye.y) / in.dir.y;
 			if (t > 0.0) {
 				const RE::NiPoint3 w = ToWorld(f, in.eye + in.dir * t);
@@ -972,10 +989,10 @@ namespace ag
 				aimAt->data.location.z = w.z;
 			}
 		}
-		if (in.pressed && _show.weapon) {
+		if (in.pressed && a_s.weapon) {
 			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
-			const std::string       name = _show.name;
-			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(_show.weapon), Papyrus::Id(_show.weapon->weaponData.ammo) },
+			const std::string       name = a_s.name;
+			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(a_s.weapon), Papyrus::Id(a_s.weapon->weaponData.ammo) },
 				[name](std::int32_t a_r) {
 					if (told.exchange(a_r) != a_r) {
 						log::info("BANDIT ROUNDUP: {}'s shots: {}", name,
@@ -984,14 +1001,14 @@ namespace ag
 					}
 				});
 		}
-		for (const auto& s : _show.game->TakeSounds()) {
-			Sounds::Play(_show.gameId, s.cue, machine.get(), s.gain);
+		for (const auto& s : a_s.game->TakeSounds()) {
+			Sounds::Play(a_s.gameId, s.cue, machine.get(), s.gain);
 		}
-		PlacePieces(f, *_show.game, _show.gameId, machine.get(), _show.pieces, _show.pieceModel, _show.frozen);
-		if (_show.game->Over()) {
-			_lastScores[_show.machineID] = _show.game->Score();
-			log::info("{}: {} ({:08X}) scored {}", sim::GameName(_show.gameId), _show.name, _show.actorID, _show.game->Score());
-			EndShow(nullptr);
+		PlacePieces(f, *a_s.game, a_s.gameId, machine.get(), a_s.pieces, a_s.pieceModel, a_s.frozen);
+		if (a_s.game->Over()) {
+			_lastScores[a_s.machineID] = a_s.game->Score();
+			log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
+			EndShow(a_s, nullptr);
 		}
 	}
 
@@ -1007,8 +1024,9 @@ namespace ag
 		}
 		for (auto& h : Scoreboards::Machines(sim::GameId::kBanditRoundup)) {
 			auto machine = h.get();
-			if (!machine || (_playing && _machineID == machine->GetFormID())) {
-				continue;
+			if (!machine || (_playing && _machineID == machine->GetFormID()) || ShowOn(machine->GetFormID()) ||
+				_rest.contains(machine->GetFormID())) {
+				continue;  // (yours, a settler's already, or resting after one)
 			}
 			auto* workshop = machine->GetLinkedRef(kw);
 			if (!workshop) {
@@ -1036,8 +1054,9 @@ namespace ag
 					}
 					continue;
 				}
-				if (std::ranges::find(_refused, a->GetFormID()) != _refused.end()) {
-					continue;  // (couldn't come lately)
+				if (std::ranges::find(_refused, a->GetFormID()) != _refused.end() ||
+					std::ranges::any_of(_shows, [&](const Show& a_s) { return a_s.actorID == a->GetFormID(); })) {
+					continue;  // (couldn't come lately, or at another machine)
 				}
 				settlers.push_back(a.get());
 			}
@@ -1057,62 +1076,67 @@ namespace ag
 			if (!FrameOf(machine.get(), f)) {
 				continue;
 			}
-			_show = {};
-			_show.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().stand));
-			_show.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().aimAt));
-			auto marker = _show.marker.get();
+			Show sh;
+			sh.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().stand));
+			sh.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().aimAt));
+			auto marker = sh.marker.get();
 			if (!marker) {
-				_show = {};
+				Remove(sh.aimAt);
 				return false;
 			}
-			_show.phase = Show::Phase::kWalking;
-			_show.actor = who->GetHandle();
-			_show.actorID = who->GetFormID();
+			sh.phase = Show::Phase::kWalking;
+			sh.actor = who->GetHandle();
+			sh.actorID = who->GetFormID();
 			if (const char* n = who->GetDisplayFullName(); n && *n) {
-				_show.name = n;
+				sh.name = n;
 			}
-			_show.machine = h;
-			_show.machineID = machine->GetFormID();
-			_show.gameId = sim::GameId::kBanditRoundup;
-			_show.eye = sim::layout::Gallery().stand + sim::Vec3{ 0.0, 0.0, kGalleryEyeHeight };
-			_show.weapon = weapon;
-			_show.ready = std::make_shared<std::atomic<std::int32_t>>(-1);
-			auto ready = _show.ready;
-			Papyrus::Call("NpcStartGallery", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()) },
+			sh.machine = h;
+			sh.machineID = machine->GetFormID();
+			sh.gameId = sim::GameId::kBanditRoundup;
+			sh.eye = sim::layout::Gallery().stand + sim::Vec3{ 0.0, 0.0, kGalleryEyeHeight };
+			sh.weapon = weapon;
+			sh.ready = std::make_shared<std::atomic<std::int32_t>>(-1);
+			auto ready = sh.ready;
+			Papyrus::Call("NpcStartGallery", { static_cast<std::int32_t>(sh.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()) },
 				[ready](std::int32_t a_r) { *ready = a_r; });
-			log::info("{}: {} ({:08X}) coming to play", sim::GameName(_show.gameId), _show.name, _show.actorID);
+			log::info("{}: {} ({:08X}) coming to play ({:08X})", sim::GameName(sh.gameId), sh.name, sh.actorID, sh.machineID);
+			_shows.push_back(std::move(sh));
 			return true;
 		}
 		return false;
 	}
 
-	void Arcade::EndShow(const char* a_why)
+	void Arcade::EndShow(Show& a_s, const char* a_why)
 	{
-		if (_show.phase == Show::Phase::kNone) {
+		if (a_s.phase == Show::Phase::kNone) {
 			return;
 		}
 		if (a_why) {
-			log::info("{}: {}'s game called off ({})", sim::GameName(_show.gameId), _show.name.empty() ? "the settler" : _show.name, a_why);
+			log::info("{}: {}'s game called off ({})", sim::GameName(a_s.gameId), a_s.name.empty() ? "the settler" : a_s.name, a_why);
 		}
-		const auto weaponID = _show.weapon ? _show.weapon->GetFormID() : 0;
-		if (_show.phase == Show::Phase::kPlaying) {
-			Release(_show.actorID, weaponID, _show.added);
-			if (auto machine = _show.machine.get()) {
-				Sounds::Music(_show.gameId, machine.get(), false);
+		const auto weaponID = a_s.weapon ? a_s.weapon->GetFormID() : 0;
+		if (a_s.phase == Show::Phase::kPlaying) {
+			Release(a_s.actorID, weaponID, a_s.added);
+			if (auto machine = a_s.machine.get()) {
+				Sounds::Music(a_s.gameId, machine.get(), false);
 			}
-		} else if (_show.phase == Show::Phase::kArming && _show.armed) {
-			_letGo.push_back({ _show.armed, _show.actorID, weaponID, false });  // (let go once they've the rifle up)
-		} else if (_show.ready) {
-			_letGo.push_back({ _show.ready, _show.actorID, weaponID, false });  // (let go once Papyrus has them walking)
+		} else if (a_s.phase == Show::Phase::kArming && a_s.armed) {
+			_letGo.push_back({ a_s.armed, a_s.actorID, weaponID, false });  // (let go once they've the rifle up)
+		} else if (a_s.ready) {
+			_letGo.push_back({ a_s.ready, a_s.actorID, weaponID, false });  // (let go once Papyrus has them walking)
 		}
-		for (auto& h : _show.pieces) {
+		for (auto& h : a_s.pieces) {
 			Remove(h);
 		}
-		Remove(_show.marker);
-		Remove(_show.aimAt);
-		_show = {};
+		Remove(a_s.marker);
+		Remove(a_s.aimAt);
+		// the machine rests a while before the next settler's game on it (after a game played; a few seconds after one
+		// that never got going, someone else asked)
 		const auto& set = Settings::Get();
-		_nextShow = std::uniform_real_distribution<double>(set.settlersGapShortest, std::max(set.settlersGapShortest, set.settlersGapLongest))(_showRng);
+		_rest[a_s.machineID] = a_s.phase == Show::Phase::kPlaying ?
+		                           std::uniform_real_distribution<double>(set.settlersGapShortest, std::max(set.settlersGapShortest, set.settlersGapLongest))(_showRng) :
+		                           kShowNextTry;
+		a_s = {};
 	}
 
 	// ------------------------------------------------------------------------ saves
@@ -1127,10 +1151,12 @@ namespace ag
 		// settlers held at a machine (AI off): let go after a load of this save
 		{
 			std::vector<Held> held;
-			if (self._show.phase == Show::Phase::kPlaying) {
-				held.push_back({ nullptr, self._show.actorID, self._show.weapon ? self._show.weapon->GetFormID() : 0, self._show.added });
-			} else if (self._show.phase == Show::Phase::kWalking || self._show.phase == Show::Phase::kArming) {
-				held.push_back({ nullptr, self._show.actorID, self._show.weapon ? self._show.weapon->GetFormID() : 0, false });
+			for (const auto& sh : self._shows) {
+				if (sh.phase == Show::Phase::kPlaying) {
+					held.push_back({ nullptr, sh.actorID, sh.weapon ? sh.weapon->GetFormID() : 0, sh.added });
+				} else if (sh.phase == Show::Phase::kWalking || sh.phase == Show::Phase::kArming) {
+					held.push_back({ nullptr, sh.actorID, sh.weapon ? sh.weapon->GetFormID() : 0, false });
+				}
 			}
 			for (const auto& h : self._letGo) {
 				held.push_back({ nullptr, h.actor, h.weapon, h.added });

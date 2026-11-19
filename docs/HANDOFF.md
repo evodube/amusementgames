@@ -31,9 +31,10 @@ Nuka-World's scripts' properties (ScoreEvents PointValue, ScorePerTicket): Atomi
 
 ## Settlers playing
 
-Arcade::TickShow (src/Arcade.cpp, "settlers at the games"): one settler's game at a time. Every 45-120 s (20 s at
-first, 20 s retries, 5 s after someone couldn't come) a Bandit Roundup machine near you (Scoreboards::Machines) that
-you're not at gets a settler of its settlement (linked to the same workshop by WorkshopItemKeyword, within 3000 of it,
+Arcade::TickShow (src/Arcade.cpp, "settlers at the games"): one settler's game a machine, as many at once as there
+are Bandit Roundups near you (Arcade::_shows). Every 5 s (20 s when none could be started) a free machine
+(Scoreboards::Machines; not yours, no settler's game on it, not resting: 45-120 s after a game there, Settings) gets a
+settler of its settlement not already at another (linked to the same workshop by WorkshopItemKeyword, within 3000 of it,
 not in combat). An XMarkerHeading is put at GalleryLayout::stand (machine space -15,-62,0, facing the targets, where
 you'd stand). Walking them there is done as Wasteland Wagers does: AmusementGamesQuest (QUST xx00080F, priority 100,
 start game enabled) has a Players collection carrying AmusementGamesWalkToSpot (PACK xx00080E: Travel to the linked
