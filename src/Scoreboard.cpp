@@ -25,6 +25,7 @@ namespace ag::Scoreboards
 			RE::ObjectRefHandle machine;
 			RE::TESFormID       id{ 0 };
 			sim::GameId         game{ sim::GameId::kCount };
+			RE::NiTransform     placed;  // the machine where it stood when the board went up (moved: put up again)
 			Row                 score;
 			Row                 high;
 			double              refresh{ 0.0 };
@@ -260,6 +261,23 @@ namespace ag::Scoreboards
 			}
 		}
 
+		bool Moved(const RE::NiTransform& a_now, const RE::NiTransform& a_then)
+		{
+			if ((a_now.translate - a_then.translate).Length() > 0.5f) {
+				return true;
+			}
+			for (int r = 0; r < 3; ++r) {
+				for (int c = 0; c < 3; ++c) {
+					if (std::abs(a_now.rotate.entry[r][c] - a_then.rotate.entry[r][c]) > 0.001f) {
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		std::unordered_map<RE::TESFormID, RE::NiTransform> g_lastSeen;  // each machine where it was at the last look
+
 		void Scan()
 		{
 			auto* player = RE::PlayerCharacter::GetSingleton();
@@ -270,7 +288,11 @@ namespace ag::Scoreboards
 			// down: gone, unloaded or far
 			std::erase_if(g_boards, [&](Board& a_b) {
 				auto m = a_b.machine.get();
-				const bool keep = m && !m->IsDisabled() && !m->IsDeleted() && m->Get3D() && (m->data.location - me).Length() < kFar;
+				bool keep = m && !m->IsDisabled() && !m->IsDeleted() && m->Get3D() && (m->data.location - me).Length() < kFar;
+				if (keep && Moved(m->Get3D()->world, a_b.placed)) {
+					keep = false;  // (moved in build mode: its board, digits and things taken down, put up again where it is)
+					log::info("{} {:08X}: moved: its board and things to go up where it is now", sim::GameName(a_b.game), a_b.id);
+				}
 				if (!keep) {
 					Remove(a_b);
 				}
@@ -296,10 +318,19 @@ namespace ag::Scoreboards
 					if (std::ranges::any_of(g_boards, [&](const Board& a_b) { return a_b.id == a_ref->GetFormID(); })) {
 						return RE::BSContainer::ForEachResult::kContinue;
 					}
+					// still being moved (where it is differs from the last look): wait till it's put down
+					const auto& now = a_ref->Get3D()->world;
+					auto [seen, fresh] = g_lastSeen.try_emplace(a_ref->GetFormID(), now);
+					if (!fresh && Moved(now, seen->second)) {
+						seen->second = now;
+						return RE::BSContainer::ForEachResult::kContinue;
+					}
+					seen->second = now;
 					Board b;
 					b.machine = a_ref->GetHandle();
 					b.id = a_ref->GetFormID();
 					b.game = game;
+					b.placed = now;
 					if (PutUp(b, a_ref)) {
 						g_boards.push_back(std::move(b));
 					}

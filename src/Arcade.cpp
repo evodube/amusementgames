@@ -347,6 +347,9 @@ namespace ag
 		if (!menus::AnyBlocking()) {
 			Scoreboards::Tick(dt);
 			TickShow(dt);
+		} else if (menus::Open(menus::kWorkshop) && !menus::Open(menus::kPause) && !menus::Open(menus::kPipboy) &&
+				   !menus::Open(menus::kLoading) && !menus::Open(menus::kMain) && !menus::Open(menus::kConsole)) {
+			Scoreboards::Tick(dt);  // (build mode: a machine moved gets its board and things back up where it's put)
 		}
 		if (!_playing) {
 			if (_resultsLeft > 0.0) {
