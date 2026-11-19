@@ -70,6 +70,7 @@ namespace ag::Papyrus
 		case 1: return Dispatch(a_function, std::move(a_done), a_ints[0]);
 		case 2: return Dispatch(a_function, std::move(a_done), a_ints[0], a_ints[1]);
 		case 3: return Dispatch(a_function, std::move(a_done), a_ints[0], a_ints[1], a_ints[2]);
+		case 4: return Dispatch(a_function, std::move(a_done), a_ints[0], a_ints[1], a_ints[2], a_ints[3]);
 		default:
 			log::error("papyrus {}: {} arguments not handled", a_function, a_ints.size());
 			return false;

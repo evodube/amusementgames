@@ -115,3 +115,67 @@ Int Function PlaceWeapon(Int aiAt, Int aiWeapon, Int aiMod) Global
 	EndIf
 	Return r.GetFormID()
 EndFunction
+
+; something put in a container (a settlement's workshop: its games' takings)
+Function AddTo(Int aiRef, Int aiItem, Int aiCount) Global
+	ObjectReference r = Game.GetForm(aiRef) as ObjectReference
+	Form item = Game.GetForm(aiItem)
+	If r && item && aiCount > 0
+		r.AddItem(item, aiCount, True)
+	EndIf
+EndFunction
+
+; ---------------------------------------------------------------- settlers at the games
+; a settler to Bandit Roundup: not if they're busy (fighting, following you, sitting, hurt, doing something for you);
+; walks to the spot in front of the gallery (the marker, facing it), takes up the rifle (lent if they've none: aiAdd
+; 0, they have one, so not taken back after), raises it, and is held there (AI off) for the plugin to play the game.
+; 0: not coming; 1: ready; 2: ready, the rifle lent
+Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
+	Actor a = Game.GetForm(aiActor) as Actor
+	Weapon w = Game.GetForm(aiWeapon) as Weapon
+	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
+	If !a || !w || !m || a.IsDead() || a.IsInCombat() || a.IsPlayerTeammate() || a.IsUnconscious() || a.IsDoingFavor() || a.GetSitState() != 0 || a.IsBleedingOut()
+		Return 0
+	EndIf
+	If !a.PathToReference(m, 1.0)
+		Return 0
+	EndIf
+	If a.IsDead() || a.IsInCombat()
+		Return 0
+	EndIf
+	a.MoveTo(m)
+	Int r = 1
+	If a.GetItemCount(w) == 0
+		a.AddItem(w, 1, True)
+		r = 2
+	EndIf
+	a.EquipItem(w, False, True)
+	a.DrawWeapon()
+	Utility.Wait(1.2)
+	a.EnableAI(False)
+	Return r
+EndFunction
+
+; ...a shot (the rifle fired from their hands: its sound and flash)
+Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
+	Actor a = Game.GetForm(aiActor) as Actor
+	Weapon w = Game.GetForm(aiWeapon) as Weapon
+	If a && w
+		w.Fire(a, Game.GetForm(aiAmmo) as Ammo)
+	EndIf
+EndFunction
+
+; ...and let go: AI back on, the lent rifle taken back
+Function NpcEnd(Int aiActor, Int aiWeapon, Int aiLent) Global
+	Actor a = Game.GetForm(aiActor) as Actor
+	If !a
+		Return
+	EndIf
+	a.EnableAI(True)
+	Weapon w = Game.GetForm(aiWeapon) as Weapon
+	If w && aiLent != 0
+		a.UnequipItem(w, False, True)
+		a.RemoveItem(w, 1, True)
+	EndIf
+	a.EvaluatePackage()
+EndFunction

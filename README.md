@@ -15,7 +15,11 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with Far Harbor's Lever-Action Rifle
   (the Hunting Rifle without Far Harbor; iron sights, no scope), for 60 seconds. A point a hit, 3 for dead centre of a
   bullseye, either row. Unlimited ammo while you play: it never needs reloading.
-- **Token Stand**: caps in, Nuka-Cade tokens out (5 caps a token). Each game takes a token.
+- **Settlers play too** (Bandit Roundup, for now): while you're about, now and then one of the settlement's settlers
+  walks up to a free gallery, takes up the rifle and plays a round; the scoreboard shows their score as they shoot.
+- **Takings**: each machine earns its settlement 1 cap a day for every settler there, put in the workshop when you're
+  back (up to 30 days' worth). The rate is the global `AmusementGamesIncomePerSettler` (`set AmusementGamesIncomePerSettler to 2`).
+- **Token Stand**: press F to buy 5 Nuka-Cade tokens (5 caps a token, 25 a press). Each game takes a token.
 
 On screen while you play: just the clock (Atomic Rollers: the ball you're on; the zapper race: its countdown), and
 the power meter while you charge a throw; Atomic Rollers also shows each ball's points as they come and a green aim
@@ -28,13 +32,13 @@ for the game (with ammo) if you haven't one, and you get back what you had out a
 shows the game on it and your best at that game, kept in your save. X leaves a game early, paid for the score so far.
 
 Each machine looks ready to play: Atomic Rollers' balls wait in its right-hand pocket (fewer as you play), Hoop
-Shot's on its front shelf, the Nuka-Cade's mallet rests on Whac-a-Commie, a Thirst Zapper lies on the zapper race's
+Shot's at the foot of its ramp, the Nuka-Cade's mallet rests on Whac-a-Commie, a Thirst Zapper lies on the zapper race's
 counter in front of your lane and the rifle on the gallery's counter (not to be picked up: you're handed one to play).
 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,
 bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own like Playable Pool's.
 
-**Status: 0.2.1.**
+**Status: 0.3.0.**
 
 ## Requirements
 

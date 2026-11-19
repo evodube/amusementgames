@@ -2,6 +2,7 @@
 
 #include "Arcade.h"
 #include "Forms.h"
+#include "Income.h"
 #include "Papyrus.h"
 #include "sim/Layouts.h"
 
@@ -36,6 +37,14 @@ namespace ag::Scoreboards
 				bool                weapon{ false };
 				bool                settled{ false }; // frozen in place (and, a weapon, made not to be picked up)
 				std::shared_ptr<std::atomic<std::uint32_t>> placed;  // a weapon: its ref's id once Papyrus has placed it
+				// Atomic Rollers' balls in the pocket: one slot each from the front (home); as balls are taken from the
+				// front, the rest roll down the pocket, slot by slot
+				bool                rolls{ false };
+				RE::NiPoint3        step;             // a slot back up the pocket (world)
+				RE::NiMatrix3       machine;          // the machine's turn
+				float               home{ 0.0f };
+				float               slot{ 0.0f };     // where it is now
+				float               turnPerSlot{ 0.0f };  // how far it turns rolling a slot (radians)
 			};
 			std::vector<Prop> props;  // the machine's things: the balls, the mallet, the gun on the counter
 		};
@@ -108,7 +117,7 @@ namespace ag::Scoreboards
 		}
 
 		// the machine's things, to make it look ready to play: Atomic Rollers' balls waiting in its right-hand pocket,
-		// Hoop Shot's on the front shelf, the mallet on Whac-a-Commie, a Thirst Zapper on the zapper race's counter in
+		// Hoop Shot's at the foot of its ramp, behind the front shelf, the mallet on Whac-a-Commie, a Thirst Zapper on the zapper race's counter in
 		// front of your lane, the rifle on the gallery's counter
 		void PutUpProps(Board& a_b, RE::TESObjectREFR* a_machine)
 		{
@@ -123,6 +132,7 @@ namespace ag::Scoreboards
 				return w.translate + w.rotate.Transpose() * (l * scale);
 			};
 			constexpr float kAlongCounter = 2.0f;
+			constexpr float kInHolder = 3.0f;
 			// a_side: laid on its side (turned a quarter about its length's crosswise axis: up becomes a_side along x)
 			const auto add = [&](RE::TESBoundObject* a_form, const RE::NiPoint3& a_pos, float a_side, RE::TESForm* a_mod, bool a_weapon) {
 				if (!a_form) {
@@ -145,21 +155,30 @@ namespace ag::Scoreboards
 				// machine's own turn
 				// kAlongCounter: lying across the counter, its barrel to the machine's left, its top toward the targets
 				// (lever and trigger toward you): x -> down, y (the barrel) -> left, z (its top) -> into the machine
-				const RE::NiMatrix3 local = a_side == 0.0f      ? RE::NiMatrix3(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0) :
+				// kInHolder: the mallet as Nuka-World leaves it (the machine's whacker01 node): its handle in the holder at
+				// the front left corner, its head lying back on the top
+				const RE::NiMatrix3 local = a_side == kInHolder ? RE::NiMatrix3(0.9991f, 0.0074f, -0.0422f, 0, -0.0428f, 0.1735f, -0.9839f, 0, 0.0f, 0.9848f, 0.1736f, 0) :
+				                            a_side == 0.0f      ? RE::NiMatrix3(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0) :
 				                            a_side == kAlongCounter ? RE::NiMatrix3(0, 0, -1, 0, -1, 0, 0, 0, 0, 1, 0, 0) :
 				                                                  RE::NiMatrix3(0, 0, -a_side, 0, 0, 1, 0, 0, a_side, 0, 0, 0);
 				p.rot = local * w.rotate;
 				a_b.props.push_back(p);
 			};
 			constexpr float kOnItsSide = 1.0f;   // up to the machine's right (a gun lies on its left side)
-			constexpr float kHeadLeft = -1.0f;   // up (the mallet's head) to the machine's left
 			switch (a_b.game) {
 			case sim::GameId::kAtomicRollers:
 				{
 					const auto& L = sim::layout::Rollers();
 					auto*       ball = Forms::Bound(Forms::Own(Forms::kSkeeBall));
+					const RE::NiPoint3 step = w.rotate.Transpose() * (RE::NiPoint3{ 0.0f, static_cast<float>(L.pocketStep), 0.0f } * scale);
 					for (int k = 0; k < L.balls; ++k) {
 						add(ball, at(L.pocket + sim::Vec3{ 0.0, L.pocketStep * k, 0.0 }), 0.0f, nullptr, false);
+						auto& p = a_b.props.back();
+						p.rolls = true;
+						p.step = step;
+						p.machine = w.rotate;
+						p.home = p.slot = static_cast<float>(k);
+						p.turnPerSlot = static_cast<float>(L.pocketStep / L.ballRadius);
 					}
 				}
 				break;
@@ -167,13 +186,13 @@ namespace ag::Scoreboards
 				{
 					const auto& L = sim::layout::Hoop();
 					auto*       ball = Forms::Bound(Forms::Own(Forms::kBasketball));
-					for (double x : { -24.0, 0.0, 24.0 }) {
-						add(ball, at({ x, L.shelfBallY, 57.9 + L.ballRadius }), 0.0f, nullptr, false);
+					for (double x : { -L.restBallSpacing, 0.0, L.restBallSpacing }) {
+						add(ball, at({ x, L.restBallY, L.restBallZ }), 0.0f, nullptr, false);
 					}
 				}
 				break;
 			case sim::GameId::kWhacACommie:
-				add(Forms::Bound(Forms::Own(Forms::kCommieWhackerProp)), at(sim::layout::Whac().malletRest), kHeadLeft, nullptr, false);
+				add(Forms::Bound(Forms::Own(Forms::kCommieWhackerProp)), at(sim::layout::Whac().malletRest), kInHolder, nullptr, false);
 				break;
 			case sim::GameId::kNukaZapperRace:
 				add(Forms::WeaponOf(a_b.game), at(sim::layout::Zapper().gunRest), kOnItsSide, nullptr, true);
@@ -257,6 +276,12 @@ namespace ag::Scoreboards
 				}
 				return !keep;
 			});
+			// their takings: each pays its settlement what it's earned (whole days since it last did)
+			for (auto& b : g_boards) {
+				if (auto m = b.machine.get()) {
+					Income::Check(m.get());
+				}
+			}
 			// up: our machines near you
 			auto* tes = RE::TES::GetSingleton();
 			auto  visit = [&](RE::TESObjectCELL* a_cell) {
@@ -297,6 +322,19 @@ namespace ag::Scoreboards
 		}
 	}
 
+	std::vector<RE::ObjectRefHandle> Machines(sim::GameId a_game)
+	{
+		std::vector<RE::ObjectRefHandle> out;
+		for (const auto& b : g_boards) {
+			if (b.game == a_game) {
+				out.push_back(b.machine);
+			}
+		}
+		return out;
+	}
+
+	constexpr float kRollSlotsPerSecond = 5.0f;  // the pocket's balls rolling down
+
 	void Tick(double a_dt)
 	{
 		g_scan -= a_dt;
@@ -309,6 +347,7 @@ namespace ag::Scoreboards
 			// the props: settled once loaded; on show unless you're playing (then the game says how many: Atomic
 			// Rollers' balls still waiting in the pocket)
 			const int shown = arcade.PropsShown(b.id, static_cast<int>(b.props.size()));
+			const int taken = static_cast<int>(b.props.size()) - shown;  // (Atomic Rollers: from the front of the pocket)
 			for (int k = 0; k < static_cast<int>(b.props.size()); ++k) {
 				auto& p = b.props[k];
 				if (!p.ref && p.placed && *p.placed != 0) {
@@ -322,30 +361,56 @@ namespace ag::Scoreboards
 				if (!root) {
 					continue;
 				}
-				if (!p.settled) {
-					p.settled = true;
-					RE::BSVisit::TraverseScenegraphCollision(root, [](RE::bhkNPCollisionObject* a_c) {
-						a_c->SetMotionType(RE::hknpMotionPropertiesId::Preset::kKeyframed);
-						return RE::BSVisitControl::kContinue;
-					});
-					// exactly where and how it lies
+				// exactly where and how it lies
+				const auto lay = [root](const RE::NiPoint3& a_at, const RE::NiMatrix3& a_rot) {
 					RE::NiTransform t;
 					if (auto* parent = root->parent) {
 						const auto& pw = parent->GetWorldTransform();
 						const float ps = pw.scale != 0.0f ? pw.scale : 1.0f;
-						t.rotate = p.rot * pw.rotate.Transpose();
-						t.translate = (pw.rotate * (p.at - pw.translate)) * (1.0f / ps);
+						t.rotate = a_rot * pw.rotate.Transpose();
+						t.translate = (pw.rotate * (a_at - pw.translate)) * (1.0f / ps);
 						t.scale = 1.0f / ps;
 					} else {
-						t.rotate = p.rot;
-						t.translate = p.at;
+						t.rotate = a_rot;
+						t.translate = a_at;
 						t.scale = 1.0f;
 					}
 					root->SetLocalTransform(t);
 					RE::NiUpdateData update;
 					root->Update(update);
+				};
+				bool moved = false;
+				if (p.rolls) {
+					// taken from the front; the rest roll down to fill the gap (back up to their places for a new game)
+					const float want = static_cast<float>(k - taken);
+					if (want >= p.slot) {
+						moved = want != p.slot;
+						p.slot = want;
+					} else {
+						p.slot = std::max(want, p.slot - static_cast<float>(a_dt) * kRollSlotsPerSecond);
+						moved = true;
+					}
 				}
-				const bool hide = k >= shown;
+				if (!p.settled) {
+					p.settled = true;
+					moved = true;
+					RE::BSVisit::TraverseScenegraphCollision(root, [](RE::bhkNPCollisionObject* a_c) {
+						a_c->SetMotionType(RE::hknpMotionPropertiesId::Preset::kKeyframed);
+						return RE::BSVisitControl::kContinue;
+					});
+				}
+				if (moved) {
+					if (p.rolls) {
+						// rolled toward you: turned about the machine's x, its top toward you
+						const float a = (p.home - p.slot) * p.turnPerSlot;
+						const float c = std::cos(a), sn = std::sin(a);
+						const RE::NiMatrix3 local(1, 0, 0, 0, 0, c, sn, 0, 0, -sn, c, 0);
+						lay(p.at + p.step * (p.slot - p.home), local * p.machine);
+					} else {
+						lay(p.at, p.rot);
+					}
+				}
+				const bool hide = p.rolls ? k < taken : k >= shown;
 				if (root->GetAppCulled() != hide) {
 					root->SetAppCulled(hide);
 				}

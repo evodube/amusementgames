@@ -294,6 +294,17 @@ namespace
 		std::printf("     bandit roundup: %d points, %d tickets\n", s, g->TicketsFor(s));
 		Check(s > 20, "bandit roundup: aiming at the targets hits them");
 
+		// a settler at it: a good shot scores, a poor one less
+		{
+			auto good = MakeGame(GameId::kBanditRoundup);
+			auto poor = MakeGame(GameId::kBanditRoundup);
+			GalleryShooter sg(7, 0.006), sp(7, 0.03);
+			const int a = Play(*good, [&](Game& a_g, double) { return sg.Next(a_g, eye, 1.0 / 60.0); }, 70.0);
+			const int b = Play(*poor, [&](Game& a_g, double) { return sp.Next(a_g, eye, 1.0 / 60.0); }, 70.0);
+			std::printf("     bandit roundup settlers: a good shot %d points, a poor one %d\n", a, b);
+			Check(a > 30 && a > b && b > 0, "bandit roundup: a settler plays it (a good shot beats a poor one)");
+		}
+
 		// one shot dead centre at a bullseye, either row: 3
 		for (int row = 0; row < 2; ++row) {
 			auto shot = MakeGame(GameId::kBanditRoundup);

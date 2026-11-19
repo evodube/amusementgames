@@ -64,11 +64,14 @@ namespace sim::layout
 		double rampFrontY{ -90.0 }, rampFrontZ{ 50.2 };   // the return ramp: up from under the shelf...
 		double rampBackY{ 157.0 }, rampBackZ{ 92.9 };     // ...to the back
 		double shelfFrontY{ -128.0 }, shelfBackY{ -90.0 }, shelfZ{ 57.9 };
-		double shelfBallY{ -109.0 };        // the balls waiting on the front shelf (z: the shelf and the ball's radius)
+		// the balls waiting just behind the front shelf, at the foot of the ramp the balls come back down (its floor
+		// at 51.9 there, rising 0.17 a unit back): resting on it, their centres here
+		double restBallY{ -76.0 }, restBallZ{ 64.1 };
+		double restBallSpacing{ 26.0 };     // across, side by side
 		double sideX{ 56.0 };               // the cage's sides...
 		double sideTopZ{ 142.0 };           // ...up to here (open above)
 		double handForward{ 30.0 };         // the ball in your hand, in front of your eyes...
-		double handDrop{ 28.0 };            // ...down below your sights...
+		double handDrop{ 20.0 };            // ...down below your sights (its top just in view at the bottom)...
 		double handSide{ 14.0 };            // ...and to the right, out of your way
 		double handWobble{ 3.0 };           // each throw: the ball's place in your hand off by about this...
 		double aimWobble{ 0.02 };           // ...its line by about this (radians)...
@@ -104,7 +107,7 @@ namespace sim::layout
 		int               mostUp{ 3 };         // most at once by the end
 		double            swingSeconds{ 0.18 };
 		int               points{ 1 };         // a whack
-		Vec3              malletRest{ -10.0, -31.0, 68.8 };  // the mallet lying on its side on the top, along the front
+		Vec3              malletRest{ -38.74, -36.02, 70.72 };  // the mallet in its holder (the whacker01 node)
 		                                                    // (its handle's end here, its head toward the front-left corner)
 	};
 

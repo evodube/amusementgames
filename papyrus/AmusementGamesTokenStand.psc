@@ -1,14 +1,15 @@
 Scriptname AmusementGamesTokenStand extends ObjectReference
-{The Token Stand: caps in, Nuka-Cade tokens out. The machines take the tokens.}
+{The Token Stand: caps in, Nuka-Cade tokens out, 5 at a press of F. The machines take the tokens.}
 
 MiscObject Property Caps Auto Const Mandatory
 MiscObject Property Token Auto Const Mandatory
 GlobalVariable Property TokenPrice Auto Const Mandatory
 {caps a token}
-Message Property BuyMessage Auto Const Mandatory
-{the price, your caps and tokens; buttons 1, 5, 10, 25 tokens, Cancel}
 Message Property NotEnoughCapsMessage Auto Const Mandatory
 Sound Property DispenseSound Auto Const Mandatory
+
+Int Property TokensEach = 5 Auto Const
+{tokens a press}
 
 Event OnActivate(ObjectReference akActionRef)
 	Actor player = Game.GetPlayer()
@@ -19,27 +20,13 @@ Event OnActivate(ObjectReference akActionRef)
 	If price < 1
 		price = 1
 	EndIf
+	Int cost = TokensEach * price
 	Int haveCaps = player.GetItemCount(Caps)
-	Int choice = BuyMessage.Show(price, haveCaps, player.GetItemCount(Token))
-	Int count = 0
-	If choice == 0
-		count = 1
-	ElseIf choice == 1
-		count = 5
-	ElseIf choice == 2
-		count = 10
-	ElseIf choice == 3
-		count = 25
-	EndIf
-	If count == 0
-		Return
-	EndIf
-	Int cost = count * price
 	If haveCaps < cost
 		NotEnoughCapsMessage.Show(cost, haveCaps)
 		Return
 	EndIf
 	player.RemoveItem(Caps, cost)
 	DispenseSound.Play(Self)
-	player.AddItem(Token, count)
+	player.AddItem(Token, TokensEach)
 EndEvent

@@ -26,7 +26,8 @@ namespace ag::Forms
 		kGalleryBottle = 0x828,
 		kGalleryStar = 0x829,
 		kZapperTarget = 0x82A,
-		kCommieWhackerProp = 0x82B  // the Nuka-Cade's mallet, resting on Whac-a-Commie
+		kCommieWhackerProp = 0x82B,  // the Nuka-Cade's mallet, resting on Whac-a-Commie
+		kIncomePerSettler = 0x80C    // GLOB: caps a machine earns its settlement a day, a settler
 	};
 
 	inline constexpr RE::TESFormID kFurnitureTables = 0x00118F59;  // WorkshopRecipeFilterFurniture02Tables
@@ -63,6 +64,15 @@ namespace ag::Forms
 
 	inline RE::TESForm* Own(std::uint32_t a_rawID) { return From(kPlugin, a_rawID); }
 	inline RE::TESForm* Nuka(std::uint32_t a_rawID) { return From(kNukaWorld, a_rawID); }
+
+	// a workshop item's link to its settlement's workshop
+	inline RE::BGSKeyword* WorkshopItemKeyword()
+	{
+		static RE::BGSKeyword* kw = RE::TESForm::GetFormByEditorID<RE::BGSKeyword>("WorkshopItemKeyword");
+		return kw;
+	}
+
+	inline constexpr RE::TESFormID kXMarkerHeading = 0x00000034;  // STAT XMarkerHeading
 
 	inline RE::TESBoundObject* Bound(RE::TESForm* a_form)
 	{
