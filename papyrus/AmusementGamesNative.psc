@@ -238,8 +238,8 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	EndIf
 	a.EquipItem(w, False, True)
 	a.DrawWeapon()
-	Utility.Wait(1.0)
-	Aim(a)
+	; (no raising it ourselves: their hold package aims it, and a sighted idle on top of that put them in a low crouch,
+	; as behind cover, for the first few shots)
 	Return r
 EndFunction
 

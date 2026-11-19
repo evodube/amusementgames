@@ -232,7 +232,7 @@ def aim_package(form_id: int, editor_id: str, spot_keyword: int, target_keyword:
         + b(0)   # 05 Volley Fire?
         + b(0)   # 06 Crouch Reload?
         + b(1)   # 07 Do No Damage?
-        + b(1)   # 08 Hold When Blocked?
+        + b(0)   # 08 Hold When Blocked? (no: with the counter in front, read as cover, they crouched behind it)
         + b(0)   # 0f Allow Combat to Start?
         + b(1)   # 10 Aim Without Firing?
         + fl(0.0) + fl(0.0) + fl(25.0)   # 09 Volley Wait Min, 0a Max, 14 Power Attack Percent
