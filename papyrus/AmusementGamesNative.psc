@@ -203,18 +203,15 @@ Function NpcWalk(Int aiActor, Int aiMarker, Int aiReset) Global
 	EndIf
 EndFunction
 
-; ...there: put on the spot, facing the targets, the rifle taken up (lent if they've none) and raised, and held (AI
-; off) for the plugin to play the game. 1 ready, 2 ready (the rifle lent), 0 not
+; ...there: put on the spot, facing the targets, the rifle taken up (lent if they've none) and raised to the shoulder.
+; Their AI stays on (with it off no idle plays: they froze half way through drawing): the walk package, still linked to
+; the spot, keeps them there. 1 ready, 2 ready (the rifle lent), 0 not
 Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
-	Keyword k = LinkSpot()
 	If !a || !w || !m || a.IsDead() || a.IsInCombat()
 		Return 0
-	EndIf
-	If k
-		a.SetLinkedRef(None, k)  ; (no destination: the walk doesn't keep stepping them)
 	EndIf
 	a.MoveTo(m)
 	Int r = 1
@@ -224,9 +221,7 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	EndIf
 	a.EquipItem(w, False, True)
 	a.DrawWeapon()
-	Utility.Wait(1.2)
-	a.EnableAI(False)
-	; up to the shoulder, down the sights: as they'd stand to shoot at anyone
+	Utility.Wait(1.0)
 	Aim(a)
 	Return r
 EndFunction
@@ -239,18 +234,24 @@ Function Aim(Actor a) Global
 	EndIf
 EndFunction
 
-; ...a shot: the rifle fired from the shoulder, as at an enemy (its own shot animation, which fires it); the weapon
-; fired from them as well only if that won't play. 1: the shot animation, 2: fired without it, 0: no one to fire it
+; ...a shot: up to the shoulder (again: the rifle comes down after a shot), then the rifle's own shot animation, which
+; fires it, as at an enemy; fired from them without it only if that won't play. 1: the shot animation, 2: fired without
+; it, 0: no one to fire it
 Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	If !a || !w
 		Return 0
 	EndIf
+	If !a.IsWeaponDrawn()
+		a.DrawWeapon()
+		Utility.Wait(0.6)
+	EndIf
+	Aim(a)
+	Utility.Wait(0.25)
 	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
 		Return 1
 	EndIf
-	Aim(a)
 	a.PlayAnimation("attackStart")
 	w.Fire(a, Game.GetForm(aiAmmo) as Ammo)
 	Return 2
