@@ -123,6 +123,7 @@ namespace ag::Scoreboards
 				return w.translate + w.rotate.Transpose() * (l * scale);
 			};
 			constexpr float kAlongCounter = 2.0f;
+			constexpr float kInHolder = 3.0f;
 			// a_side: laid on its side (turned a quarter about its length's crosswise axis: up becomes a_side along x)
 			const auto add = [&](RE::TESBoundObject* a_form, const RE::NiPoint3& a_pos, float a_side, RE::TESForm* a_mod, bool a_weapon) {
 				if (!a_form) {
@@ -145,14 +146,16 @@ namespace ag::Scoreboards
 				// machine's own turn
 				// kAlongCounter: lying across the counter, its barrel to the machine's left, its top toward the targets
 				// (lever and trigger toward you): x -> down, y (the barrel) -> left, z (its top) -> into the machine
-				const RE::NiMatrix3 local = a_side == 0.0f      ? RE::NiMatrix3(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0) :
+				// kInHolder: the mallet as Nuka-World leaves it (the machine's whacker01 node): its handle in the holder at
+				// the front left corner, its head lying back on the top
+				const RE::NiMatrix3 local = a_side == kInHolder ? RE::NiMatrix3(0.9991f, 0.0074f, -0.0422f, 0, -0.0428f, 0.1735f, -0.9839f, 0, 0.0f, 0.9848f, 0.1736f, 0) :
+				                            a_side == 0.0f      ? RE::NiMatrix3(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0) :
 				                            a_side == kAlongCounter ? RE::NiMatrix3(0, 0, -1, 0, -1, 0, 0, 0, 0, 1, 0, 0) :
 				                                                  RE::NiMatrix3(0, 0, -a_side, 0, 0, 1, 0, 0, a_side, 0, 0, 0);
 				p.rot = local * w.rotate;
 				a_b.props.push_back(p);
 			};
 			constexpr float kOnItsSide = 1.0f;   // up to the machine's right (a gun lies on its left side)
-			constexpr float kHeadLeft = -1.0f;   // up (the mallet's head) to the machine's left
 			switch (a_b.game) {
 			case sim::GameId::kAtomicRollers:
 				{
@@ -173,7 +176,7 @@ namespace ag::Scoreboards
 				}
 				break;
 			case sim::GameId::kWhacACommie:
-				add(Forms::Bound(Forms::Own(Forms::kCommieWhackerProp)), at(sim::layout::Whac().malletRest), kHeadLeft, nullptr, false);
+				add(Forms::Bound(Forms::Own(Forms::kCommieWhackerProp)), at(sim::layout::Whac().malletRest), kInHolder, nullptr, false);
 				break;
 			case sim::GameId::kNukaZapperRace:
 				add(Forms::WeaponOf(a_b.game), at(sim::layout::Zapper().gunRest), kOnItsSide, nullptr, true);

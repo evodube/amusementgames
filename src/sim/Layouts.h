@@ -104,7 +104,7 @@ namespace sim::layout
 		int               mostUp{ 3 };         // most at once by the end
 		double            swingSeconds{ 0.18 };
 		int               points{ 1 };         // a whack
-		Vec3              malletRest{ -10.0, -31.0, 68.8 };  // the mallet lying on its side on the top, along the front
+		Vec3              malletRest{ -38.74, -36.02, 70.72 };  // the mallet in its holder (the whacker01 node)
 		                                                    // (its handle's end here, its head toward the front-left corner)
 	};
 
