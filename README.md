@@ -4,25 +4,26 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 **Furniture > Amusement Games**, buy tokens at the **Token Stand** with caps, play, win tickets.
 
 - **Atomic Rollers** (skee-ball): hold the left mouse button to charge, let go to roll; look where it goes. Nine
-  balls over the hump and up the board: the holes up the middle are 100 to 500, the top corners 700, the gutter
-  and the trough nothing.
-- **Hoop Shot**: hold to charge, let go to shoot, as many baskets as you can in 45 seconds (100 each).
-- **Whac-a-Commie**: seven holes; look at a commie popping up and click to whack it, for 30 seconds (100 a whack,
-  150 if you're quick).
-- **Nuka-Zapper Race**: six lanes. Hold the button with your sights on your target to squirt it and send your
-  rocket up; first to the top wins (the other lanes race you).
-- **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks for 60 seconds: duck 100, bunny 150,
-  pig 200, bottle 250, star 300.
+  balls over the hump and up the board, its ring walls funnelling them into the holes: 100 to 500 up the middle,
+  700 in the top corners, nothing in the gutter or over the top.
+- **Hoop Shot**: hold to charge, let go to lob it at the hoop, as many baskets as you can in 45 seconds.
+- **Whac-a-Commie**: seven holes; swing the Commie Whacker at the commies popping up, for 30 seconds.
+- **Nuka-Zapper Race**: six lanes. Squirt your target with the Thirst Zapper: each hit sends your rocket a step up,
+  ten and you've won (the other lanes race you).
+- **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with the Western Revolver, for 60
+  seconds.
 - **Token Stand**: caps in, Nuka-Cade tokens out (5 caps a token). Each game takes a token.
 
-Tickets come out by your score, at Nuka-World's own rates (100 points a ticket at Atomic Rollers, 200 at the rest);
-they're Nuka-Cade tickets, so the Nuka-Cade's prize terminal takes them too. Each machine's own scoreboard shows the
-game on it and your best at that game, kept in your save. X leaves a game early, paid for the score so far.
+A point a hit (a basket, a whack, a target, a squirt on target; a race won is 10 more); Atomic Rollers' holes are
+worth what they say. Tickets come out at Nuka-World's own rates: a ticket every 100 at Atomic Rollers, every 2
+points at the rest. They're Nuka-Cade tickets, so the Nuka-Cade's prize terminal takes them too. The weapon's lent
+for the game (with ammo) if you haven't one, and you get back what you had out after. Each machine's own scoreboard
+shows the game on it and your best at that game, kept in your save. X leaves a game early, paid for the score so far.
 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,
 bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own like Playable Pool's.
 
-**Status: 0.1.0.**
+**Status: 0.1.1.**
 
 ## Requirements
 

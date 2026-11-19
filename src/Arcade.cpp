@@ -4,6 +4,7 @@
 #include "Hud.h"
 #include "Scoreboard.h"
 #include "MenuWatch.h"
+#include "Papyrus.h"
 #include "Sounds.h"
 #include "sim/Layouts.h"
 
@@ -161,7 +162,8 @@ namespace ag
 				}
 			}
 		}
-		BlockControls(true);
+		Arm(a_game);
+		BlockControls(true, _lent.weapon != nullptr);  // (with a weapon: its swing or shot is yours to make)
 		// the pieces: one ref for each the game shows (they're moved, shown and hidden every frame)
 		std::vector<sim::Piece> pieces;
 		_game->Pieces(pieces);
@@ -228,6 +230,7 @@ namespace ag
 		}
 		_resultsLeft = 4.0;
 		_playing = false;
+		Disarm();
 		BlockControls(false);
 		if (_wasThird) {
 			if (auto* camera = RE::PlayerCamera::GetSingleton()) {
@@ -250,6 +253,7 @@ namespace ag
 			Sounds::Music(_gameId, machine.get(), false);
 		}
 		_playing = false;
+		Disarm();
 		BlockControls(false);
 		Cleanup();
 		std::scoped_lock lock(_hudMutex);
@@ -495,7 +499,39 @@ namespace ag
 
 	// ------------------------------------------------------------------------ you
 
-	void Arcade::BlockControls(bool a_block)
+	void Arcade::Arm(sim::GameId a_game)
+	{
+		_lent = {};
+		auto* weapon = Forms::WeaponOf(a_game);
+		if (!weapon) {
+			return;
+		}
+		_lent.weapon = weapon;
+		_lent.added = Count(weapon) == 0;
+		_lent.ammo = weapon->weaponData.ammo;
+		if (_lent.ammo) {
+			_lent.ammoBefore = Count(_lent.ammo);
+			_lent.ammoGiven = 200;
+		}
+		auto had = _lent.had;
+		Papyrus::CallWithBools("ArmPlayer", Papyrus::Id(weapon), _lent.added, Papyrus::Id(_lent.ammo), _lent.ammoGiven, 0,
+			[had](std::int32_t a_had) { *had = a_had; });
+		log::info("{}: {} in your hands{}", sim::GameName(a_game), weapon->GetFormEditorID() ? weapon->GetFormEditorID() : "its weapon",
+			_lent.added ? " (lent)" : "");
+	}
+
+	void Arcade::Disarm()
+	{
+		if (!_lent.weapon) {
+			return;
+		}
+		// the ammo lent back: what's left of it (yours, from before, stays)
+		const int back = _lent.ammo ? std::clamp(Count(_lent.ammo) - _lent.ammoBefore, 0, _lent.ammoGiven) : 0;
+		Papyrus::CallWithBools("DisarmPlayer", Papyrus::Id(_lent.weapon), _lent.added, Papyrus::Id(_lent.ammo), back, _lent.had->load());
+		_lent = {};
+	}
+
+	void Arcade::BlockControls(bool a_block, bool a_allowFighting)
 	{
 		if (a_block == _controlsBlocked) {
 			return;
@@ -509,11 +545,15 @@ namespace ag
 			return;
 		}
 		using Flag = RE::UserEvents::USER_EVENT_FLAG;
-		const auto flags = static_cast<Flag>(
-			std::to_underlying(Flag::kMovement) | std::to_underlying(Flag::kActivate) | std::to_underlying(Flag::kPOVSwitch) |
-			std::to_underlying(Flag::kFighting) | std::to_underlying(Flag::kSneaking) | std::to_underlying(Flag::kWheelZoom) |
-			std::to_underlying(Flag::kJumping) | std::to_underlying(Flag::kVATS));
+		// (fighting's left alone with a weapon in your hands: putting it back on when you're done would be no change)
+		static bool fightingHeld = false;
+		const bool  holdFighting = a_block ? !a_allowFighting : fightingHeld;
+		const auto  flags = static_cast<Flag>(
+            std::to_underlying(Flag::kMovement) | std::to_underlying(Flag::kActivate) | std::to_underlying(Flag::kPOVSwitch) |
+            (holdFighting ? std::to_underlying(Flag::kFighting) : 0) | std::to_underlying(Flag::kSneaking) |
+            std::to_underlying(Flag::kWheelZoom) | std::to_underlying(Flag::kJumping) | std::to_underlying(Flag::kVATS));
 		manager->EnableUserEvent(_inputLayer->layerID, flags, !a_block, RE::UserEvents::SENDER_ID::kGameplay);
+		fightingHeld = a_block && holdFighting;
 		_controlsBlocked = a_block;
 	}
 

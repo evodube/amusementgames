@@ -1,9 +1,7 @@
 #include "Sounds.h"
 
 #include "Forms.h"
-
-// The base class's destructor is declared in CommonLibF4 but not defined there; our functors need one to link.
-RE::BSScript::IStackCallbackFunctor::~IStackCallbackFunctor() = default;
+#include "Papyrus.h"
 
 namespace ag::Sounds
 {
@@ -32,67 +30,26 @@ namespace ag::Sounds
 
 		RE::TESForm* Sound(std::uint32_t a_id) { return Forms::Nuka(a_id); }
 
-		// Sound.Play's answer: the playing instance, for the music to be stopped later
-		class Started final : public RE::BSScript::IStackCallbackFunctor
-		{
-		public:
-			explicit Started(std::atomic<std::int32_t>* a_into) :
-				_into(a_into)
-			{}
-			void CallQueued() override {}
-			void CallCanceled() override {}
-			void StartMultiDispatch() override {}
-			void EndMultiDispatch() override {}
-			void operator()(RE::BSScript::Variable a_result) override
-			{
-				if (_into && a_result.is<std::int32_t>()) {
-					*_into = RE::BSScript::get<std::int32_t>(a_result);
-				}
-			}
-
-		private:
-			std::atomic<std::int32_t>* _into;
-		};
-
+		// (through AmusementGamesNative.PlaySound: a sound descriptor has no script of its own to call Play on)
 		bool PlayId(std::uint32_t a_id, RE::TESObjectREFR* a_at, std::atomic<std::int32_t>* a_instance = nullptr)
 		{
 			auto* form = Sound(a_id);
-			auto* game = RE::GameVM::GetSingleton();
-			auto  vm = game ? game->GetVM() : nullptr;
-			if (!form || !a_at || !vm) {
+			if (!form || !a_at) {
 				return false;
 			}
-			auto&      handles = vm->GetObjectHandlePolicy();
-			const auto handle = handles.GetHandleForObject(RE::BSScript::GetVMTypeID<RE::BGSSoundDescriptorForm>(), form);
-			if (handle == handles.EmptyHandle()) {
-				return false;
+			std::function<void(std::int32_t)> done;
+			if (a_instance) {
+				done = [a_instance](std::int32_t a_playing) { *a_instance = a_playing; };
 			}
-			const RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback{ new Started(a_instance) };
-			return vm->DispatchMethodCall(
-				handle, RE::BSFixedString("Sound"), RE::BSFixedString("Play"),
-				[&](RE::BSScrapArray<RE::BSScript::Variable>& a_out) {
-					a_out = RE::BSScript::detail::PackVariables(a_at);
-					return true;
-				},
-				callback);
+			return Papyrus::Call("PlaySound", { Papyrus::Id(form), Papyrus::Id(a_at) }, std::move(done));
 		}
 
 		void Stop(std::atomic<std::int32_t>& a_instance)
 		{
 			const std::int32_t id = a_instance.exchange(0);
-			auto*              game = RE::GameVM::GetSingleton();
-			auto               vm = game ? game->GetVM() : nullptr;
-			if (id == 0 || !vm) {
-				return;
+			if (id != 0) {
+				Papyrus::Call("StopSound", { id });
 			}
-			const RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> none{ new Started(nullptr) };
-			vm->DispatchStaticCall(
-				RE::BSFixedString("Sound"), RE::BSFixedString("StopInstance"),
-				[&](RE::BSScrapArray<RE::BSScript::Variable>& a_out) {
-					a_out = RE::BSScript::detail::PackVariables(id);
-					return true;
-				},
-				none);
 		}
 
 		std::atomic<std::int32_t> g_music{ 0 };

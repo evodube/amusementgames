@@ -107,6 +107,23 @@ namespace sim
 		int    material{ 0 };
 	};
 
+	// A triangle mesh, solid both ways (a machine's own collision: tools/collision_to_cpp.py)
+	struct Mesh
+	{
+		struct Tri
+		{
+			Vec3 a, b, c;
+			Vec3 lo, hi;  // its bounds
+		};
+		std::vector<Tri> tris;
+		double           restitution{ 0.4 };
+		double           friction{ 0.15 };
+		double           rollDecel{ 8.0 };
+		int              material{ 0 };
+
+		void Add(const double a_corners[9]);
+	};
+
 	// A disc a ball is caught by when its centre goes through it against the normal (down through a hoop, into a hole),
 	// within radius - margin of the centre (inner: the hole in the middle of a ring, 0 for a whole disc).
 	struct Catch
@@ -117,6 +134,7 @@ namespace sim
 		double inner{ 0.0 };
 		int    id{ 0 };
 		bool   keep{ false };  // the ball stays in play after (the hoop: it falls on through the net); otherwise it's taken
+		Vec3   box{};          // not zero: a box instead (a cup under a hole): caught when the ball's centre is in it
 	};
 
 	enum class BallState : std::uint8_t
@@ -172,6 +190,7 @@ namespace sim
 		std::vector<Rect>  rects;
 		std::vector<Rail>  rails;
 		std::vector<Rim>   rims;
+		std::vector<Mesh>  meshes;
 		std::vector<Catch> catches;
 		std::vector<Ball>  balls;
 

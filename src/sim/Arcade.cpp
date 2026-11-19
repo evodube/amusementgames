@@ -235,7 +235,7 @@ namespace sim
 				const auto& L = layout::Hoop();
 				_world = {};
 				_world.spec.ballRadius = L.ballRadius;
-				_world.spec.ballRestitution = 0.7;
+				_world.spec.ballRestitution = 0.5;
 				layout::BuildHoop(_world);
 				_world.balls.assign(L.ballsInPlay, Ball{});
 				_time = L.seconds;
@@ -299,7 +299,6 @@ namespace sim
 
 			void Pieces(std::vector<Piece>& a_out) const override
 			{
-				const auto& L = layout::Hoop();
 				for (const auto& b : _world.balls) {
 					Piece p;
 					p.model = 0;
@@ -311,7 +310,7 @@ namespace sim
 				// the ball in your hand while charging: held up in front of you
 				Piece hand;
 				hand.model = 0;
-				hand.pos = _eye + _dir * L.handForward + Vec3{ 0, 0, -L.handDrop };
+				hand.pos = Hand(_eye, _dir);
 				hand.hidden = _time <= 0.0 || _cool > 0.0;
 				a_out.push_back(hand);
 			}
@@ -325,7 +324,7 @@ namespace sim
 				a_out.power = _charge.on ? _charge.Power(layout::Hoop().chargeSeconds) : (_time > 0.0 ? 0.0 : -1.0);
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 200, 1, 40, 0, 0 }.For(a_score); }  // Nuka-World's: 200 a ticket
+			int TicketsFor(int a_score) const override { return TicketTable{ 2, 1, 40, 0, 0 }.For(a_score); }  // a ticket every 2 hits (Nuka-World's rate)
 
 		private:
 			void Throw(const Input& a_in, double a_power)
@@ -344,14 +343,23 @@ namespace sim
 				if (free < 0) {
 					return;
 				}
-				// where you look, lifted into an arc
-				Vec3 d = a_in.dir;
-				d.z += L.arcLift;
-				d = d.Normalized();
 				const double speed = L.minSpeed + (L.maxSpeed - L.minSpeed) * a_power;
-				_world.Launch(free, a_in.eye + a_in.dir * L.handForward + Vec3{ 0, 0, -L.handDrop }, d * speed);
+				// from your hand toward where you look (past the hand, at the distance of the hoop)
+				const Vec3 from = Hand(a_in.eye, a_in.dir);
+				const Vec3 aimAt = a_in.eye + a_in.dir * std::max(60.0, (L.rim - a_in.eye).Length());
+				Vec3       toward = (aimAt - from).Normalized();
+				toward.z += L.arcLift;
+				_world.Launch(free, from, toward.Normalized() * speed);
 				_world.balls[free].spin = Vec3{ 1, 0, 0 } * -8.0;  // backspin
 				_cool = L.reloadSeconds;
+			}
+
+			// the ball in your hand: below your sights and to the right
+			static Vec3 Hand(const Vec3& a_eye, const Vec3& a_dir)
+			{
+				const auto& L = layout::Hoop();
+				const Vec3  right = a_dir.Cross({ 0, 0, 1 }).Normalized();
+				return a_eye + a_dir * L.handForward + right * L.handSide + Vec3{ 0, 0, -L.handDrop };
 			}
 
 			void OnEvent(const Event& a_e)
@@ -486,9 +494,7 @@ namespace sim
 						}
 						if (best >= 0) {
 							auto& h = _heads[best];
-							// quicker is better: full points early in its time up
-							const double fresh = h.phase == Head::kUp ? 1.0 - h.t / h.upFor : 1.0;
-							Add(fresh > 0.5 ? L.points + L.points / 2 : L.points);
+							Add(L.points);
 							++_hits;
 							h = { Head::kHit, 0.0, h.upFor };
 							Say(Cue::kWhack, L.holes[best]);
@@ -532,7 +538,7 @@ namespace sim
 				a_out.line2 = std::format("GOT AWAY {}", _misses);
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 200, 1, 40, 0, 0 }.For(a_score); }  // Nuka-World's: 200 a ticket
+			int TicketsFor(int a_score) const override { return TicketTable{ 2, 1, 40, 0, 0 }.For(a_score); }  // a ticket every 2 hits (Nuka-World's rate)
 
 		private:
 			struct Head
@@ -587,6 +593,8 @@ namespace sim
 		};
 
 		// ======================================================================== Nuka-Zapper Race
+		// Nuka-World's rules: each squirt that hits your target sends your rocket a step up; ten and you've won. The
+		// other lanes race you, squirting and missing as players do
 
 		class Zapper final : public Game
 		{
@@ -603,15 +611,15 @@ namespace sim
 				std::shuffle(order.begin(), order.end(), _rng);
 				for (std::size_t i = 0; i < _lanes.size(); ++i) {
 					_lanes[i].name = names[order[i % order.size()]];
-					_lanes[i].skill = std::uniform_real_distribution<double>(0.55, 1.0)(_rng);
+					_lanes[i].skill = std::uniform_real_distribution<double>(0.0, 1.0)(_rng);
+					_lanes[i].next = std::uniform_real_distribution<double>(0.2, 0.8)(_rng);
 				}
 				_you = -1;
 				_place = 0;
-				_finished = 0;
 				_score = 0;
 				_ending = 2.0;
 				_countdown = 3.0;
-				_drops.clear();
+				_cool = 0.0;
 				Say(Cue::kStart, L.lanes.empty() ? Vec3{} : L.lanes[0].target);
 			}
 
@@ -633,83 +641,43 @@ namespace sim
 						_lanes[_you].name = "YOU";
 					}
 				}
+				for (auto& l : _lanes) {
+					// the rockets climb to their heights
+					const double want = static_cast<double>(l.hits) / L.hitsToWin;
+					l.shown += (want - l.shown) * std::min(1.0, L.rocketRise * a_dt);
+				}
 				if (_countdown > 0.0) {
 					_countdown -= a_dt;
 					return;
 				}
-				const bool racing = _place == 0 && _finished < static_cast<int>(_lanes.size());
-				if (!racing) {
+				if (_place > 0) {
 					_ending -= a_dt;
+					return;
 				}
-				_squirtSound -= a_dt;
-				for (int i = 0; i < static_cast<int>(_lanes.size()); ++i) {
-					auto&       lane = _lanes[i];
-					const auto& g = L.lanes[i];
-					bool        firing = false;
-					bool        on = false;
-					Vec3        aim;
+				_cool -= a_dt;
+				// you: a squirt (a click), a hit if your sights are on your target
+				if (_you >= 0 && a_in.pressed && _cool <= 0.0) {
+					_cool = L.shotSeconds;
+					const auto& g = L.lanes[_you];
+					Vec3        at;
+					if (RayPlane(a_in, g.target, { 0, -1, 0 }, at) && std::hypot(at.x - g.target.x, at.z - g.target.z) <= L.targetRadius) {
+						Hit(_you);
+					}
+				}
+				// the others
+				for (int i = 0; i < static_cast<int>(_lanes.size()) && _place == 0; ++i) {
 					if (i == _you) {
-						firing = a_in.held && racing;
-						if (firing && RayPlane(a_in, g.target, { 0, -1, 0 }, aim)) {
-							on = std::hypot(aim.x - g.target.x, aim.z - g.target.z) <= L.targetRadius;
-						}
-						if (!firing) {
-							aim = g.target + Vec3{ 0, 0, -40 };
-						}
-					} else {
-						// the others: an aim that wanders about the target, steadier the better they are
-						firing = racing;
-						const double spread = L.targetRadius * (2.2 - 1.6 * lane.skill);
-						std::normal_distribution<double> n(0.0, 1.0);
-						const double pull = 2.5;
-						lane.wx += (-lane.wx * pull) * a_dt + n(_rng) * spread * std::sqrt(a_dt) * 2.0;
-						lane.wz += (-lane.wz * pull) * a_dt + n(_rng) * spread * std::sqrt(a_dt) * 2.0;
-						aim = g.target + Vec3{ lane.wx, 0, lane.wz };
-						on = std::hypot(lane.wx, lane.wz) <= L.targetRadius;
+						continue;
 					}
-					if (on && racing && !lane.done) {
-						lane.progress = std::min(1.0, lane.progress + a_dt / L.secondsToWin);
-						if (lane.progress >= 1.0) {
-							lane.done = true;
-							++_finished;
-							if (i == _you) {
-								_place = _finished;
-								Add(PointsForPlace(_place));
-								Say(_place == 1 ? Cue::kWin : Cue::kEnd, g.rocketTop);
-							} else if (_finished == 1) {
-								Say(Cue::kTargetHit, g.rocketTop);
-							}
+					auto& l = _lanes[i];
+					l.next -= a_dt;
+					if (l.next <= 0.0) {
+						l.next = std::uniform_real_distribution<double>(L.aiShotShortest, L.aiShotLongest)(_rng);
+						const double chance = L.aiHitWorst + (L.aiHitBest - L.aiHitWorst) * l.skill;
+						if (std::uniform_real_distribution<double>(0.0, 1.0)(_rng) < chance) {
+							Hit(i);
 						}
 					}
-					lane.firing = firing;
-					// the stream: drops from the gun toward the aim point
-					if (firing) {
-						lane.dropIn -= a_dt;
-						if (lane.dropIn <= 0.0) {
-							lane.dropIn = L.dropEvery;
-							_drops.push_back({ g.gun, aim, 0.0, i });
-							if (i == _you && _squirtSound <= 0.0) {
-								Say(Cue::kSquirt, g.gun, 0.7);
-								_squirtSound = 0.4;
-							}
-						}
-					}
-				}
-				for (auto& d : _drops) {
-					d.t += a_dt / L.dropSeconds;
-				}
-				std::erase_if(_drops, [](const Drop& a_d) { return a_d.t >= 1.0; });
-				if (racing && _place == 0 && _finished > 0 && _you >= 0 && !_lanes[_you].done) {
-					// someone else won: the race is over, you're placed by how far up you got
-					int ahead = 0;
-					for (int i = 0; i < static_cast<int>(_lanes.size()); ++i) {
-						if (i != _you && _lanes[i].progress > _lanes[_you].progress) {
-							++ahead;
-						}
-					}
-					_place = ahead + 1;
-					Add(PointsForPlace(_place));
-					Say(Cue::kEnd, L.lanes[_you].rocketTop);
 				}
 			}
 
@@ -721,20 +689,7 @@ namespace sim
 				for (int i = 0; i < static_cast<int>(_lanes.size()); ++i) {
 					Piece p;
 					p.model = 0;
-					p.pos = L.lanes[i].rocketBottom + (L.lanes[i].rocketTop - L.lanes[i].rocketBottom) * _lanes[i].progress;
-					a_out.push_back(p);
-				}
-				// the drops: the fixed number of them the plugin keeps (unused ones hidden)
-				for (int k = 0; k < L.maxDrops; ++k) {
-					Piece p;
-					p.model = 1;
-					p.scale = 0.5;
-					if (k < static_cast<int>(_drops.size())) {
-						const auto& d = _drops[k];
-						p.pos = d.from + (d.to - d.from) * d.t + Vec3{ 0, 0, 30.0 * d.t * (1.0 - d.t) };  // a little arc
-					} else {
-						p.hidden = true;
-					}
+					p.pos = L.lanes[i].rocketBottom + (L.lanes[i].rocketTop - L.lanes[i].rocketBottom) * _lanes[i].shown;
 					a_out.push_back(p);
 				}
 			}
@@ -745,52 +700,61 @@ namespace sim
 					a_out.line1 = std::format("READY... {}", static_cast<int>(std::ceil(_countdown)));
 				} else if (_place > 0) {
 					static constexpr std::array<const char*, 7> ord{ "", "1ST", "2ND", "3RD", "4TH", "5TH", "6TH" };
-					a_out.line1 = std::format("YOU CAME {}", ord[std::min<std::size_t>(_place, 6)]);
+					a_out.line1 = _place == 1 ? std::string("YOU WIN!") : std::format("YOU CAME {}", ord[std::min<std::size_t>(_place, 6)]);
 				} else {
-					a_out.line1 = "HOLD FIRE ON THE TARGET";
+					a_out.line1 = std::format("HITS {} OF {}", _you >= 0 ? _lanes[_you].hits : 0, layout::Zapper().hitsToWin);
 				}
-				a_out.line2 = "FIRST ROCKET TO THE TOP WINS";
+				a_out.line2 = "SQUIRT YOUR TARGET: FIRST ROCKET UP WINS";
 				for (const auto& l : _lanes) {
-					a_out.race.emplace_back(l.name, l.progress);
+					a_out.race.emplace_back(l.name, l.shown);
 				}
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 200, 1, 10, 0, 0 }.For(a_score); }  // by place: its points, 200 a ticket
+			int TicketsFor(int a_score) const override { return TicketTable{ 2, 1, 10, 0, 0 }.For(a_score); }  // a ticket every 2 points (Nuka-World's rate)
 
 		private:
-			static int PointsForPlace(int a_place)
+			void Hit(int a_lane)
 			{
-				const auto& p = layout::Zapper().placePoints;
-				return p.empty() ? 0 : p[std::clamp(a_place - 1, 0, static_cast<int>(p.size()) - 1)];
+				const auto& L = layout::Zapper();
+				auto&       l = _lanes[a_lane];
+				++l.hits;
+				if (a_lane == _you) {
+					Add(L.pointsPerHit);
+					Say(Cue::kTargetHit, L.lanes[a_lane].target, 0.8);
+				}
+				if (l.hits >= L.hitsToWin) {
+					// the race is over: you're placed by how many hits you had
+					int ahead = 0;
+					for (int i = 0; i < static_cast<int>(_lanes.size()); ++i) {
+						if (i != _you && _you >= 0 && _lanes[i].hits > _lanes[_you].hits) {
+							++ahead;
+						}
+					}
+					_place = a_lane == _you ? 1 : std::max(2, ahead + 1);
+					if (_place == 1) {
+						Add(L.winPoints);
+						Say(Cue::kWin, L.lanes[a_lane].rocketTop);
+					} else {
+						Say(Cue::kEnd, L.lanes[a_lane].rocketTop);
+					}
+				}
 			}
 
 			struct Lane
 			{
 				std::string name;
-				double      skill{ 0.8 };
-				double      progress{ 0.0 };
-				double      wx{ 0.0 };
-				double      wz{ 0.0 };
-				double      dropIn{ 0.0 };
-				bool        firing{ false };
-				bool        done{ false };
-			};
-			struct Drop
-			{
-				Vec3   from;
-				Vec3   to;
-				double t{ 0.0 };
-				int    lane{ 0 };
+				double      skill{ 0.5 };
+				int         hits{ 0 };
+				double      shown{ 0.0 };  // the rocket's height, catching up with the hits
+				double      next{ 0.5 };
 			};
 
 			std::vector<Lane> _lanes;
-			std::vector<Drop> _drops;
 			int               _you{ -1 };
 			int               _place{ 0 };
-			int               _finished{ 0 };
 			double            _ending{ 2.0 };
 			double            _countdown{ 3.0 };
-			double            _squirtSound{ 0.0 };
+			double            _cool{ 0.0 };
 		};
 
 		// ======================================================================== Bandit Roundup (the shooting gallery)
@@ -864,7 +828,6 @@ namespace sim
 				if (a_in.pressed && _time > 0.0 && _cool <= 0.0) {
 					_cool = L.shotSeconds;
 					++_shots;
-					Say(Cue::kShot, a_in.eye + a_in.dir * 20.0, 0.8);
 					// the nearest upright target the shot passes through
 					int    best = -1;
 					double bestT = 1e30;
@@ -933,7 +896,7 @@ namespace sim
 				a_out.line2 = _shots > 0 ? std::format("{} SHOTS, {}% HIT", _shots, _hits * 100 / _shots) : std::string("FIRE AT THE TARGETS");
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 200, 1, 60, 0, 0 }.For(a_score); }  // Nuka-World's: 200 a ticket
+			int TicketsFor(int a_score) const override { return TicketTable{ 2, 1, 60, 0, 0 }.For(a_score); }  // a ticket every 2 hits (Nuka-World's rate)
 
 		private:
 			struct Target

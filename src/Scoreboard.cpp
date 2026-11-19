@@ -2,6 +2,7 @@
 
 #include "Arcade.h"
 #include "Forms.h"
+#include "Papyrus.h"
 
 namespace ag::Scoreboards
 {
@@ -24,17 +25,7 @@ namespace ag::Scoreboards
 			sim::GameId         game{ sim::GameId::kCount };
 			Row                 score;
 			Row                 high;
-		};
-
-		// (PlayAnimation's answer isn't needed)
-		class NoResult final : public RE::BSScript::IStackCallbackFunctor
-		{
-		public:
-			void CallQueued() override {}
-			void CallCanceled() override {}
-			void StartMultiDispatch() override {}
-			void EndMultiDispatch() override {}
-			void operator()(RE::BSScript::Variable) override {}
+			double              refresh{ 0.0 };
 		};
 
 		std::vector<Board> g_boards;
@@ -64,28 +55,11 @@ namespace ag::Scoreboards
 			}
 		}
 
-		// ObjectReference.PlayAnimation on a digit: "Num00" .. "Num09", as DLC04ArcadeScoreNumber does it
+		// a digit set: PlayAnimation("Num0" + digit) on it, as DLC04ArcadeScoreNumber does it (through
+		// AmusementGamesNative.ShowDigit: a ref of ours has no script to call it on directly)
 		bool ShowDigit(RE::TESObjectREFR* a_ref, int a_digit)
 		{
-			auto* game = RE::GameVM::GetSingleton();
-			auto  vm = game ? game->GetVM() : nullptr;
-			if (!vm || !a_ref || !a_ref->Get3D()) {
-				return false;
-			}
-			auto&      handles = vm->GetObjectHandlePolicy();
-			const auto handle = handles.GetHandleForObject(RE::BSScript::GetVMTypeID<RE::TESObjectREFR>(), a_ref);
-			if (handle == handles.EmptyHandle()) {
-				return false;
-			}
-			const RE::BSFixedString                                        anim{ std::format("Num0{}", a_digit) };
-			const RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> none{ new NoResult() };
-			return vm->DispatchMethodCall(
-				handle, RE::BSFixedString("ObjectReference"), RE::BSFixedString("PlayAnimation"),
-				[&](RE::BSScrapArray<RE::BSScript::Variable>& a_out) {
-					a_out = RE::BSScript::detail::PackVariables(anim);
-					return true;
-				},
-				none);
+			return a_ref && a_ref->Get3D() && Papyrus::Call("ShowDigit", { Papyrus::Id(a_ref), a_digit });
 		}
 
 		// a digit's ref at the machine's node: where the node is, turned as the machine is
@@ -233,6 +207,14 @@ namespace ag::Scoreboards
 		}
 		const auto& arcade = Arcade::Get();
 		for (auto& b : g_boards) {
+			// every few seconds every digit's set again (a digit whose animation didn't take: its 3D not ready, a
+			// Papyrus call dropped)
+			b.refresh -= a_dt;
+			if (b.refresh <= 0.0) {
+				b.refresh = 4.0;
+				b.score.shown.fill(-2);
+				b.high.shown.fill(-2);
+			}
 			Show(b.score, arcade.ScoreOn(b.id));
 			Show(b.high, arcade.Best(b.game));
 		}

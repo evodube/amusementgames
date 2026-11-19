@@ -43,8 +43,53 @@ namespace sim
 		a_out[2][2] = 1 - 2 * (x * x + y * y);
 	}
 
+	void Mesh::Add(const double a_c[9])
+	{
+		Tri t;
+		t.a = { a_c[0], a_c[1], a_c[2] };
+		t.b = { a_c[3], a_c[4], a_c[5] };
+		t.c = { a_c[6], a_c[7], a_c[8] };
+		t.lo = { std::min({ t.a.x, t.b.x, t.c.x }), std::min({ t.a.y, t.b.y, t.c.y }), std::min({ t.a.z, t.b.z, t.c.z }) };
+		t.hi = { std::max({ t.a.x, t.b.x, t.c.x }), std::max({ t.a.y, t.b.y, t.c.y }), std::max({ t.a.z, t.b.z, t.c.z }) };
+		tris.push_back(t);
+	}
+
 	namespace
 	{
+		// closest point to p on the triangle a b c (Ericson, Real-Time Collision Detection 5.1.5)
+		Vec3 ClosestOnTriangle(const Vec3& p, const Vec3& a, const Vec3& b, const Vec3& c)
+		{
+			const Vec3   ab = b - a, ac = c - a, ap = p - a;
+			const double d1 = ab.Dot(ap), d2 = ac.Dot(ap);
+			if (d1 <= 0.0 && d2 <= 0.0) {
+				return a;
+			}
+			const Vec3   bp = p - b;
+			const double d3 = ab.Dot(bp), d4 = ac.Dot(bp);
+			if (d3 >= 0.0 && d4 <= d3) {
+				return b;
+			}
+			const double vc = d1 * d4 - d3 * d2;
+			if (vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0) {
+				return a + ab * (d1 / (d1 - d3));
+			}
+			const Vec3   cp = p - c;
+			const double d5 = ab.Dot(cp), d6 = ac.Dot(cp);
+			if (d6 >= 0.0 && d5 <= d6) {
+				return c;
+			}
+			const double vb = d5 * d2 - d1 * d6;
+			if (vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0) {
+				return a + ac * (d2 / (d2 - d6));
+			}
+			const double va = d3 * d6 - d5 * d4;
+			if (va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0) {
+				return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
+			}
+			const double denom = 1.0 / (va + vb + vc);
+			return a + ab * (vb * denom) + ac * (vc * denom);
+		}
+
 		// closest point to p on the segment a-b
 		Vec3 ClosestOnSegment(const Vec3& a_p, const Vec3& a_a, const Vec3& a_b)
 		{
@@ -151,8 +196,20 @@ namespace sim
 			}
 			b.pos += b.vel * a_h;
 
-			// catches: the centre crossing the disc's plane against its normal, inside its ring
+			// catches: the centre crossing the disc's plane against its normal, inside its ring (or into a box)
 			for (const auto& c : catches) {
+				if (c.box.x > 0.0) {
+					const Vec3 d = b.pos - c.centre;
+					if (std::abs(d.x) <= c.box.x && std::abs(d.y) <= c.box.y && std::abs(d.z) <= c.box.z && b.lastCatch != c.id) {
+						b.lastCatch = c.id;
+						a_events.push_back({ Event::Kind::kCaught, static_cast<int>(i), c.id, b.vel.Length(), b.pos });
+						if (!c.keep) {
+							b.state = BallState::kCaught;
+							break;
+						}
+					}
+					continue;
+				}
 				const Vec3   n = c.normal.Normalized();
 				const double d0 = (before - c.centre).Dot(n);
 				const double d1 = (b.pos - c.centre).Dot(n);
@@ -232,6 +289,26 @@ namespace sim
 					Contact(b, static_cast<int>(i), n, min - l, rm.restitution, 0.15, 4.0, rm.material, a_h, a_events);
 					if (n.z > 0.5) {
 						supported = true;
+					}
+				}
+			}
+			// the machine's own collision: each triangle near enough pushes the ball out along the line from its
+			// nearest point
+			for (const auto& m : meshes) {
+				for (const auto& t : m.tris) {
+					if (b.pos.x + r < t.lo.x || b.pos.x - r > t.hi.x || b.pos.y + r < t.lo.y || b.pos.y - r > t.hi.y || b.pos.z + r < t.lo.z ||
+						b.pos.z - r > t.hi.z) {
+						continue;
+					}
+					const Vec3   q = ClosestOnTriangle(b.pos, t.a, t.b, t.c);
+					const Vec3   d = b.pos - q;
+					const double l = d.Length();
+					if (l < r && l > 1e-9) {
+						const Vec3 n = d * (1.0 / l);
+						Contact(b, static_cast<int>(i), n, r - l, m.restitution, m.friction, m.rollDecel, m.material, a_h, a_events);
+						if (n.z > 0.5) {
+							supported = true;
+						}
 					}
 				}
 			}

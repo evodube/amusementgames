@@ -14,35 +14,26 @@ namespace sim::layout
 	// DLC04_Nukacade_SkeeBall01.nif, measured off its Havok collision: a lane flat then rising, a hump, a gutter
 	// across the machine (BallHole00, no points), then the board climbing at 1 in 2 with its holes up the middle
 	// (BallHole01-05: 100-500) and in the top corners (BallHole06/07: 700), and a trough over the top (no points)
-	struct RollersHole
+	struct RollersCup
 	{
-		double x{ 0.0 };
-		double y{ 0.0 };      // where it's let into the board
-		double radius{ 7.5 };
-		int    points{ 0 };
+		Vec3 at;        // its BallHole node
+		int  points{ 0 };
 	};
 
 	struct RollersLayout
 	{
 		int    balls{ 9 };
 		double ballRadius{ 4.0 };              // DLC04_Nukacade_Ball01: 8 across
-		Vec3   release{ 0.0, -150.0, 42.5 };   // the ball in your hand: the lane's near end
-		double aimHalfWidth{ 30.0 };           // how far either side of the lane's middle you can aim
-		double laneHalfWidth{ 38.4 };
-		double boardHalfWidth{ 60.2 };
-		double laneFrontY{ -160.0 }, laneFrontZ{ 38.4 };
-		double laneBendY{ -80.0 }, laneBendZ{ 37.5 };   // flat to here, then rising
-		double rampStartY{ 8.6 }, rampStartZ{ 46.0 };   // the hump's ramp...
-		double rampEndY{ 32.2 }, rampEndZ{ 57.8 };
-		double humpEndY{ 48.0 };                        // ...its flat top
-		double gutterZ{ 34.0 };                         // the gutter's floor
-		double boardStartY{ 69.0 }, boardStartZ{ 58.3 };
-		double boardEndY{ 162.0 }, boardEndZ{ 104.8 };
+		Vec3   release{ 0.0, -148.0, 42.6 };   // the ball in your hand: on the lane's near end
+		double aimHalfWidth{ 32.0 };           // how far either side of the lane's middle you can aim
+		double rampStartY{ 8.6 };              // where the hump starts (what you aim at across the lane)
 		double laneSlope{ 0.0 };
-		std::vector<RollersHole> holes{ { 0.0, 79.5, 7.5, 100 }, { 0.0, 97.5, 7.5, 200 }, { 0.0, 114.0, 7.5, 300 }, { 0.0, 132.0, 7.5, 400 },
-			{ 0.0, 153.0, 7.5, 500 }, { -38.5, 153.0, 7.5, 700 }, { 38.5, 153.0, 7.5, 700 } };
-		double minSpeed{ 150.0 };
-		double maxSpeed{ 480.0 };
+		std::vector<RollersCup> cups{ { { 0.0, 81.7, 38.0 }, 100 }, { { 0.0, 98.7, 46.5 }, 200 }, { { 0.0, 115.7, 55.0 }, 300 },
+			{ { 0.0, 134.1, 64.2 }, 400 }, { { 0.0, 153.8, 74.0 }, 500 }, { { -38.5, 153.8, 74.0 }, 700 }, { { 38.5, 153.8, 74.0 }, 700 } };
+		Vec3   gutter{ 0.0, 57.6, 38.0 };      // BallHole00: the gutter before the board
+		Vec3   trough{ 0.0, 173.0, 30.0 };     // over the board's top
+		double minSpeed{ 280.0 };
+		double maxSpeed{ 680.0 };
 		double chargeSeconds{ 1.2 };
 	};
 
@@ -71,14 +62,15 @@ namespace sim::layout
 		double sideX{ 56.0 };               // the cage's sides...
 		double sideTopZ{ 142.0 };           // ...up to here (open above)
 		double handForward{ 30.0 };         // the ball in your hand, in front of your eyes...
-		double handDrop{ 16.0 };            // ...and down a bit
-		double arcLift{ 0.32 };             // the throw goes up this much more than you look
-		double minSpeed{ 260.0 };
-		double maxSpeed{ 720.0 };
+		double handDrop{ 28.0 };            // ...down below your sights...
+		double handSide{ 14.0 };            // ...and to the right, out of your way
+		double arcLift{ 0.6 };              // the throw goes up this much more than you look (a lob, down into the hoop)
+		double minSpeed{ 400.0 };
+		double maxSpeed{ 640.0 };
 		double chargeSeconds{ 0.7 };
 		double reloadSeconds{ 0.35 };
 		double ballLife{ 6.0 };
-		int    points{ 100 };               // a basket (Nuka-World's)
+		int    points{ 1 };                 // a basket
 	};
 
 	// ---------------------------------------------------------------- Whac-a-Commie
@@ -101,7 +93,7 @@ namespace sim::layout
 		double            gapShortest{ 0.35 }; // ...and at the end
 		int               mostUp{ 3 };         // most at once by the end
 		double            swingSeconds{ 0.18 };
-		int               points{ 100 };       // a whack (Nuka-World's)
+		int               points{ 1 };         // a whack
 	};
 
 	// ---------------------------------------------------------------- Nuka-Zapper Race
@@ -123,12 +115,16 @@ namespace sim::layout
 	struct ZapperLayout
 	{
 		std::vector<ZapperLane> lanes{ ZapLane(-182.2), ZapLane(-109.5), ZapLane(-37.5), ZapLane(34.1), ZapLane(106.4), ZapLane(178.2) };
-		double targetRadius{ 9.0 };
-		double secondsToWin{ 10.0 };  // on target all the way
-		double dropEvery{ 0.04 };
-		double dropSeconds{ 0.25 };
-		int    maxDrops{ 24 };
-		std::vector<int> placePoints{ 1000, 600, 400, 200, 100, 100 };
+		double targetRadius{ 11.0 };        // DLC04_Nukacade_NukaZapperTarget01: 30 across
+		int    hitsToWin{ 10 };             // Nuka-World's: ten hits up, the eleventh event the win
+		double shotSeconds{ 0.3 };          // your squirts, at most this often
+		double aiShotShortest{ 0.35 };      // the other lanes' squirts: between these apart...
+		double aiShotLongest{ 0.8 };
+		double aiHitWorst{ 0.3 };           // ...each hitting with this chance (the worst player)...
+		double aiHitBest{ 0.65 };           // ...to this (the best)
+		double rocketRise{ 3.0 };           // how fast a rocket climbs to its height (a fraction a second)
+		int    pointsPerHit{ 1 };
+		int    winPoints{ 10 };             // (Nuka-World's win: ten hits' worth)
 	};
 
 	// ---------------------------------------------------------------- Bandit Roundup
@@ -144,7 +140,7 @@ namespace sim::layout
 
 	struct GalleryKind  // the five cut-outs, in the plugin's model order: duck, bunny, pig, bottle, star
 	{
-		int    points{ 100 };
+		int    points{ 1 };
 		double radius{ 10.0 };  // how big a target it is
 		double height{ 10.0 };  // its middle above its feet
 		double weight{ 1.0 };   // how often it comes up
@@ -156,8 +152,8 @@ namespace sim::layout
 		double                   left{ -224.0 };
 		double                   right{ 232.0 };
 		std::vector<GalleryRow>  rows{ { 418.3, 180.2, 75.0, 6 }, { 375.0, 111.2, -95.0, 6 } };
-		std::vector<GalleryKind> kinds{ { 100, 14.0, 14.0, 4.0 }, { 150, 15.0, 16.0, 3.0 }, { 200, 13.0, 11.0, 2.0 }, { 250, 8.0, 22.0, 1.2 },
-			{ 300, 12.0, 11.0, 0.6 } };
+		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0 }, { 1, 15.0, 16.0, 3.0 }, { 1, 13.0, 11.0, 2.0 }, { 1, 8.0, 22.0, 1.2 },
+			{ 1, 12.0, 11.0, 0.6 } };  // a point a hit, whatever it is
 		double                   flipSeconds{ 0.15 };
 		double                   shotSeconds{ 0.3 };
 	};

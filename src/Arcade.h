@@ -96,7 +96,9 @@ namespace ag
 		void                Remove(RE::ObjectRefHandle& a_handle);
 		void                PlaceNode(RE::TESObjectREFR* a_ref, const RE::NiPoint3& a_pos, const RE::NiMatrix3& a_rot, float a_scale, bool a_hidden);
 		void                Freeze(RE::TESObjectREFR* a_ref);
-		void                BlockControls(bool a_block);
+		void                BlockControls(bool a_block, bool a_allowFighting = false);
+		void                Arm(sim::GameId a_game);
+		void                Disarm();
 		void                PublishHud();
 		void                Notify(const std::string& a_text);
 
@@ -125,6 +127,18 @@ namespace ag
 		bool                                 _controlsBlocked{ false };
 		RE::BSTSmartPointer<RE::BSInputEnableLayer> _inputLayer;
 		bool                                 _wasThird{ false };
+
+		// the game's weapon in your hands (lent if you hadn't one) and the ammo lent with it
+		struct Lent
+		{
+			RE::TESObjectWEAP*        weapon{ nullptr };
+			bool                      added{ false };
+			RE::TESAmmo*              ammo{ nullptr };
+			int                       ammoBefore{ 0 };
+			int                       ammoGiven{ 0 };
+			std::shared_ptr<std::atomic<std::int32_t>> had{ std::make_shared<std::atomic<std::int32_t>>(0) };  // what you had out
+		};
+		Lent _lent;
 
 		std::array<int, static_cast<int>(sim::GameId::kCount)> _best{};
 		RE::TESFormID                                         _machineID{ 0 };

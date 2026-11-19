@@ -29,6 +29,26 @@ nodes) with Blender + PyNifly on the PC: the BA2 entries were pulled out to `C:\
 Nuka-World's scripts' properties (ScoreEvents PointValue, ScorePerTicket): Atomic Rollers holes 0/100-500/700 at
 100 a ticket; Hoop Shot 100 a basket, Whac-a-Commie 100 a whack, Bandit Roundup 100-300 a target, all 200 a ticket.
 
+## Collision
+
+Atomic Rollers and Hoop Shot run on the models' own Havok collision triangles (src/sim/Collision.inc, written by
+tools/collision_to_cpp.py from tools/collision/*.json, exported in Blender from the extracted models). Hoop Shot's
+rim plates are left out for our round rim. Skee-ball scoring: a ball inside a box at a BallHole node's cup.
+
+## Papyrus (papyrus/AmusementGamesNative.psc)
+
+Sounds, scoreboard digits and the games' weapons go through its global functions, forms passed as ids: calling a
+method on a form or ref with no script bound (a sound descriptor, a digit made with initializeScripts false)
+silently did nothing in 0.1.0 (no sounds, no digits). If the digits still don't change, the other way: make them
+with their scripts on and call DLC04:DLC04ArcadeScoreNumber.DisplayNumber, as Nuka-World does.
+
+## Weapons
+
+Whac-a-Commie: DLC04_CommieWhacker; Nuka-Zapper Race: DLC04_ThirstZapper; Bandit Roundup: DLC04_Revolver (the
+Western Revolver). ArmPlayer lends it (if you have none) with 200 of its ammo, equips and draws it; DisarmPlayer takes
+back the lent weapon and what's left of the lent ammo and re-equips what you had out. Fighting isn't held for those
+games (your swing or shot is the real one; the game reads the click and where you look).
+
 ## Scoreboards (src/Scoreboard.cpp)
 
 Nuka-World's digits (DLC04_Nukacade_Numbers 0004E138; the _Large 00053653 on the zapper and gallery) are placed at

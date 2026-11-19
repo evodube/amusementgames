@@ -338,9 +338,9 @@ namespace ag::Hud
 			switch (a_st.game) {
 			case sim::GameId::kAtomicRollers: what = "LEFT MOUSE: HOLD TO CHARGE, LET GO TO ROLL · LOOK TO AIM"; break;
 			case sim::GameId::kHoopShot: what = "LEFT MOUSE: HOLD TO CHARGE, LET GO TO SHOOT · LOOK TO AIM"; break;
-			case sim::GameId::kWhacACommie: what = "LOOK AT A COMMIE · LEFT MOUSE: WHACK"; break;
-			case sim::GameId::kNukaZapperRace: what = "LOOK AT YOUR TARGET · HOLD LEFT MOUSE: SQUIRT"; break;
-			case sim::GameId::kBanditRoundup: what = "LOOK AT A TARGET · LEFT MOUSE: SHOOT"; break;
+			case sim::GameId::kWhacACommie: what = "LOOK AT A COMMIE · LEFT MOUSE: SWING THE COMMIE WHACKER"; break;
+			case sim::GameId::kNukaZapperRace: what = "AIM AT YOUR TARGET · LEFT MOUSE: SQUIRT THE THIRST ZAPPER"; break;
+			case sim::GameId::kBanditRoundup: what = "AIM AT A TARGET · LEFT MOUSE: SHOOT"; break;
 			default: break;
 			}
 			what += std::format(" · {}: LEAVE", a_st.leaveKey);
