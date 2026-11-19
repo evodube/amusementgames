@@ -95,80 +95,62 @@ namespace sim::layout
 	{
 		const auto&  L = Rollers();
 		const double r = L.ballRadius;
-		// the lane (a little rolling resistance: wood), the hump that throws the ball up, the walls either side
-		a_world.rects.push_back(Slope(L.laneFrontY, L.laneFrontZ, L.rampStartY, L.laneBackZ, L.laneHalfWidth, 0.2, 0.05, 9.0, 0));
-		a_world.rects.push_back(Slope(L.rampStartY, L.laneBackZ, L.rampEndY, L.rampTopZ, L.laneHalfWidth, 0.2, 0.0, 6.0, 0));
-		a_world.rects.push_back(SideWall(-L.laneHalfWidth - r, L.laneFrontY, L.rampEndY, L.laneFrontZ - 5.0, L.rampTopZ + 25.0, 0.45));
-		a_world.rects.push_back(SideWall(L.laneHalfWidth + r, L.laneFrontY, L.rampEndY, L.laneFrontZ - 5.0, L.rampTopZ + 25.0, 0.45));
-		a_world.rects.push_back(SideWall(-L.boardHalfWidth - r, L.rampEndY, L.boardTopY, L.laneBackZ - 20.0, L.boardTopZ + 40.0, 0.45));
-		a_world.rects.push_back(SideWall(L.boardHalfWidth + r, L.rampEndY, L.boardTopY, L.laneBackZ - 20.0, L.boardTopZ + 40.0, 0.45));
-		// the board: a slope with the rings let into it; under each opening, a catch for its points
-		Rect         board = Slope(L.boardBottomY, L.boardBottomZ, L.boardTopY, L.boardTopZ, L.boardHalfWidth, 0.35, 0.1, 8.0, 1);
+		// the lane (flat, then rising), the hump's ramp and flat top: wood, a little rolling resistance
+		a_world.rects.push_back(Slope(L.laneFrontY, L.laneFrontZ, L.laneBendY, L.laneBendZ, L.laneHalfWidth, 0.2, 0.05, 9.0, 0));
+		a_world.rects.push_back(Slope(L.laneBendY, L.laneBendZ, L.rampStartY, L.rampStartZ, L.laneHalfWidth, 0.2, 0.05, 9.0, 0));
+		a_world.rects.push_back(Slope(L.rampStartY, L.rampStartZ, L.rampEndY, L.rampEndZ, L.laneHalfWidth, 0.2, 0.0, 6.0, 0));
+		a_world.rects.push_back(Slope(L.rampEndY, L.rampEndZ, L.humpEndY, L.rampEndZ, L.laneHalfWidth, 0.2, 0.0, 6.0, 0));
+		// the gutter's floor between the hump and the board
+		a_world.rects.push_back(Slope(L.humpEndY, L.gutterZ, L.boardStartY, L.gutterZ, L.boardHalfWidth, 0.2, 0.2, 20.0, 0));
+		// the walls: the lane's, then the wider board's
+		a_world.rects.push_back(SideWall(-L.laneHalfWidth, L.laneFrontY, L.humpEndY, L.laneFrontZ - 5.0, L.rampEndZ + 40.0, 0.45));
+		a_world.rects.push_back(SideWall(L.laneHalfWidth, L.laneFrontY, L.humpEndY, L.laneFrontZ - 5.0, L.rampEndZ + 40.0, 0.45));
+		a_world.rects.push_back(SideWall(-L.boardHalfWidth, L.humpEndY, L.boardEndY + 6.0, L.gutterZ - 5.0, L.boardEndZ + 60.0, 0.45));
+		a_world.rects.push_back(SideWall(L.boardHalfWidth, L.humpEndY, L.boardEndY + 6.0, L.gutterZ - 5.0, L.boardEndZ + 60.0, 0.45));
+		// the board, with its holes let in; each hole's edge (a ball clipping it rattles) and the cup under it
+		Rect         board = Slope(L.boardStartY, L.boardStartZ, L.boardEndY, L.boardEndZ, L.boardHalfWidth, 0.35, 0.1, 8.0, 1);
 		const Vec3   n = board.normal.Normalized();
-		const Vec3   up = n.Cross(board.u).Normalized();  // up the board
-		const Vec3   bottom = board.centre - up * board.halfV;
-		const Vec3   centre = bottom + up * (2.0 * board.halfV * L.ringCentreU);
-		board.holes.emplace_back(centre, L.ringRadii.front());
-		std::vector<Vec3> corners;
-		for (double side : { -1.0, 1.0 }) {
-			const Vec3 c = bottom + up * (2.0 * board.halfV * L.cornerHoleU) + Vec3{ side * L.cornerHoleX, 0.0, 0.0 };
-			board.holes.emplace_back(c, L.cornerHoleRadius);
-			corners.push_back(c);
-		}
-		a_world.rects.push_back(board);
-		// the back stop above the board
-		a_world.rects.push_back(BackWall(L.boardTopY, L.boardHalfWidth + r, L.boardTopZ - 10.0, L.boardTopZ + 40.0, 0.3, false));
-		// the rings' outer rim standing proud of the board (a ball clipping it rattles off), and each ring's cup below:
-		// a ball's points are the ring it drops in through
-		for (std::size_t k = 0; k < L.ringRadii.size(); ++k) {
-			if (k == 0) {
-				Rim rim;
-				rim.centre = centre + n * 0.4;
-				rim.axis = n;
-				rim.radius = L.ringRadii[k];
-				rim.tube = 0.7;
-				rim.restitution = 0.4;
-				rim.material = 1;
-				a_world.rims.push_back(rim);
-			}
+		const double slope = (L.boardEndZ - L.boardStartZ) / (L.boardEndY - L.boardStartY);
+		for (const auto& h : L.holes) {
+			const Vec3 at{ h.x, h.y, L.boardStartZ + slope * (h.y - L.boardStartY) };
+			board.holes.emplace_back(at, h.radius);
+			Rim edge;
+			edge.centre = at;
+			edge.axis = n;
+			edge.radius = h.radius;
+			edge.tube = 0.4;
+			edge.restitution = 0.35;
+			edge.material = 1;
+			a_world.rims.push_back(edge);
 			Catch c;
-			c.centre = centre - n * (r + 2.0);
+			c.centre = at - n * (r + 2.0);
 			c.normal = n;
-			c.radius = L.ringRadii[k] + r;
-			c.inner = k + 1 < L.ringRadii.size() ? L.ringRadii[k + 1] : 0.0;
-			c.id = L.ringPoints[k];
+			c.radius = h.radius;
+			c.id = h.points;
 			a_world.catches.push_back(c);
 		}
-		for (const auto& c : corners) {
-			Rim rim;
-			rim.centre = c + n * 0.4;
-			rim.axis = n;
-			rim.radius = L.cornerHoleRadius;
-			rim.tube = 0.6;
-			rim.restitution = 0.4;
-			rim.material = 1;
-			a_world.rims.push_back(rim);
-			Catch k;
-			k.centre = c - n * (r + 2.0);
-			k.normal = n;
-			k.radius = L.cornerHoleRadius + r;
-			k.id = 100;
-			a_world.catches.push_back(k);
-		}
-		// the gutter: anything that drops off the bottom of the board, no points
+		a_world.rects.push_back(board);
+		// the scoreboard's face above the board's top: high balls come back down
+		a_world.rects.push_back(BackWall(L.boardEndY + 6.0, L.boardHalfWidth, L.boardEndZ, L.boardEndZ + 70.0, 0.3, false));
+		// no points: down in the gutter, or over the board's top into the trough
 		Catch gutter;
-		gutter.centre = { 0.0, (L.rampEndY + L.boardBottomY) * 0.5, L.boardBottomZ - 18.0 };
+		gutter.centre = { 0.0, (L.humpEndY + L.boardStartY) * 0.5, L.gutterZ + r + 2.0 };
 		gutter.normal = { 0.0, 0.0, 1.0 };
-		gutter.radius = 90.0;
+		gutter.radius = L.boardHalfWidth + 2.0;
 		gutter.id = 0;
 		a_world.catches.push_back(gutter);
+		Catch trough;
+		trough.centre = { 0.0, L.boardEndY + 2.0, L.boardEndZ };
+		trough.normal = { 0.0, -1.0, 0.0 };
+		trough.radius = 80.0;
+		trough.id = 0;
+		a_world.catches.push_back(trough);
 	}
 
 	void BuildHoop(World& a_world)
 	{
-		const auto&  L = Hoop();
-		const double r = L.ballRadius;
-		Rim          rim;
+		const auto& L = Hoop();
+		Rim         rim;
 		rim.centre = L.rim;
 		rim.axis = { 0.0, 0.0, 1.0 };
 		rim.radius = L.rimRadius;
@@ -180,31 +162,31 @@ namespace sim::layout
 		a_world.rails.push_back({ L.rim + Vec3{ 0.0, L.rimRadius, 0.0 }, Vec3{ 0.0, L.boardY, L.rim.z }, 0.8, 0.5, 1 });
 		// a basket: down through the hoop (the ball falls on through the net)
 		Catch basket;
-		basket.centre = L.rim - Vec3{ 0.0, 0.0, 3.0 };
+		basket.centre = L.rim - Vec3{ 0.0, 0.0, 6.0 };
 		basket.normal = { 0.0, 0.0, 1.0 };
 		basket.radius = L.rimRadius;
 		basket.id = kHoopBasket;
 		basket.keep = true;
 		a_world.catches.push_back(basket);
-		// the net: a few cords from the rim narrowing down, slowing what goes through
+		// the net: cords from the rim narrowing down, slowing what goes through
 		for (int k = 0; k < 8; ++k) {
 			const double a = k * 3.14159265358979 / 4.0;
 			const Vec3   top = L.rim + Vec3{ std::cos(a) * L.rimRadius, std::sin(a) * L.rimRadius, 0.0 };
-			const Vec3   bottom = L.rim + Vec3{ std::cos(a) * L.rimRadius * 0.7, std::sin(a) * L.rimRadius * 0.7, -14.0 };
+			const Vec3   bottom = L.rim + Vec3{ std::cos(a) * L.rimRadius * 0.7, std::sin(a) * L.rimRadius * 0.7, -20.0 };
 			a_world.rails.push_back({ top, bottom, 0.3, 0.1, 2 });
 		}
 		a_world.rects.push_back(BackWall(L.boardY, L.boardHalfWidth, L.boardZ - L.boardHalfHeight, L.boardZ + L.boardHalfHeight, 0.6, true));
 		a_world.rects.back().material = 0;
-		// the return ramp, down to the front; the cage's sides and top
-		a_world.rects.push_back(Slope(L.floorFrontY, L.floorFrontZ, L.boardY, L.floorBackZ, L.sideX, 0.45, 0.1, 10.0, 3));
-		a_world.rects.push_back(SideWall(-L.sideX - r, L.floorFrontY, L.boardY, L.floorFrontZ, L.cageTopZ, 0.4));
-		a_world.rects.push_back(SideWall(L.sideX + r, L.floorFrontY, L.boardY, L.floorFrontZ, L.cageTopZ, 0.4));
-		a_world.rects.push_back(BackWall(L.boardY + 2.0, L.sideX, L.floorBackZ, L.cageTopZ, 0.4, false));
-		// back to the front: the ball's done
+		a_world.rects.push_back(BackWall(L.boardY + 5.0, L.sideX, L.rampBackZ, L.boardZ - L.boardHalfHeight, 0.4, false));
+		// the return ramp, down to the front; the cage's sides
+		a_world.rects.push_back(Slope(L.rampFrontY, L.rampFrontZ, L.rampBackY, L.rampBackZ, L.sideX, 0.45, 0.1, 10.0, 3));
+		a_world.rects.push_back(SideWall(-L.sideX, L.shelfFrontY, L.boardY, L.rampFrontZ - 5.0, L.sideTopZ, 0.4));
+		a_world.rects.push_back(SideWall(L.sideX, L.shelfFrontY, L.boardY, L.rampFrontZ - 5.0, L.sideTopZ, 0.4));
+		// back down at the front: the ball's done
 		Catch back;
-		back.centre = { 0.0, L.floorFrontY + 15.0, L.floorFrontZ + r };
+		back.centre = { 0.0, L.rampFrontY + 10.0, L.rampFrontZ + 20.0 };
 		back.normal = { 0.0, 1.0, 0.0 };
-		back.radius = L.sideX * 2.0;
+		back.radius = L.sideX * 1.5;
 		back.id = kHoopReturn;
 		a_world.catches.push_back(back);
 	}

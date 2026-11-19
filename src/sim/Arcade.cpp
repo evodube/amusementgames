@@ -151,7 +151,7 @@ namespace sim
 				a_out.showAim = _phase == Phase::kAim;
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 20, 1, 60, 450, 15 }.For(a_score); }
+			int TicketsFor(int a_score) const override { return TicketTable{ 100, 1, 70, 0, 0 }.For(a_score); }  // Nuka-World's: 100 a ticket
 
 		private:
 			enum class Phase
@@ -196,12 +196,13 @@ namespace sim
 						const int points = std::max(0, a_e.other);
 						_last = points;
 						Add(points);
-						const Cue cue = points >= 100 ? Cue::kPoints100 :
-						                points >= 50  ? Cue::kPoints50 :
-						                points >= 40  ? Cue::kPoints40 :
-						                points >= 30  ? Cue::kPoints30 :
-						                points >= 20  ? Cue::kPoints20 :
-						                points >= 10  ? Cue::kPoints10 :
+						// Nuka-World's calls: 100 .. 500, and 700 the corners
+						const Cue cue = points >= 700 ? Cue::kPoints100 :
+						                points >= 500 ? Cue::kPoints50 :
+						                points >= 400 ? Cue::kPoints40 :
+						                points >= 300 ? Cue::kPoints30 :
+						                points >= 200 ? Cue::kPoints20 :
+						                points >= 100 ? Cue::kPoints10 :
 						                                Cue::kBallHitSoft;
 						Say(cue, a_e.where);
 					}
@@ -319,12 +320,12 @@ namespace sim
 			{
 				a_out.timeLeft = _time;
 				a_out.line1 = std::format("BASKETS {}", _baskets);
-				a_out.line2 = _time > 0.0 && _time <= layout::Hoop().hurrySeconds ? std::string("3 POINTS A BASKET!") :
+				a_out.line2 = _time > 0.0 && _time <= layout::Hoop().hurrySeconds ? std::string("LAST SECONDS!") :
 				                                                                    std::string("HOLD TO CHARGE, LET GO TO SHOOT");
 				a_out.power = _charge.on ? _charge.Power(layout::Hoop().chargeSeconds) : (_time > 0.0 ? 0.0 : -1.0);
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 4, 1, 50, 60, 10 }.For(a_score); }
+			int TicketsFor(int a_score) const override { return TicketTable{ 200, 1, 40, 0, 0 }.For(a_score); }  // Nuka-World's: 200 a ticket
 
 		private:
 			void Throw(const Input& a_in, double a_power)
@@ -358,7 +359,7 @@ namespace sim
 				const auto& L = layout::Hoop();
 				if (a_e.kind == Event::Kind::kCaught && a_e.other == layout::kHoopBasket) {
 					++_baskets;
-					Add(_time <= L.hurrySeconds ? 3 : 2);
+					Add(L.points);
 					Say(Cue::kBasket, a_e.where);
 				} else if (a_e.kind == Event::Kind::kHit || a_e.kind == Event::Kind::kBalls) {
 					Say(Cue::kBounce, a_e.where, Clamp01(a_e.speed / 400.0));
@@ -467,13 +468,18 @@ namespace sim
 				// a whack: at the head nearest where you look on the top, if it's up far enough
 				if (a_in.pressed && _time > 0.0 && _swing <= 0.0) {
 					_swing = L.swingSeconds;
-					Vec3 at;
-					if (RayPlane(a_in, Vec3{ 0, 0, L.headUpZ - 4.0 }, { 0, 0, 1 }, at)) {
+					{
+						// the head the look passes nearest (within its size), if it's up far enough
 						int    best = -1;
 						double bestD = L.hitRadius;
 						for (int i = 0; i < static_cast<int>(_heads.size()); ++i) {
-							const double d = std::hypot(at.x - L.holes[i].x, at.y - L.holes[i].y);
-							if (d < bestD && Height(i) > 0.35) {
+							if (Height(i) <= 0.35) {
+								continue;
+							}
+							const Vec3   c = HeadAt(i) + Vec3{ 0, 0, -9.0 };  // the face (the model hangs below its origin)
+							const double t = std::max(0.0, (c - a_in.eye).Dot(a_in.dir));
+							const double d = (a_in.eye + a_in.dir * t - c).Length();
+							if (d < bestD) {
 								best = i;
 								bestD = d;
 							}
@@ -482,7 +488,7 @@ namespace sim
 							auto& h = _heads[best];
 							// quicker is better: full points early in its time up
 							const double fresh = h.phase == Head::kUp ? 1.0 - h.t / h.upFor : 1.0;
-							Add(fresh > 0.5 ? 15 : 10);
+							Add(fresh > 0.5 ? L.points + L.points / 2 : L.points);
 							++_hits;
 							h = { Head::kHit, 0.0, h.upFor };
 							Say(Cue::kWhack, L.holes[best]);
@@ -500,7 +506,7 @@ namespace sim
 					Piece p;
 					p.model = 0;
 					const double up = Height(i);
-					p.pos = L.holes[i] + Vec3{ 0, 0, L.headDownZ + (L.headUpZ - L.headDownZ) * up };
+					p.pos = HeadAt(i);
 					RotZ(L.headYaw, p.rot);
 					if (_heads[i].phase == Head::kHit) {
 						// knocked: a tip back as it drops
@@ -526,7 +532,7 @@ namespace sim
 				a_out.line2 = std::format("GOT AWAY {}", _misses);
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 25, 1, 40, 500, 10 }.For(a_score); }
+			int TicketsFor(int a_score) const override { return TicketTable{ 200, 1, 40, 0, 0 }.For(a_score); }  // Nuka-World's: 200 a ticket
 
 		private:
 			struct Head
@@ -543,6 +549,13 @@ namespace sim
 				double t{ 0.0 };
 				double upFor{ 1.0 };
 			};
+
+			// where a head's origin is now
+			Vec3 HeadAt(int a_i) const
+			{
+				const auto& L = layout::Whac();
+				return L.holes[a_i] + Vec3{ 0, 0, L.headDown + (L.headUp - L.headDown) * Height(a_i) };
+			}
 
 			// 0 (down in its hole) .. 1 (all the way up)
 			double Height(int a_i) const
@@ -585,8 +598,8 @@ namespace sim
 				_rng.seed(a_seed);
 				const auto& L = layout::Zapper();
 				_lanes.assign(L.lanes.size(), Lane{});
-				static constexpr std::array<const char*, 6> names{ "SPARKY", "THE KID", "LUCKY LOU", "BUTTONS", "DIZZY", "ACE" };
-				std::vector<int> order{ 0, 1, 2, 3, 4, 5 };
+				static constexpr std::array<const char*, 8> names{ "SPARKY", "THE KID", "LUCKY LOU", "BUTTONS", "DIZZY", "ACE", "SLICK", "PEANUT" };
+				std::vector<int> order{ 0, 1, 2, 3, 4, 5, 6, 7 };
 				std::shuffle(order.begin(), order.end(), _rng);
 				for (std::size_t i = 0; i < _lanes.size(); ++i) {
 					_lanes[i].name = names[order[i % order.size()]];
@@ -742,14 +755,14 @@ namespace sim
 				}
 			}
 
-			int TicketsFor(int a_score) const override
-			{
-				// by place (the score is the place's points)
-				return a_score >= 100 ? 25 : a_score >= 60 ? 12 : a_score >= 40 ? 6 : 3;
-			}
+			int TicketsFor(int a_score) const override { return TicketTable{ 200, 1, 10, 0, 0 }.For(a_score); }  // by place: its points, 200 a ticket
 
 		private:
-			static int PointsForPlace(int a_place) { return a_place == 1 ? 100 : a_place == 2 ? 60 : a_place == 3 ? 40 : 20; }
+			static int PointsForPlace(int a_place)
+			{
+				const auto& p = layout::Zapper().placePoints;
+				return p.empty() ? 0 : p[std::clamp(a_place - 1, 0, static_cast<int>(p.size()) - 1)];
+			}
 
 			struct Lane
 			{
@@ -920,7 +933,7 @@ namespace sim
 				a_out.line2 = _shots > 0 ? std::format("{} SHOTS, {}% HIT", _shots, _hits * 100 / _shots) : std::string("FIRE AT THE TARGETS");
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 25, 1, 50, 600, 15 }.For(a_score); }
+			int TicketsFor(int a_score) const override { return TicketTable{ 200, 1, 60, 0, 0 }.For(a_score); }  // Nuka-World's: 200 a ticket
 
 		private:
 			struct Target

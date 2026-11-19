@@ -226,7 +226,7 @@ GAMES = [
 PIECES = [
     (0x20, "SkeeBall", GAMES_DIR + "DLC04_Nukacade_Ball01.nif", (-4, -4, -4, 4, 4, 4)),
     (0x21, "Basketball", "DLC04\\Props\\DLC04_Basketball01.nif", (-12, -12, -12, 12, 12, 12)),
-    (0x22, "CommieHead", GAMES_DIR + "DLC04_Nukacade_Commie01\\DLC04_Nukacade_Commie01.nif", (-5, -4, 0, 5, 5, 21)),
+    (0x22, "CommieHead", GAMES_DIR + "DLC04_Nukacade_Commie01.nif", (-5, -4, -18, 5, 5, 2)),  # the still one: origin at its top
     (0x23, "ZapperRocket", GAMES_DIR + "DLC04NukacadeNukaZapperRocket01\\DLC04NukacadeNukaZapperRocket01.nif", (-9, -9, -23, 9, 9, 22)),
     (0x24, "ZapperDrop", "DLC04\\Effects\\DLC04ProjectileThirstZapperWater.nif", (-2, -2, -2, 2, 2, 2)),
     (0x25, "GalleryDuck", GAMES_DIR + "DLC04_Nukacade_ShootingGalleryDuck01.nif", (-15, 0, -4, 15, 0, 32)),

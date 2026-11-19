@@ -174,7 +174,7 @@ namespace
 		const auto& L = layout::Hoop();
 		auto        g = MakeGame(GameId::kHoopShot);
 		// stand at the front, aim a little over the rim, try each power
-		const Vec3 eye{ 0, -170, 165 };
+		const Vec3 eye{ 0, -175, 120 };
 		int        best = 0;
 		double     bestCharge = 0.0;
 		for (int p = 0; p <= 20; ++p) {
@@ -209,7 +209,7 @@ namespace
 	{
 		const auto& L = layout::Whac();
 		auto        g = MakeGame(GameId::kWhacACommie);
-		const Vec3  eye{ 0, -60, 160 };
+		const Vec3  eye{ 0, -70, 120 };
 		int         target = 0;
 		bool        was = false;
 		double      took = 0.0;
@@ -218,18 +218,18 @@ namespace
             a_g.Pieces(pieces);
             // the first head up: look at it, whack every other frame
             for (int i = 0; i < static_cast<int>(pieces.size()); ++i) {
-                if (!pieces[i].hidden && pieces[i].pos.z > L.headDownZ + (L.headUpZ - L.headDownZ) * 0.6) {
+                if (!pieces[i].hidden && pieces[i].pos.z > L.holes[i].z + L.headDown + (L.headUp - L.headDown) * 0.6) {
                     target = i;
                     break;
                 }
             }
-            Input in = LookAt(eye, L.holes[target] + Vec3{ 0, 0, L.headUpZ - 4.0 });
+            Input in = LookAt(eye, L.holes[target] + Vec3{ 0, 0, L.headUp - 9.0 });
             in.pressed = !was;
             was = !was;
             return in;
         }, 60.0, &took);
 		std::printf("     whac-a-commie: %d points in %.1f s, %d tickets\n", s, took, g->TicketsFor(s));
-		Check(s > 100, "whac-a-commie: a quick player whacks plenty");
+		Check(s > 2000, "whac-a-commie: a quick player whacks plenty");
 		Check(g->Over() && took < 33.0, "whac-a-commie: over after its 30 seconds");
 		auto      idle = MakeGame(GameId::kWhacACommie);
 		const int none = Play(*idle, [&](Game&, double) { return LookAt(eye, { 0, 0, 0 }); }, 60.0);
@@ -246,16 +246,16 @@ namespace
             in.held = true;
             return in;
         }, 60.0);
-		Check(s == 100, "nuka-zapper race: dead on target all the way wins");
+		Check(s == 1000, "nuka-zapper race: dead on target all the way wins");
 		auto      lazy = MakeGame(GameId::kNukaZapperRace);
 		const int s2 = Play(*lazy, [&](Game&, double) { return LookAt(eye, L.lanes[1].target + Vec3{ 0, 0, 50 }); }, 60.0);
-		Check(s2 > 0 && s2 < 100 && lazy->Over(), "nuka-zapper race: not firing, the others win and you're placed");
+		Check(s2 > 0 && s2 < 1000 && lazy->Over(), "nuka-zapper race: not firing, the others win and you're placed");
 	}
 
 	void Gallery()
 	{
 		auto       g = MakeGame(GameId::kBanditRoundup);
-		const Vec3 eye{ 0, -80, 140 };
+		const Vec3 eye{ 0, -60, 120 };
 		bool       was = false;
 		const int  s = Play(*g, [&](Game& a_g, double) {
             std::vector<Piece> pieces;
@@ -264,7 +264,7 @@ namespace
             Vec3        at{ 0, 300, 140 };
             for (const auto& p : pieces) {
                 // an upright one near the middle
-                if (p.rot[1][1] > 0.99 && std::abs(p.pos.x) < 120) {
+                if (std::abs(p.rot[1][1]) > 0.99 && std::abs(p.pos.x) < 120) {
                     at = p.pos + Vec3{ 0, 0, L.kinds[p.model].height };
                     break;
                 }
@@ -275,7 +275,7 @@ namespace
             return in;
         }, 60.0);
 		std::printf("     bandit roundup: %d points, %d tickets\n", s, g->TicketsFor(s));
-		Check(s > 200, "bandit roundup: aiming at the targets hits them");
+		Check(s > 2000, "bandit roundup: aiming at the targets hits them");
 	}
 
 	void Tickets()

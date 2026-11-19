@@ -21,14 +21,24 @@ built too). Set up like Wasteland Wagers (`evodube/WastelandWagers`): same Commo
 - `src/Hud.cpp`: the terminal HUD (F4SE Menu Framework), fonts in `dist/Data/F4SE/Plugins/AmusementGames/hud`.
 - `papyrus/AmusementGamesTokenStand.psc`: the stand's message box (compiled by Caprica in CI).
 
+## Measurements
+
+`src/sim/Layouts.h` holds the machines' geometry, measured off Nuka-World's models (their Havok collision and named
+nodes) with Blender + PyNifly on the PC: the BA2 entries were pulled out to `C:\Users\Dan\Desktop\amusementgames\extract`
+(a GNRL BA2 reader in Python run in Blender), then rays cast at the imported collision. Scoring and tickets follow
+Nuka-World's scripts' properties (ScoreEvents PointValue, ScorePerTicket): Atomic Rollers holes 0/100-500/700 at
+100 a ticket; Hoop Shot 100 a basket, Whac-a-Commie 100 a whack, Bandit Roundup 100-300 a target, all 200 a ticket.
+
+## Scoreboards (src/Scoreboard.cpp)
+
+Nuka-World's digits (DLC04_Nukacade_Numbers 0004E138; the _Large 00053653 on the zapper and gallery) are placed at
+each machine's Score01-08 / HighScore01-08 nodes (read off the loaded 3D) for machines within 1500 of you, and set
+with PlayAnimation("Num0" + digit) as DLC04ArcadeScoreNumber does. Top row: your best at that game; bottom: the
+game on that machine (live while playing). Taken down before each save and when you're far; a stray digit in a
+slot is cleared when a board goes up.
+
 ## Still to do
 
-- **Measure the machine models** and put the numbers in `src/sim/Layouts.h`: the values there are guesses from the
-  machines' bounds (lane, ramp, board and rings for Atomic Rollers; rim, backboard, return for Hoop Shot; the holes
-  for Whac-a-Commie; each lane's gun, target and rocket for the zapper; the gallery's rows). The models are in
-  `DLCNukaWorld - Main.ba2` (Meshes\DLC04\SetDressing\Games\), too big to stage: pull them out with Blender's MCP
-  on the PC (a BA2 GNRL reader in Python) and read the node and shape positions.
-- The score on the machine's own number display (Score01..08 nodes, DLC04_Nukacade_Numbers).
 - Settlers coming to play (as Wasteland Wagers' bettors); the ticket store.
 
 ## Nuka-World's machines (DLCNukaWorld.esm)

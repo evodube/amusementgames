@@ -2,6 +2,7 @@
 
 #include "Forms.h"
 #include "Hud.h"
+#include "Scoreboard.h"
 #include "MenuWatch.h"
 #include "Sounds.h"
 #include "sim/Layouts.h"
@@ -143,6 +144,7 @@ namespace ag
 		}
 		_gameId = a_game;
 		_machine = a_machine->GetHandle();
+		_machineID = a_machine->GetFormID();
 		_game->Start(static_cast<std::uint32_t>(std::chrono::steady_clock::now().time_since_epoch().count()));
 		_playing = true;
 		_held = _lmb.load();  // (a button already down when you start doesn't throw)
@@ -197,6 +199,7 @@ namespace ag
 		if (newBest) {
 			best = score;
 		}
+		_lastScores[_machineID] = score;
 		auto* player = RE::PlayerCharacter::GetSingleton();
 		if (auto* ticket = Forms::Ticket(); player && ticket && tickets > 0) {
 			player->AddObjectToContainer(ticket, nullptr, tickets, nullptr, RE::ITEM_REMOVE_REASON::kNone);
@@ -275,6 +278,9 @@ namespace ag
 		const auto   now = std::chrono::steady_clock::now();
 		const double dt = std::clamp(std::chrono::duration<double>(now - _last).count(), 0.0, 0.1);
 		_last = now;
+		if (!menus::AnyBlocking()) {
+			Scoreboards::Tick(dt);
+		}
 		if (!_playing) {
 			if (_resultsLeft > 0.0) {
 				_resultsLeft -= dt;

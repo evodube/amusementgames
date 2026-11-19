@@ -3,6 +3,7 @@
 #include "Hook.h"
 #include "Hud.h"
 #include "MenuWatch.h"
+#include "Scoreboard.h"
 
 namespace
 {
@@ -27,6 +28,10 @@ namespace
 			break;
 		case F4SE::MessagingInterface::kPreLoadGame:
 			ag::Arcade::Get().Abort("a save loading");
+			ag::Scoreboards::Clear();
+			break;
+		case F4SE::MessagingInterface::kPreSaveGame:
+			ag::Scoreboards::Clear();  // (no digits saved into the cells: they go back up after)
 			break;
 		case F4SE::MessagingInterface::kPostLoadGame:
 		case F4SE::MessagingInterface::kNewGame:

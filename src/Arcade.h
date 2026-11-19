@@ -57,6 +57,18 @@ namespace ag
 		static void Load(const F4SE::SerializationInterface* a_intfc);
 		static void Revert(const F4SE::SerializationInterface* a_intfc);
 
+		// what a machine's scoreboard shows: the score of the game being played on it, or of the last one; your best at a
+		// game
+		int ScoreOn(RE::TESFormID a_machine) const
+		{
+			if (_playing && _game && _machineID == a_machine) {
+				return _game->Score();
+			}
+			const auto it = _lastScores.find(a_machine);
+			return it != _lastScores.end() ? it->second : 0;
+		}
+		int Best(sim::GameId a_game) const { return a_game != sim::GameId::kCount ? _best[static_cast<int>(a_game)] : 0; }
+
 		// a machine activated by you (on the game's thread)
 		void OnActivated(RE::TESObjectREFR* a_machine);
 
@@ -115,6 +127,8 @@ namespace ag
 		bool                                 _wasThird{ false };
 
 		std::array<int, static_cast<int>(sim::GameId::kCount)> _best{};
+		RE::TESFormID                                         _machineID{ 0 };
+		std::unordered_map<RE::TESFormID, int>                _lastScores;  // each machine's last game (this session)
 
 		mutable std::mutex _hudMutex;
 		HudState           _hud;

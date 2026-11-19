@@ -34,6 +34,8 @@ namespace ag::Forms
 	// DLCNukaWorld.esm's (ids within it)
 	inline constexpr std::uint32_t kToken = 0x01998A;   // MISC DLC04_Nukacade_Token01
 	inline constexpr std::uint32_t kTicket = 0x019988;  // MISC DLC04_Nukacade_Ticket01
+	inline constexpr std::uint32_t kNumbers = 0x04E138;       // ACTI DLC04_Nukacade_Numbers: a scoreboard digit
+	inline constexpr std::uint32_t kNumbersLarge = 0x053653;  // ACTI DLC04_Nukacade_Numbers_Large: the zapper's and gallery's
 
 	// a form from a plugin by its id within that plugin (light plugins too)
 	inline RE::TESForm* From(std::string_view a_plugin, std::uint32_t a_rawID)

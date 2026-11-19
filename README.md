@@ -4,17 +4,20 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 **Furniture > Amusement Games**, buy tokens at the **Token Stand** with caps, play, win tickets.
 
 - **Atomic Rollers** (skee-ball): hold the left mouse button to charge, let go to roll; look where it goes. Nine
-  balls; the rings are 10 to 50, the top corners 100.
-- **Hoop Shot**: hold to charge, let go to shoot, as many baskets as you can in 45 seconds (3 points in the last 10).
-- **Whac-a-Commie**: look at a commie popping up and click to whack it, for 30 seconds; quicker whacks score more.
-- **Nuka-Zapper Race**: hold the button with your sights on your target to squirt it and send your rocket up; first
-  to the top wins (the other lanes race you).
-- **Bandit Roundup**: shoot the cut-outs running along the gallery for 40 seconds: duck 10, bunny 20, pig 30,
-  bottle 40, star 50.
+  balls over the hump and up the board: the holes up the middle are 100 to 500, the top corners 700, the gutter
+  and the trough nothing.
+- **Hoop Shot**: hold to charge, let go to shoot, as many baskets as you can in 45 seconds (100 each).
+- **Whac-a-Commie**: seven holes; look at a commie popping up and click to whack it, for 30 seconds (100 a whack,
+  150 if you're quick).
+- **Nuka-Zapper Race**: six lanes. Hold the button with your sights on your target to squirt it and send your
+  rocket up; first to the top wins (the other lanes race you).
+- **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks for 60 seconds: duck 100, bunny 150,
+  pig 200, bottle 250, star 300.
 - **Token Stand**: caps in, Nuka-Cade tokens out (5 caps a token). Each game takes a token.
 
-Tickets come out by your score (Nuka-Cade tickets: the Nuka-Cade's prize terminal takes them too). Your best score
-at each game is kept in your save. X leaves a game early, paid for the score so far.
+Tickets come out by your score, at Nuka-World's own rates (100 points a ticket at Atomic Rollers, 200 at the rest);
+they're Nuka-Cade tickets, so the Nuka-Cade's prize terminal takes them too. Each machine's own scoreboard shows the
+game on it and your best at that game, kept in your save. X leaves a game early, paid for the score so far.
 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,
 bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own like Playable Pool's.
