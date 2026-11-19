@@ -17,10 +17,19 @@ Form IDs (src/Forms.h expects these):
     xx000804  COBJ workshop_co_AmusementGamesAtomicRollers  -> DLCNukaWorld 0004BD34 DLC04_Nukacade_AtomicRollers01Blue
     xx000805  COBJ workshop_co_AmusementGamesHoopShot       -> DLCNukaWorld 0004BD31 DLC04_Nukacade_HoopShot
     xx000806  COBJ workshop_co_AmusementGamesBanditRoundup  -> DLCNukaWorld 0004BD30 DLC04_Nukacade_BanditRoundup
-    xx000807  COBJ workshop_co_AmusementGamesTokenDispenser -> DLCNukaWorld 0004BD38 DLC04_Nukacade_TokenDispenser01
-                                               (pre-war money in, Nuka-Cade tokens out: what the machines take)
+    xx000807  COBJ workshop_co_AmusementGamesTokenStand     -> xx000808, the Token Stand
+    xx000808  ACTI AmusementGamesTokenStand    Token Stand: caps in, Nuka-Cade tokens out (DLCNukaWorld 0001998A, what
+                                               the machines take). Nuka-World's token dispenser model; its script
+                                               AmusementGamesTokenStand (papyrus/) asks how many
+    xx000809  MESG AmusementGamesTokenStandMessage  the stand's message box: the price, your caps and tokens; buy 1, 5,
+                                               10 or 25, or cancel
+    xx00080A  MESG AmusementGamesNotEnoughCapsMessage  the corner message when you can't pay
+    xx00080B  GLOB AmusementGamesTokenPrice    caps a token (5)
 
-The recipes copy Nuka-World's own (DLC04workshop_co_Nukacade*, Decorations > Nuka-World > Nuka-Cade): same
+Tokens and tickets are Nuka-World's own items (DLC04_Nukacade_Token01 0001998A, DLC04_Nukacade_Ticket01 00019988),
+so the Nuka-Cade's machines and prize terminal take ours and ours take theirs.
+
+The game machines' recipes copy Nuka-World's own (DLC04workshop_co_Nukacade*, Decorations > Nuka-World > Nuka-Cade): same
 components and sounds, but no condition (Nuka-World's need DLC04MQ01 done), so they're there from the start.
 Record layouts follow Wasteland Wagers' tools/make_esl.py (laid out as Fallout4.esm's own records).
 """
@@ -41,6 +50,10 @@ WOOD, STEEL, SCREWS, CIRCUITRY, COPPER, GEARS = 0x0001FAC2, 0x0001FABD, 0x0003D2
 WORKBENCH_FURNITURE = 0x0005B5E3  # WorkshopWorkbenchTypeFurniture (the settlement workbench)
 ARCADE_SOUNDS = (NUKA | 0x05710E, NUKA | 0x05710F)  # DLC04UIWorkshopModeItemPickUp/PutDownArcadeMachinex
 METAL_SOUNDS = (0x000196B0, 0x000196BA)             # the token dispenser's, as Nuka-World's recipe has them
+CAPS = 0x0000000F
+TOKEN = NUKA | 0x01998A                              # DLC04_Nukacade_Token01
+TOKEN_SOUND = NUKA | 0x04E5E4                        # DLC04OBJArcadeTokenExchangeDispense
+TOKEN_PRICE = 5.0                                    # caps a token
 
 
 def subrecord(sig: bytes, data: bytes) -> bytes:
@@ -108,6 +121,59 @@ def workshop_recipe(form_id: int, editor_id: str, created: int, components: list
     )
 
 
+def wstring(text: str) -> bytes:
+    data = text.encode("cp1252")
+    return struct.pack("<H", len(data)) + data
+
+
+def object_property(name: str, form_id: int) -> bytes:
+    # type 1 (object), flags 1 (edited), object v2: unused, alias id (-1 none), form id
+    return wstring(name) + bytes([1, 1]) + struct.pack("<HhI", 0, -1, form_id)
+
+
+def object_vmad(script: str, properties: list[tuple[str, int]]) -> bytes:
+    """One script on a base object, laid out as DLCNukaWorld.esm's token dispenser: version 6, object format 2, one
+    script (name, flags 0, its properties)."""
+    props = [object_property(n, f) for n, f in properties]
+    return struct.pack("<HHH", 6, 2, 1) + wstring(script) + b"\x00" + struct.pack("<H", len(props)) + b"".join(props)
+
+
+def token_stand(form_id: int, properties: list[tuple[str, int]]) -> bytes:
+    """The Token Stand: Nuka-World's token dispenser (DLC04_Nukacade_TokenDispenser01: its model, bounds and workshop
+    preview) with our script instead of its pre-war money one."""
+    return record(
+        b"ACTI", 0, form_id,
+        subrecord(b"EDID", zstring("AmusementGamesTokenStand"))
+        + subrecord(b"VMAD", object_vmad("AmusementGamesTokenStand", properties))
+        + subrecord(b"OBND", struct.pack("<6h", -21, -32, 0, 21, 19, 135))
+        + subrecord(b"PTRN", struct.pack("<I", NUKA | 0x055806))  # DLC04workshop_NukaCade_TokenDispenser01
+        + subrecord(b"FULL", zstring("Token Stand"))
+        + subrecord(b"MODL", zstring("DLC04\\SetDressing\\Games\\DLC04_Nukacade_TokenDispenser01.nif"))
+        + subrecord(b"ATTX", zstring("Buy Tokens"))
+        + subrecord(b"FNAM", struct.pack("<H", 0)),
+    )
+
+
+def message(form_id: int, editor_id: str, text: str, title: str = "", buttons: list[str] | None = None) -> bytes:
+    """A message, laid out as DLCNukaWorld.esm's: with buttons a message box (DNAM 1, as
+    DLC04WorkshopRedRocketPickGangMessage), without a corner message shown 2 seconds (as
+    DLC04_Nukacade_TokenNeededMessage). Its %.0f are the numbers the script passes to Show."""
+    body = subrecord(b"EDID", zstring(editor_id)) + subrecord(b"DESC", zstring(text))
+    if title:
+        body += subrecord(b"FULL", zstring(title))
+    body += subrecord(b"INAM", struct.pack("<I", 0))
+    if buttons:
+        body += subrecord(b"DNAM", struct.pack("<I", 1)) + b"".join(subrecord(b"ITXT", zstring(b)) for b in buttons)
+    else:
+        body += subrecord(b"DNAM", struct.pack("<I", 0)) + subrecord(b"TNAM", struct.pack("<I", 2))
+    return record(b"MESG", 0, form_id, body)
+
+
+def global_float(form_id: int, editor_id: str, value: float) -> bytes:
+    return record(b"GLOB", 0, form_id,
+                  subrecord(b"EDID", zstring(editor_id)) + subrecord(b"FNAM", b"f") + subrecord(b"FLTV", struct.pack("<f", value)))
+
+
 # (form id offset, editor id suffix, Nuka-World's machine, components as Nuka-World's recipe, sounds)
 MACHINES = [
     (0x02, "WhacACommie", NUKA | 0x04BD36, [(WOOD, 1), (STEEL, 5), (SCREWS, 1), (CIRCUITRY, 1)], ARCADE_SOUNDS),
@@ -115,7 +181,7 @@ MACHINES = [
     (0x04, "AtomicRollers", NUKA | 0x04BD34, [(SCREWS, 2), (STEEL, 6), (CIRCUITRY, 2), (COPPER, 1)], ARCADE_SOUNDS),
     (0x05, "HoopShot", NUKA | 0x04BD31, [(WOOD, 3), (STEEL, 8), (SCREWS, 2), (CIRCUITRY, 2)], ARCADE_SOUNDS),
     (0x06, "BanditRoundup", NUKA | 0x04BD30, [(SCREWS, 2), (STEEL, 8), (CIRCUITRY, 2), (WOOD, 3)], ARCADE_SOUNDS),
-    (0x07, "TokenDispenser", NUKA | 0x04BD38, [(STEEL, 4), (SCREWS, 1), (GEARS, 1)], METAL_SOUNDS),
+    (0x07, "TokenStand", OWN | (FIRST_ID + 8), [(STEEL, 4), (SCREWS, 1), (GEARS, 1)], METAL_SOUNDS),
 ]
 
 
@@ -130,12 +196,25 @@ def build() -> bytes:
     recipes = [workshop_recipe(OWN | (FIRST_ID + off), f"workshop_co_AmusementGames{name}", made, parts, menu, sounds)
                for off, name, made, parts, sounds in MACHINES]
 
-    count = len(keywords) + len(art) + len(recipes)
+    # ---- the Token Stand: caps in, tokens out
+    box = OWN | (FIRST_ID + 9)
+    broke = OWN | (FIRST_ID + 0xA)
+    price = OWN | (FIRST_ID + 0xB)
+    acti = [token_stand(OWN | (FIRST_ID + 8), [("Caps", CAPS), ("Token", TOKEN), ("TokenPrice", price),
+                                                ("BuyMessage", box), ("NotEnoughCapsMessage", broke),
+                                                ("DispenseSound", TOKEN_SOUND)])]
+    messages = [message(box, "AmusementGamesTokenStandMessage",
+                        "Nuka-Cade tokens, %.0f caps each.\nYou have %.0f caps and %.0f tokens.",
+                        "Token Stand", ["1 Token", "5 Tokens", "10 Tokens", "25 Tokens", "Cancel"]),
+                message(broke, "AmusementGamesNotEnoughCapsMessage", "Not enough caps: %.0f needed, you have %.0f.")]
+    globs = [global_float(price, "AmusementGamesTokenPrice", TOKEN_PRICE)]
+
+    count = len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs)
     header = record(
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 8))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0xC))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
@@ -144,7 +223,9 @@ def build() -> bytes:
         + subrecord(b"DATA", struct.pack("<Q", 0)),
     )
     # groups in the order the game's own master has them
-    return header + group(b"KYWD", b"".join(keywords)) + group(b"ARTO", b"".join(art)) + group(b"COBJ", b"".join(recipes))
+    return (header + group(b"GLOB", b"".join(globs)) + group(b"KYWD", b"".join(keywords))
+            + group(b"ACTI", b"".join(acti)) + group(b"MESG", b"".join(messages)) + group(b"ARTO", b"".join(art))
+            + group(b"COBJ", b"".join(recipes)))
 
 
 def main() -> int:
