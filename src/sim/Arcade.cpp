@@ -147,6 +147,7 @@ namespace sim
 				a_out.line1 = _phase == Phase::kDone ? "GAME OVER" : std::format("BALL {} OF {}", n, L.balls);
 				a_out.line2 = _last >= 0 ? std::format("LAST BALL: {}", _last) : std::string("HOLD TO CHARGE, LET GO TO ROLL");
 				a_out.power = _charge.on ? _charge.Power(L.chargeSeconds) : (_phase == Phase::kAim ? 0.0 : -1.0);
+				a_out.clock = _phase == Phase::kDone ? std::string() : std::format("BALL {}/{}", n, L.balls);
 				a_out.aimX = _aim;
 				a_out.showAim = _phase == Phase::kAim;
 			}
@@ -235,7 +236,7 @@ namespace sim
 				const auto& L = layout::Hoop();
 				_world = {};
 				_world.spec.ballRadius = L.ballRadius;
-				_world.spec.ballRestitution = 0.5;
+				_world.spec.ballRestitution = 0.55;
 				layout::BuildHoop(_world);
 				_world.balls.assign(L.ballsInPlay, Ball{});
 				_time = L.seconds;
@@ -520,7 +521,6 @@ namespace sim
 			void Hud(HudInfo& a_out) const override
 			{
 				a_out.timeLeft = _time;
-				a_out.timerOnly = true;
 				a_out.line1 = std::format("COMMIES WHACKED {}", _hits);
 				a_out.line2 = std::format("GOT AWAY {}", _misses);
 			}
@@ -732,6 +732,7 @@ namespace sim
 			{
 				if (_countdown > 0.0) {
 					a_out.line1 = std::format("READY... {}", static_cast<int>(std::ceil(_countdown)));
+					a_out.clock = std::to_string(static_cast<int>(std::ceil(_countdown)));
 				} else if (_place > 0) {
 					static constexpr std::array<const char*, 7> ord{ "", "1ST", "2ND", "3RD", "4TH", "5TH", "6TH" };
 					a_out.line1 = _place == 1 ? std::string("YOU WIN!") : std::format("YOU CAME {}", ord[std::min<std::size_t>(_place, 6)]);

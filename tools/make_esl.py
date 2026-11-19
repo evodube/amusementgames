@@ -34,7 +34,7 @@ Form IDs (src/Forms.h expects these):
     xx000820+ STAT AmusementGamesPiece*         what the games move about, each a Nuka-World model: 820 the skee-ball,
                                                (822, the commie's head, an ACTI: hit by your Commie Whacker, its hit
                                                event is the whack)
-                                               821 the basketball, 822 a commie's head, 823 a zapper rocket, 824 a
+                                               821 the basketball (the base game's, BasketBall01), 822 a commie's head, 823 a zapper rocket, 824 a
                                                drop of the zapper's water, 825-829 the gallery's duck, bunny, pig,
                                                bottle and star, 82A the zapper's target
 
@@ -227,7 +227,7 @@ GAMES = [
 # what the games move about: (form id offset, editor id suffix, Nuka-World's model, bounds)
 PIECES = [
     (0x20, "SkeeBall", GAMES_DIR + "DLC04_Nukacade_Ball01.nif", (-4, -4, -4, 4, 4, 4)),
-    (0x21, "Basketball", "DLC04\\Props\\DLC04_Basketball01.nif", (-12, -12, -12, 12, 12, 12)),
+    (0x21, "Basketball", "SetDressing\\SportsEquipment\\BasketBall01.nif", (-12, -12, -12, 12, 12, 12)),  # the base game's
     (0x22, "CommieHead", GAMES_DIR + "DLC04_Nukacade_Commie01.nif", (-5, -4, -18, 5, 5, 2)),  # the still one: origin at its top
     (0x23, "ZapperRocket", GAMES_DIR + "DLC04NukacadeNukaZapperRocket01\\DLC04NukacadeNukaZapperRocket01.nif", (-9, -9, -23, 9, 9, 22)),
     (0x24, "ZapperDrop", "DLC04\\Effects\\DLC04ProjectileThirstZapperWater.nif", (-2, -2, -2, 2, 2, 2)),

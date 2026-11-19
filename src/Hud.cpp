@@ -226,41 +226,34 @@ namespace ag::Hud
 			return std::format("{}:{:02}", s / 60, s % 60);
 		}
 
-		// top left: the game, the score, your best, how it's going; your tokens and tickets
-		void Status(const View& a_v, const Arcade::HudState& a_st)
-		{
-			const float x = 24.0f, y = 24.0f, w = 320.0f, h = 176.0f;
-			Chamfer(a_v, x, y, w, h, 12.0f, kPanel, kEdge);
-			Print(a_v, Mono(), sim::GameName(a_st.game), x + 18, y + 12, 13, kDim, 0, 2.0f);
-			Print(a_v, Title(), Commas(a_st.score), x + 18, y + 30, 40, kBright, kGlow, 2.0f);
-			Print(a_v, Mono(), "POINTS", x + 24 + TextWidth(Title(), Commas(a_st.score), 40, 2.0f), y + 54, 13, kDim, 0, 2.0f);
-			Print(a_v, Mono(), std::format("BEST {}", Commas(std::max(a_st.best, a_st.score))), x + w - 18, y + 16, 12, a_st.score > a_st.best && a_st.best > 0 ? kBright : kOff, 0, 1.0f,
-				Align::kRight);
-			Print(a_v, Mono(), a_st.info.line1, x + 18, y + 88, 15, kText, 0, 1.0f);
-			Print(a_v, Mono(), a_st.info.line2, x + 18, y + 112, 12, kDim, 0, 1.0f);
-			Print(a_v, Mono(), std::format("TOKENS {}   TICKETS {}", a_st.tokens, Commas(a_st.tickets)), x + 18, y + 146, 12, kOff, 0, 1.0f);
-		}
-
-		// top middle: the clock (red in the last ten seconds)
+		// top middle: the clock (red in the last ten seconds), or an untimed game's stand-in (the ball you're on, the
+		// race's countdown)
 		void Timer(const View& a_v, const Arcade::HudState& a_st)
 		{
-			if (a_st.info.timeLeft < 0.0) {
+			std::string text;
+			bool        hurry = false;
+			if (a_st.info.timeLeft >= 0.0) {
+				text = Clock(a_st.info.timeLeft);
+				hurry = a_st.info.timeLeft <= 10.0;
+			} else {
+				text = a_st.info.clock;
+			}
+			if (text.empty()) {
 				return;
 			}
-			const bool  hurry = a_st.info.timeLeft <= 10.0;
-			const float w = 150.0f, x = a_v.w * 0.5f - w * 0.5f, y = 24.0f;
+			const float w = std::max(150.0f, TextWidth(Title(), text, 40, 2.0f) + 40.0f), x = a_v.w * 0.5f - w * 0.5f, y = 24.0f;
 			Chamfer(a_v, x, y, w, 64.0f, 10.0f, kPanel, kEdge);
-			Print(a_v, Title(), Clock(a_st.info.timeLeft), x + w * 0.5f, y + 8, 40, hurry ? kRedText : kBright, hurry ? kRedGlow : kGlow, 2.0f, Align::kCentre);
+			Print(a_v, Title(), text, x + w * 0.5f, y + 8, 40, hurry ? kRedText : kBright, hurry ? kRedGlow : kGlow, 2.0f, Align::kCentre);
 		}
 
 		// bottom middle: the throw's power while you hold the button, and (skee-ball) where across the lane it goes
 		void Meter(const View& a_v, const Arcade::HudState& a_st)
 		{
-			if (a_st.info.power < 0.0 && !a_st.info.showAim) {
+			if (a_st.info.power < 0.0) {
 				return;
 			}
 			const float w = 360.0f, x = a_v.w * 0.5f - w * 0.5f, y = a_v.h - 120.0f;
-			Chamfer(a_v, x - 18, y - 30, w + 36, a_st.info.showAim ? 96.0f : 70.0f, 10.0f, kPanel, kEdge);
+			Chamfer(a_v, x - 18, y - 30, w + 36, 70.0f, 10.0f, kPanel, kEdge);
 			if (a_st.info.power >= 0.0) {
 				Print(a_v, Mono(), "POWER", x, y - 22, 12, kDim, 0, 2.0f);
 				DL::AddRect(a_v.dl, a_v.P(x, y), a_v.P(x + w, y + 18), kEdge, 0.0f, 0, std::max(1.0f, 1.2f * a_v.s));
@@ -272,49 +265,6 @@ namespace ag::Hud
 					DL::AddLine(a_v.dl, a_v.P(tx, y + 12), a_v.P(tx, y + 18), kDim, std::max(1.0f, a_v.s));
 				}
 			}
-			if (a_st.info.showAim) {
-				const float ay = y + 40.0f;
-				Print(a_v, Mono(), "AIM", x, ay - 6, 12, kDim, 0, 2.0f);
-				DL::AddLine(a_v.dl, a_v.P(x + 50, ay + 4), a_v.P(x + w, ay + 4), kEdge, std::max(1.0f, 1.2f * a_v.s));
-				const float mid = x + 50 + (w - 50) * 0.5f;
-				DL::AddLine(a_v.dl, a_v.P(mid, ay - 2), a_v.P(mid, ay + 10), kDim, std::max(1.0f, a_v.s));
-				const float ax = mid + (w - 50) * 0.5f * static_cast<float>(std::clamp(a_st.info.aimX, -1.0, 1.0));
-				DL::AddTriangleFilled(a_v.dl, a_v.P(ax - 7, ay - 6), a_v.P(ax + 7, ay - 6), a_v.P(ax, ay + 4), kBright);
-			}
-		}
-
-		// right: the zapper race, each lane's rocket on its way up
-		void Race(const View& a_v, const Arcade::HudState& a_st)
-		{
-			if (a_st.info.race.empty()) {
-				return;
-			}
-			const float w = 260.0f, x = a_v.w - 24.0f - w, y = 24.0f;
-			const float h = 40.0f + 30.0f * static_cast<float>(a_st.info.race.size());
-			Chamfer(a_v, x, y, w, h, 10.0f, kPanel, kEdge);
-			Print(a_v, Mono(), "THE RACE", x + 16, y + 10, 13, kDim, 0, 2.0f);
-			float row = y + 38;
-			for (const auto& [name, progress] : a_st.info.race) {
-				const bool you = name == "YOU";
-				Print(a_v, Mono(), name, x + 16, row, 13, you ? kBright : kText, 0, 1.0f);
-				const float bx = x + 110, bw = w - 126;
-				DL::AddRect(a_v.dl, a_v.P(bx, row + 2), a_v.P(bx + bw, row + 16), kEdge, 0.0f, 0, std::max(1.0f, a_v.s));
-				DL::AddRectFilled(a_v.dl, a_v.P(bx + 2, row + 4), a_v.P(bx + 2 + (bw - 4) * static_cast<float>(std::clamp(progress, 0.0, 1.0)), row + 14),
-					you ? kBright : kDim, 0.0f, 0);
-				row += 30.0f;
-			}
-		}
-
-		// the points as they come: big in the middle, rising and fading
-		void Points(const View& a_v, const Arcade::HudState& a_st)
-		{
-			if (a_st.sinceLastPoints > 1.2 || a_st.lastPoints <= 0) {
-				return;
-			}
-			const float t = static_cast<float>(a_st.sinceLastPoints / 1.2);
-			const float a = 1.0f - t * t;
-			Print(a_v, Title(), std::format("+{}", a_st.lastPoints), a_v.w * 0.5f, a_v.h * 0.36f - 40.0f * t, 54, Fade(kBright, a), Fade(kGlow, a), 2.0f,
-				Align::kCentre);
 		}
 
 		// the end of a game: the score, the tickets out, a new best
@@ -329,24 +279,6 @@ namespace ag::Hud
 			if (a_st.newBest) {
 				Print(a_v, Mono(), "A NEW BEST!", a_v.w * 0.5f, y + 140, 16, Fade(kBright, a), 0, 3.0f, Align::kCentre);
 			}
-		}
-
-		// bottom left: the keys
-		void Keys(const View& a_v, const Arcade::HudState& a_st)
-		{
-			std::string what;
-			switch (a_st.game) {
-			case sim::GameId::kAtomicRollers: what = "LEFT MOUSE: HOLD TO CHARGE, LET GO TO ROLL · LOOK TO AIM"; break;
-			case sim::GameId::kHoopShot: what = "LEFT MOUSE: HOLD TO CHARGE, LET GO TO SHOOT · LOOK TO AIM"; break;
-			case sim::GameId::kWhacACommie: what = "SWING THE COMMIE WHACKER AT THE COMMIES"; break;
-			case sim::GameId::kNukaZapperRace: what = "AIM AT YOUR TARGET · LEFT MOUSE: SQUIRT THE THIRST ZAPPER"; break;
-			case sim::GameId::kBanditRoundup: what = "AIM AT A TARGET · LEFT MOUSE: SHOOT"; break;
-			default: break;
-			}
-			what += std::format(" · {}: LEAVE", a_st.leaveKey);
-			const float w = TextWidth(Mono(), what, 13, 1.0f) + 36.0f;
-			Chamfer(a_v, 24.0f, a_v.h - 64.0f, w, 40.0f, 8.0f, kPanel, kEdge);
-			Print(a_v, Mono(), what, 42.0f, a_v.h - 54.0f, 13, kDim, 0, 1.0f);
 		}
 
 		void __stdcall Draw()
@@ -373,16 +305,12 @@ namespace ag::Hud
 				Results(v, st);
 				return;
 			}
-			if (st.info.timerOnly) {
-				Timer(v, st);  // (Whac-a-Commie: just the clock while you play)
-				return;
-			}
-			Status(v, st);
+			// while you play: the clock, and the power meter only while you're charging a throw (the machine's own
+			// scoreboard has the score)
 			Timer(v, st);
-			Race(v, st);
-			Meter(v, st);
-			Points(v, st);
-			Keys(v, st);
+			if (st.info.power > 0.0) {
+				Meter(v, st);
+			}
 		}
 
 		F4SEMenuFramework::Model::HudElement* g_element{ nullptr };

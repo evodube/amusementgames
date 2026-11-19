@@ -71,6 +71,7 @@ namespace sim::layout
 		double reloadSeconds{ 0.35 };
 		double ballLife{ 6.0 };
 		int    points{ 1 };                 // a basket
+		double bounce{ 0.385 };             // how much of its speed into a surface the ball keeps (the cage, board, rim)
 	};
 
 	// ---------------------------------------------------------------- Whac-a-Commie

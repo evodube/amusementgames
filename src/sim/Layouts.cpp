@@ -80,7 +80,7 @@ namespace sim::layout
 		for (const auto& t : collision::kHoop) {
 			m.Add(t);
 		}
-		m.restitution = 0.35;
+		m.restitution = L.bounce;
 		m.friction = 0.15;
 		m.rollDecel = 10.0;
 		m.material = 0;
@@ -90,11 +90,11 @@ namespace sim::layout
 		rim.axis = { 0.0, 0.0, 1.0 };
 		rim.radius = L.rimRadius;
 		rim.tube = L.rimTube;
-		rim.restitution = 0.35;
+		rim.restitution = L.bounce;
 		rim.material = 1;
 		a_world.rims.push_back(rim);
 		// the bracket from the rim's back to the board
-		a_world.rails.push_back({ L.rim + Vec3{ 0.0, L.rimRadius, 0.0 }, Vec3{ 0.0, L.boardY, L.rim.z }, 0.8, 0.35, 1 });
+		a_world.rails.push_back({ L.rim + Vec3{ 0.0, L.rimRadius, 0.0 }, Vec3{ 0.0, L.boardY, L.rim.z }, 0.8, L.bounce, 1 });
 		// a basket: down through the hoop (the ball falls on through the net)
 		Catch basket;
 		basket.centre = L.rim - Vec3{ 0.0, 0.0, 6.0 };

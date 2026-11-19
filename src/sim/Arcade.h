@@ -88,7 +88,7 @@ namespace sim
 		double      aimX{ 0.0 };      // -1..1: where your throw goes across the lane (rollers' guide), 0 centre
 		bool        showAim{ false };
 		std::vector<std::pair<std::string, double>> race;  // the zapper race: each lane's name and how far up (0..1)
-		bool        timerOnly{ false };  // only the clock while playing (and the result at the end)
+		std::string clock;               // an untimed game's stand-in for the clock (Atomic Rollers' ball, the race's countdown)
 	};
 
 	class Game
