@@ -56,7 +56,7 @@ own heads are activators scored OnHit. A TESHitEvent with you as the cause and a
 ## Weapons
 
 Whac-a-Commie: DLC04_CommieWhacker; Nuka-Zapper Race: DLC04_ThirstZapper (fired for real, a hit each
-click on target, ten to win; your lane is ZapperLayout::playerLane, marked by a Thirst Zapper model (STAT 82B) lying
+click on target, thirty to win (the bottles climb to the top of the cabinet); your lane is ZapperLayout::playerLane, marked by a Thirst Zapper model (STAT 82B) lying
 on the counter, put up with the scoreboard and hidden while you play); Bandit Roundup:
 DLC03_LeverGun (DLCCoast.esm 0002C8B0, looked up by name so Far Harbor isn't a master), else HuntingRifle
 (Fallout4.esm); shots counted a second apart. Arcade::TopUpAmmo keeps its magazine at the most rounds seen in it

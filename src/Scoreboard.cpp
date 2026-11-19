@@ -122,6 +122,7 @@ namespace ag::Scoreboards
 				const RE::NiPoint3 l{ static_cast<float>(a_local.x), static_cast<float>(a_local.y), static_cast<float>(a_local.z) };
 				return w.translate + w.rotate.Transpose() * (l * scale);
 			};
+			constexpr float kAlongCounter = 2.0f;
 			// a_side: laid on its side (turned a quarter about its length's crosswise axis: up becomes a_side along x)
 			const auto add = [&](RE::TESBoundObject* a_form, const RE::NiPoint3& a_pos, float a_side, RE::TESForm* a_mod, bool a_weapon) {
 				if (!a_form) {
@@ -142,8 +143,11 @@ namespace ag::Scoreboards
 				p.at = a_pos;
 				// rows: the prop's axes in the machine's space (a quarter turn about y: z -> (a_side, 0, 0)), then the
 				// machine's own turn
-				const RE::NiMatrix3 local = a_side == 0.0f ? RE::NiMatrix3(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0) :
-				                                             RE::NiMatrix3(0, 0, -a_side, 0, 0, 1, 0, 0, a_side, 0, 0, 0);
+				// kAlongCounter: lying across the counter, its barrel to the machine's left, its top toward the targets
+				// (lever and trigger toward you): x -> down, y (the barrel) -> left, z (its top) -> into the machine
+				const RE::NiMatrix3 local = a_side == 0.0f      ? RE::NiMatrix3(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0) :
+				                            a_side == kAlongCounter ? RE::NiMatrix3(0, 0, -1, 0, -1, 0, 0, 0, 0, 1, 0, 0) :
+				                                                  RE::NiMatrix3(0, 0, -a_side, 0, 0, 1, 0, 0, a_side, 0, 0, 0);
 				p.rot = local * w.rotate;
 				a_b.props.push_back(p);
 			};
@@ -177,7 +181,7 @@ namespace ag::Scoreboards
 			case sim::GameId::kBanditRoundup:
 				{
 					auto* rifle = Forms::WeaponOf(a_b.game);
-					add(rifle, at(sim::layout::Gallery().rifleRest), kOnItsSide, Forms::LentModFor(rifle), true);
+					add(rifle, at(sim::layout::Gallery().rifleRest), kAlongCounter, Forms::LentModFor(rifle), true);
 				}
 				break;
 			default:

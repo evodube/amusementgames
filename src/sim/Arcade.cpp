@@ -717,7 +717,7 @@ namespace sim
 				}
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 2, 1, 10, 0, 0 }.For(a_score); }  // a ticket every 2 points (Nuka-World's rate)
+			int TicketsFor(int a_score) const override { return TicketTable{ 4, 1, 10, 0, 0 }.For(a_score); }  // a ticket every 4 points: a win (40) still 10
 
 		private:
 			void Hit(int a_lane)
