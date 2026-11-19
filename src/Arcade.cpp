@@ -1,5 +1,7 @@
 #include "Arcade.h"
 
+#include "Income.h"
+
 #include "Forms.h"
 #include "Hud.h"
 #include "Scoreboard.h"
@@ -683,6 +685,7 @@ namespace ag
 	void Arcade::Save(const F4SE::SerializationInterface* a_intfc)
 	{
 		auto& self = Get();
+		Income::Save(a_intfc);
 		if (!a_intfc->OpenRecord(kSaveType, kSaveVersion)) {
 			return;
 		}
@@ -699,7 +702,12 @@ namespace ag
 		auto&         self = Get();
 		std::uint32_t type = 0, version = 0, length = 0;
 		self._best.fill(0);
+		Income::Revert();
 		while (a_intfc->GetNextRecordInfo(type, version, length)) {
+			if (type == Income::kSaveType) {
+				Income::Load(a_intfc, version, length);
+				continue;
+			}
 			if (type != kSaveType) {
 				continue;
 			}
@@ -721,6 +729,7 @@ namespace ag
 
 	void Arcade::Revert(const F4SE::SerializationInterface*)
 	{
+		Income::Revert();
 		Get()._best.fill(0);
 	}
 }

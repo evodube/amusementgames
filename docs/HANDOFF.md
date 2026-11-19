@@ -29,6 +29,14 @@ nodes) with Blender + PyNifly on the PC: the BA2 entries were pulled out to `C:\
 Nuka-World's scripts' properties (ScoreEvents PointValue, ScorePerTicket): Atomic Rollers holes 0/100-500/700 at
 100 a ticket; Hoop Shot 100 a basket, Whac-a-Commie 100 a whack, Bandit Roundup 100-300 a target, all 200 a ticket.
 
+## Takings
+
+src/Income.cpp: once a second, each of our machines near you (the boards' list) pays its workshop (linked ref by
+WorkshopItemKeyword) for every whole game day since it last did: population (the workshop's Population actor value,
+found by editor ID) x AmusementGamesIncomePerSettler (GLOB xx00080C, 1) caps, at most 30 days' worth, through
+AmusementGamesNative.AddTo. Each machine's last-paid day is saved ('AGIN' record); a machine starts earning the first
+time it's seen.
+
 ## Hoop Shot's throws
 
 No two alike (HoopLayout handWobble / aimWobble / paceWobble): a dead-on aim at the best power scores about half the

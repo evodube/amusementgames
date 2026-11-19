@@ -2,6 +2,7 @@
 
 #include "Arcade.h"
 #include "Forms.h"
+#include "Income.h"
 #include "Papyrus.h"
 #include "sim/Layouts.h"
 
@@ -275,6 +276,12 @@ namespace ag::Scoreboards
 				}
 				return !keep;
 			});
+			// their takings: each pays its settlement what it's earned (whole days since it last did)
+			for (auto& b : g_boards) {
+				if (auto m = b.machine.get()) {
+					Income::Check(m.get());
+				}
+			}
 			// up: our machines near you
 			auto* tes = RE::TES::GetSingleton();
 			auto  visit = [&](RE::TESObjectCELL* a_cell) {

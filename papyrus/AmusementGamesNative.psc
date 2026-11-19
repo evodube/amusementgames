@@ -115,3 +115,12 @@ Int Function PlaceWeapon(Int aiAt, Int aiWeapon, Int aiMod) Global
 	EndIf
 	Return r.GetFormID()
 EndFunction
+
+; something put in a container (a settlement's workshop: its games' takings)
+Function AddTo(Int aiRef, Int aiItem, Int aiCount) Global
+	ObjectReference r = Game.GetForm(aiRef) as ObjectReference
+	Form item = Game.GetForm(aiItem)
+	If r && item && aiCount > 0
+		r.AddItem(item, aiCount, True)
+	EndIf
+EndFunction

@@ -24,6 +24,7 @@ Form IDs (src/Forms.h expects these):
     xx000809  (unused: was the stand's how-many menu)
     xx00080A  MESG AmusementGamesNotEnoughCapsMessage  the corner message when you can't pay
     xx00080B  GLOB AmusementGamesTokenPrice    caps a token (5)
+    xx00080C  GLOB AmusementGamesIncomePerSettler  caps each machine earns its settlement a day for each settler (1)
 
     xx000810  ACTI AmusementGamesAtomicRollers  the five machines: Nuka-World's own models (DLCNukaWorld's
     xx000811  ACTI AmusementGamesHoopShot       DLC04_Nukacade_* activators', bounds and workshop previews), no script:
@@ -66,6 +67,7 @@ CAPS = 0x0000000F
 TOKEN = NUKA | 0x01998A                              # DLC04_Nukacade_Token01
 TOKEN_SOUND = NUKA | 0x04E5E4                        # DLC04OBJArcadeTokenExchangeDispense
 TOKEN_PRICE = 5.0                                    # caps a token
+INCOME_PER_SETTLER = 1.0                             # caps a machine earns a day, a settler
 
 
 def subrecord(sig: bytes, data: bytes) -> bytes:
@@ -269,7 +271,8 @@ def build() -> bytes:
     acti = [token_stand(OWN | (FIRST_ID + 8), [("Caps", CAPS), ("Token", TOKEN), ("TokenPrice", price),
                                                 ("NotEnoughCapsMessage", broke), ("DispenseSound", TOKEN_SOUND)])]
     messages = [message(broke, "AmusementGamesNotEnoughCapsMessage", "Not enough caps: %.0f needed, you have %.0f.")]
-    globs = [global_float(price, "AmusementGamesTokenPrice", TOKEN_PRICE)]
+    globs = [global_float(price, "AmusementGamesTokenPrice", TOKEN_PRICE),
+             global_float(OWN | (FIRST_ID + 0xC), "AmusementGamesIncomePerSettler", INCOME_PER_SETTLER)]
 
     # ---- the machines and their pieces
     for off, name, title, mesh, bounds, preview in GAMES:

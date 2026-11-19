@@ -15,6 +15,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with Far Harbor's Lever-Action Rifle
   (the Hunting Rifle without Far Harbor; iron sights, no scope), for 60 seconds. A point a hit, 3 for dead centre of a
   bullseye, either row. Unlimited ammo while you play: it never needs reloading.
+- **Takings**: each machine earns its settlement 1 cap a day for every settler there, put in the workshop when you're
+  back (up to 30 days' worth). The rate is the global `AmusementGamesIncomePerSettler` (`set AmusementGamesIncomePerSettler to 2`).
 - **Token Stand**: press F to buy 5 Nuka-Cade tokens (5 caps a token, 25 a press). Each game takes a token.
 
 On screen while you play: just the clock (Atomic Rollers: the ball you're on; the zapper race: its countdown), and
