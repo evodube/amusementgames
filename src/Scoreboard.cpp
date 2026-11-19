@@ -3,6 +3,7 @@
 #include "Arcade.h"
 #include "Forms.h"
 #include "Income.h"
+#include "MenuWatch.h"
 #include "Papyrus.h"
 #include "sim/Layouts.h"
 
@@ -278,6 +279,20 @@ namespace ag::Scoreboards
 
 		std::unordered_map<RE::TESFormID, RE::NiTransform> g_lastSeen;  // each machine where it was at the last look
 
+		// the object you've hold of in build mode (being placed or moved), if any
+		RE::TESFormID Held()
+		{
+			if (!menus::Open(menus::kWorkshop)) {
+				return 0;
+			}
+			auto* handle = RE::Workshop::GetPlacementItem();
+			if (!handle || !*handle) {
+				return 0;
+			}
+			auto ref = handle->get();
+			return ref ? ref->GetFormID() : 0;
+		}
+
 		void Scan()
 		{
 			auto* player = RE::PlayerCharacter::GetSingleton();
@@ -317,6 +332,10 @@ namespace ag::Scoreboards
 					}
 					if (std::ranges::any_of(g_boards, [&](const Board& a_b) { return a_b.id == a_ref->GetFormID(); })) {
 						return RE::BSContainer::ForEachResult::kContinue;
+					}
+					if (a_ref->GetFormID() == Held()) {
+						g_lastSeen.erase(a_ref->GetFormID());
+						return RE::BSContainer::ForEachResult::kContinue;  // (in your hands in build mode: up once it's put down)
 					}
 					// still being moved (where it is differs from the last look): wait till it's put down
 					const auto& now = a_ref->Get3D()->world;
@@ -369,6 +388,18 @@ namespace ag::Scoreboards
 
 	void Tick(double a_dt)
 	{
+		// a machine you've picked up in build mode: its board and things down at once (up again a moment after it's
+		// put down), so they don't hang about or pop in and out while you move it
+		if (const auto held = Held()) {
+			std::erase_if(g_boards, [&](Board& a_b) {
+				if (a_b.id != held) {
+					return false;
+				}
+				Remove(a_b);
+				return true;
+			});
+			g_lastSeen.erase(held);
+		}
 		g_scan -= a_dt;
 		if (g_scan <= 0.0) {
 			g_scan = 1.0;
