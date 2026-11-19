@@ -19,8 +19,8 @@ Event OnActivate(ObjectReference akActionRef)
 	If price < 1
 		price = 1
 	EndIf
-	Int caps = player.GetItemCount(Caps)
-	Int choice = BuyMessage.Show(price, caps, player.GetItemCount(Token))
+	Int haveCaps = player.GetItemCount(Caps)
+	Int choice = BuyMessage.Show(price, haveCaps, player.GetItemCount(Token))
 	Int count = 0
 	If choice == 0
 		count = 1
@@ -35,8 +35,8 @@ Event OnActivate(ObjectReference akActionRef)
 		Return
 	EndIf
 	Int cost = count * price
-	If caps < cost
-		NotEnoughCapsMessage.Show(cost, caps)
+	If haveCaps < cost
+		NotEnoughCapsMessage.Show(cost, haveCaps)
 		Return
 	EndIf
 	player.RemoveItem(Caps, cost)
