@@ -137,7 +137,9 @@ namespace ag
 			int                       ammoBefore{ 0 };
 			int                       ammoGiven{ 0 };
 			std::shared_ptr<std::atomic<std::int32_t>> had{ std::make_shared<std::atomic<std::int32_t>>(0) };  // what you had out
+			std::uint32_t             clip{ 0 };  // the most rounds seen in its magazine: kept topped up to this
 		};
+		void TopUpAmmo();
 		Lent _lent;
 
 		std::array<int, static_cast<int>(sim::GameId::kCount)> _best{};

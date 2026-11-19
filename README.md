@@ -10,8 +10,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Whac-a-Commie**: seven holes; swing the Commie Whacker at the commies popping up, for 30 seconds.
 - **Nuka-Zapper Race**: six lanes. Hold the button with your Thirst Zapper's stream on your target and your rocket
   climbs; ten steps up and you've won (the other lanes race you, streams and all).
-- **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with a Hunting Rifle (single shot,
-  bolt-action), for 60 seconds.
+- **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with Far Harbor's Lever-Action Rifle
+  (the Hunting Rifle without Far Harbor), for 60 seconds. Unlimited ammo while you play: it never needs reloading.
 - **Token Stand**: caps in, Nuka-Cade tokens out (5 caps a token). Each game takes a token.
 
 A point a hit (a basket, a whack, a target, a step up the zapper race; a race won is 10 more); Atomic Rollers' holes are

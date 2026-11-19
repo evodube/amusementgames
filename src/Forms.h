@@ -36,7 +36,8 @@ namespace ag::Forms
 	inline constexpr std::uint32_t kTicket = 0x019988;  // MISC DLC04_Nukacade_Ticket01
 	inline constexpr std::uint32_t kCommieWhacker = 0x052926;   // WEAP DLC04_CommieWhacker: Whac-a-Commie's mallet
 	inline constexpr std::uint32_t kThirstZapper = 0x007BC8;    // WEAP DLC04_ThirstZapper: the zapper race's water gun
-	inline constexpr RE::TESFormID kHuntingRifle = 0x0004F46A;  // WEAP HuntingRifle (Fallout4.esm): Bandit Roundup's single-shot rifle
+	inline constexpr std::uint32_t kLeverGun = 0x02C8B0;        // WEAP DLC03_LeverGun (DLCCoast.esm): Bandit Roundup's lever-action rifle...
+	inline constexpr RE::TESFormID kHuntingRifle = 0x0004F46A;  // WEAP HuntingRifle (Fallout4.esm): ...or this, without Far Harbor
 	inline constexpr std::uint32_t kNumbers = 0x04E138;       // ACTI DLC04_Nukacade_Numbers: a scoreboard digit
 	inline constexpr std::uint32_t kNumbersLarge = 0x053653;  // ACTI DLC04_Nukacade_Numbers_Large: the zapper's and gallery's
 
@@ -103,7 +104,12 @@ namespace ag::Forms
 		switch (a_game) {
 		case sim::GameId::kWhacACommie: form = Nuka(kCommieWhacker); break;
 		case sim::GameId::kNukaZapperRace: form = Nuka(kThirstZapper); break;
-		case sim::GameId::kBanditRoundup: form = RE::TESForm::GetFormByID(kHuntingRifle); break;
+		case sim::GameId::kBanditRoundup:
+			form = From("DLCCoast.esm", kLeverGun);
+			if (!form) {
+				form = RE::TESForm::GetFormByID(kHuntingRifle);
+			}
+			break;
 		default: return nullptr;
 		}
 		return form ? form->As<RE::TESObjectWEAP>() : nullptr;

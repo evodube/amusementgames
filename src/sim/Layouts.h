@@ -158,7 +158,7 @@ namespace sim::layout
 		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0 }, { 1, 15.0, 16.0, 3.0 }, { 1, 13.0, 11.0, 2.0 }, { 1, 8.0, 22.0, 1.2 },
 			{ 1, 12.0, 11.0, 0.6 } };  // a point a hit, whatever it is
 		double                   flipSeconds{ 0.15 };
-		double                   shotSeconds{ 1.0 };  // the Hunting Rifle's bolt between shots
+		double                   shotSeconds{ 0.6 };  // the lever between shots
 	};
 
 	const RollersLayout& Rollers();

@@ -330,6 +330,7 @@ namespace ag
 		in.held = down;
 		_held = down;
 
+		TopUpAmmo();
 		_game->Update(dt, in);
 		for (const auto& s : _game->TakeSounds()) {
 			if (s.cue == sim::Cue::kHurry) {
@@ -520,6 +521,26 @@ namespace ag
 			[had](std::int32_t a_had) { *had = a_had; });
 		log::info("{}: {} in your hands{}", sim::GameName(a_game), weapon->GetFormEditorID() ? weapon->GetFormEditorID() : "its weapon",
 			_lent.added ? " (lent)" : "");
+	}
+
+	// unlimited ammo while you play: the weapon's magazine is put back to full after every shot, so it's never
+	// reloaded (the rounds come off the lent ammo, all taken back after: your own ammo's never touched)
+	void Arcade::TopUpAmmo()
+	{
+		if (!_lent.weapon || !_lent.ammo) {
+			return;
+		}
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		if (!player) {
+			return;
+		}
+		const RE::BGSEquipIndex hand{ 0 };
+		const auto              now = player->GetCurrentAmmoCount(hand);
+		if (now > _lent.clip) {
+			_lent.clip = now;
+		} else if (now < _lent.clip) {
+			player->SetCurrentAmmoCount(hand, _lent.clip);
+		}
 	}
 
 	void Arcade::Disarm()

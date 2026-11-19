@@ -46,7 +46,9 @@ with their scripts on and call DLC04:DLC04ArcadeScoreNumber.DisplayNumber, as Nu
 
 Whac-a-Commie: DLC04_CommieWhacker; Nuka-Zapper Race: DLC04_ThirstZapper (held for show: fighting stays held, the
 stream is the game's own, a solid line of the Thirst Zapper's water drops from its muzzle); Bandit Roundup:
-HuntingRifle (Fallout4.esm, single-shot bolt-action; shots counted a second apart). ArmPlayer lends it (if you have none) with 200 of its ammo, equips and draws it; DisarmPlayer takes
+DLC03_LeverGun (DLCCoast.esm 0002C8B0, looked up by name so Far Harbor isn't a master), else HuntingRifle
+(Fallout4.esm); shots counted a second apart. Arcade::TopUpAmmo keeps its magazine at the most rounds seen in it
+(Actor::SetCurrentAmmoCount, hand 0), so it's never reloaded; the rounds spent come off the 200 lent. ArmPlayer lends it (if you have none) with 200 of its ammo, equips and draws it; DisarmPlayer takes
 back the lent weapon and what's left of the lent ammo and re-equips what you had out. Fighting isn't held for those
 games but the zapper race (your swing or shot is the real one; the game reads the click and where you look).
 
