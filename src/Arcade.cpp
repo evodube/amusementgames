@@ -609,7 +609,7 @@ namespace ag
 			return RE::TESForm::GetFormByEditorID<RE::ActorValueInfo>(a_editorID);
 		}
 
-		constexpr float kSwingPerAgility = 0.06f;  // each point of Agility past 1: this much quicker...
+		constexpr float kSwingPerAgility = 0.03f;  // each point of Agility past 1: this much quicker...
 		constexpr float kSwingMost = 2.0f;         // ...up to twice as quick
 	}
 
