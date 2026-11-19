@@ -206,7 +206,7 @@ EndFunction
 ; ...there: put on the spot, facing the targets, the rifle taken up (lent if they've none) and raised to the shoulder.
 ; Their AI stays on (with it off no idle plays: they froze half way through drawing): the walk package, still linked to
 ; the spot, keeps them there. 1 ready, 2 ready (the rifle lent), 0 not
-Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt) Global
+Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int aiAmmo) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
@@ -229,6 +229,12 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt) Glo
 	If a.GetItemCount(w) == 0
 		a.AddItem(w, 1, True)
 		r = 2
+	EndIf
+	; its own ammo in their pockets, so it fires what it's made to (the Thirst Zapper's water, not a bullet): a few
+	; rounds topped up when they're low (left with them: never more than a pocketful)
+	Ammo am = Game.GetForm(aiAmmo) as Ammo
+	If am && a.GetItemCount(am) < 10
+		a.AddItem(am, 50, True)
 	EndIf
 	a.EquipItem(w, False, True)
 	a.DrawWeapon()
@@ -264,7 +270,7 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 		Return 1
 	EndIf
 	a.PlayAnimation("attackStart")
-	w.Fire(a, Game.GetForm(aiAmmo) as Ammo)
+	w.Fire(a)  ; (its own projectile: the Thirst Zapper's water)
 	Return 2
 EndFunction
 

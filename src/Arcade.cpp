@@ -967,7 +967,7 @@ namespace ag
 			auto armed = a_s.armed;
 			auto aimAt = a_s.aimAt.get();
 			Papyrus::Call("NpcTakeUp", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(a_s.weapon), Papyrus::Id(marker.get()),
-										   Papyrus::Id(aimAt.get()) },
+										   Papyrus::Id(aimAt.get()), Papyrus::Id(a_s.weapon ? a_s.weapon->weaponData.ammo : nullptr) },
 				[armed](std::int32_t a_r) { *armed = a_r; });
 			log::info("{}: {} ({:08X}) at the counter after {:.0f}s", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.walked);
 			return;
@@ -1391,7 +1391,8 @@ namespace ag
 				q.armed = std::make_shared<std::atomic<std::int32_t>>(-1);
 				auto armed = q.armed;
 				auto aimAt = q.aimAt.get();
-				Papyrus::Call("NpcTakeUp", { static_cast<std::int32_t>(q.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()), Papyrus::Id(aimAt.get()) },
+				Papyrus::Call("NpcTakeUp", { static_cast<std::int32_t>(q.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()), Papyrus::Id(aimAt.get()),
+											   Papyrus::Id(weapon ? weapon->weaponData.ammo : nullptr) },
 					[armed](std::int32_t a_r2) { *armed = a_r2; });
 				continue;
 			}
@@ -1475,7 +1476,16 @@ namespace ag
 				continue;  // (a squirt's animation still going: the next one shown)
 			}
 			it->sinceShot = 0.0;
-			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(it->actorID), Papyrus::Id(weapon), Papyrus::Id(weapon->weaponData.ammo) });
+			static std::atomic<int> told{ -1 };  // (how the squirts go: logged once each way)
+			const std::string       name = it->name;
+			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(it->actorID), Papyrus::Id(weapon), Papyrus::Id(weapon->weaponData.ammo) },
+				[name](std::int32_t a_r) {
+					if (told.exchange(a_r) != a_r) {
+						log::info("NUKA-ZAPPER RACE: {}'s squirts: {}", name,
+							a_r == 1 ? "the gun's own shot animation (RaiderFireSingle)" :
+							a_r == 2 ? "the shot animation wouldn't play: fired without it" : "nobody to fire it");
+					}
+				});
 		}
 	}
 
