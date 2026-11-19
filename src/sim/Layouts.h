@@ -175,6 +175,8 @@ namespace sim::layout
 		// a point a hit, whatever it is; the bullseyes' centres from the models' bullseye plates (their :173 shapes)
 		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0, -0.7, 11.1 }, { 1, 15.0, 16.0, 3.0, -0.4, 11.0 }, { 1, 13.0, 11.0, 2.0, -1.1, 15.0 },
 			{ 1, 8.0, 22.0, 1.2, 0.0, 20.0 }, { 1, 12.0, 11.0, 0.6, -0.15, 14.15 } };
+		Vec3                     stand{ -15.0, -62.0, 0.0 };   // where you (and a settler playing it) stand: up against the
+		                                                        // counter (its front at -47), a little left of the middle
 		Vec3                     rifleRest{ 12.0, 3.0, 67.0 };  // the rifle lying along the counter (its top at 64, from y -32 to
 		                                                        // 38: too shallow for it to point at the targets), its grip here
 		double                   deadCentre{ 2.0 };   // within this of a bullseye's centre (either row's)...
