@@ -129,19 +129,36 @@ EndFunction
 ; a settler to Bandit Roundup: not if they're busy (fighting, following you, sitting, hurt, doing something for you);
 ; walks to the spot in front of the gallery (the marker, facing it), takes up the rifle (lent if they've none: aiAdd
 ; 0, they have one, so not taken back after), raises it, and is held there (AI off) for the plugin to play the game.
-; 0: not coming; 1: ready; 2: ready, the rifle lent
+; 1: ready; 2: ready, the rifle lent; anything else: not coming (below: why)
 Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
+	; (not coming: why, for the plugin's log: 10 missing forms, 11 dead, 12 fighting, 13 following you, 14 knocked out,
+	; 15 doing something for you, 16 sitting or at a workstation (its sit state + 160), 17 bleeding out, 18 couldn't
+	; find the way, 19 dead or fighting once there)
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
-	If !a || !w || !m || a.IsDead() || a.IsInCombat() || a.IsPlayerTeammate() || a.IsUnconscious() || a.IsDoingFavor() || a.GetSitState() != 0 || a.IsBleedingOut()
-		Return 0
+	If !a || !w || !m
+		Return 10
+	ElseIf a.IsDead()
+		Return 11
+	ElseIf a.IsInCombat()
+		Return 12
+	ElseIf a.IsPlayerTeammate()
+		Return 13
+	ElseIf a.IsUnconscious()
+		Return 14
+	ElseIf a.IsDoingFavor()
+		Return 15
+	ElseIf a.GetSitState() != 0
+		Return 160 + a.GetSitState()
+	ElseIf a.IsBleedingOut()
+		Return 17
 	EndIf
 	If !a.PathToReference(m, 1.0)
-		Return 0
+		Return 18
 	EndIf
 	If a.IsDead() || a.IsInCombat()
-		Return 0
+		Return 19
 	EndIf
 	a.MoveTo(m)
 	Int r = 1

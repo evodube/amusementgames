@@ -227,5 +227,6 @@ namespace ag
 		double             _nextShow{ 20.0 };
 		std::mt19937       _showRng{ std::random_device{}() };
 		std::vector<Held>  _heldFromSave;  // (read from the cosave: let go after the load)
+		std::vector<RE::TESFormID> _refused;  // settlers who couldn't come lately (asked again once everyone has)
 	};
 }

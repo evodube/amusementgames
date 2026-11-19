@@ -757,6 +757,7 @@ namespace ag
 	{
 		constexpr double    kShowFirst = 20.0;                 // the first chance after you're about
 		constexpr double    kShowRetry = 20.0;                 // no one free: try again in this long
+		constexpr double    kShowNextTry = 5.0;                // the one asked couldn't come: someone else this soon
 		constexpr double    kShowGapShortest = 45.0, kShowGapLongest = 120.0;  // between games
 		constexpr double    kShowWalk = 45.0;                  // not there by then: called off
 		constexpr float     kShowReach = 3000.0f;              // settlers this near the machine
@@ -833,8 +834,15 @@ namespace ag
 
 		if (_show.phase == Show::Phase::kWalking) {
 			const auto r = _show.ready->load();
-			if (r == 0) {
-				EndShow("the settler couldn't come");
+			if (r == 0 || r >= 10) {
+				const char* why = r == 10 ? "a form's missing" : r == 11 ? "dead" : r == 12 ? "fighting" : r == 13 ? "following you" :
+				                  r == 14 ? "knocked out" : r == 15 ? "doing something for you" : r == 17 ? "bleeding out" :
+				                  r == 18 ? "couldn't find the way (PathToReference)" : r == 19 ? "dead or fighting once there" :
+				                  r >= 160 ? "sitting, or at a workstation" : "Papyrus didn't say";
+				log::info("{}: the settler ({:08X}) couldn't come: {} ({})", sim::GameName(_show.gameId), _show.actorID, why, r);
+				_refused.push_back(_show.actorID);
+				EndShow(nullptr);
+				_nextShow = kShowNextTry;  // (someone else, soon)
 				return;
 			}
 			if (r < 0) {
@@ -909,12 +917,20 @@ namespace ag
 					a->GetLinkedRef(kw) != workshop || (a->data.location - machine->data.location).Length() > kShowReach) {
 					continue;
 				}
+				if (std::ranges::find(_refused, a->GetFormID()) != _refused.end()) {
+					continue;  // (couldn't come lately)
+				}
 				settlers.push_back(a.get());
 			}
 			if (settlers.empty()) {
+				if (!_refused.empty()) {
+					log::info("{}: no settler free just now ({} asked couldn't come)", sim::GameName(sim::GameId::kBanditRoundup), _refused.size());
+					_refused.clear();  // (they may be free by the next try)
+				}
 				continue;
 			}
 			auto* who = settlers[std::uniform_int_distribution<std::size_t>(0, settlers.size() - 1)(_showRng)];
+			log::info("{}: {} settler(s) of its settlement about", sim::GameName(sim::GameId::kBanditRoundup), settlers.size());
 			Frame f;
 			if (!FrameOf(machine.get(), f)) {
 				continue;
