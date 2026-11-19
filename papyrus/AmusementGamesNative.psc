@@ -140,7 +140,7 @@ EndFunction
 ; a settler to Bandit Roundup: not if they're busy; walking to the marker. 1: on their way; anything else: not coming
 ; (for the plugin's log: 10 missing forms, 11 dead, 12 fighting, 13 following you, 14 knocked out, 15 doing something
 ; for you, 16x sitting or at a workstation (160 + sit state), 17 bleeding out, 18 the walk couldn't be given them,
-; 20 not a person: a dog, brahmin or robot, 21 at a Wasteland Wagers table)
+; 20 not a person: a dog, brahmin or robot, 22 dealing at a Wasteland Wagers table)
 Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
@@ -166,12 +166,28 @@ Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	ElseIf !a.HasKeyword(Game.GetFormFromFile(0x00013794, "Fallout4.esm") as Keyword)
 		Return 20
 	EndIf
-	; (Wasteland Wagers' players: walking to or standing at its tables, or sat at them)
+	; Wasteland Wagers: whoever's really sat at its tables was turned away above (sitting); its dealers are left be.
+	; Anyone else it still has a link on (a bettor between spins, or one it's left linked and standing about after a
+	; table's game, sometimes with their AI still off) is let go by its own Leave first, then called over
 	Keyword wagersSpot = Game.GetFormFromFile(0x806, "WastelandWagers.esl") as Keyword
 	Keyword wagersSeat = Game.GetFormFromFile(0x848, "WastelandWagers.esl") as Keyword
 	If (wagersSpot && a.GetLinkedRef(wagersSpot)) || (wagersSeat && a.GetLinkedRef(wagersSeat))
-		Return 21
+		ScriptObject wq = Game.GetFormFromFile(0x808, "WastelandWagers.esl").CastAs("WastelandWagersQuest")
+		If wq
+			RefCollectionAlias dealers = wq.GetPropertyValue("Dealers") as RefCollectionAlias
+			If dealers && dealers.Find(a) >= 0
+				Return 22
+			EndIf
+			Var[] args = new Var[2]
+			args[0] = aiActor
+			args[1] = wagersSpot.GetFormID()
+			wq.CallFunction("Leave", args)
+			If wagersSeat
+				a.SetLinkedRef(None, wagersSeat)
+			EndIf
+		EndIf
 	EndIf
+	a.EnableAI(True)  ; (whatever left it off)
 	If !q.Join(aiActor, aiMarker, k.GetFormID())
 		Return 18
 	EndIf
@@ -187,20 +203,22 @@ Function NpcWalk(Int aiActor, Int aiMarker, Int aiReset) Global
 	EndIf
 EndFunction
 
-; ...there: put on the spot, facing the targets, the rifle taken up (lent if they've none) and raised, and held (AI
-; off) for the plugin to play the game. 1 ready, 2 ready (the rifle lent), 0 not
+; ...there: put on the spot, facing the targets, the rifle taken up (lent if they've none) and raised to the shoulder.
+; Their AI stays on (with it off no idle plays: they froze half way through drawing): the walk package, still linked to
+; the spot, keeps them there. 1 ready, 2 ready (the rifle lent), 0 not
 Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
-	Keyword k = LinkSpot()
 	If !a || !w || !m || a.IsDead() || a.IsInCombat()
 		Return 0
 	EndIf
-	If k
-		a.SetLinkedRef(None, k)  ; (no destination: the walk doesn't keep stepping them)
-	EndIf
 	a.MoveTo(m)
+	AmusementGamesQuest q = TheQuest()
+	Keyword k = LinkSpot()
+	If q && k
+		q.Hold(aiActor, aiMarker, k.GetFormID())  ; (the spot held, weapon drawn, no other idles or chatter)
+	EndIf
 	Int r = 1
 	If a.GetItemCount(w) == 0
 		a.AddItem(w, 1, True)
@@ -208,9 +226,7 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	EndIf
 	a.EquipItem(w, False, True)
 	a.DrawWeapon()
-	Utility.Wait(1.2)
-	a.EnableAI(False)
-	; up to the shoulder, down the sights: as they'd stand to shoot at anyone
+	Utility.Wait(1.0)
 	Aim(a)
 	Return r
 EndFunction
@@ -223,18 +239,24 @@ Function Aim(Actor a) Global
 	EndIf
 EndFunction
 
-; ...a shot: the rifle fired from the shoulder, as at an enemy (its own shot animation, which fires it); the weapon
-; fired from them as well only if that won't play. 1: the shot animation, 2: fired without it, 0: no one to fire it
+; ...a shot: up to the shoulder (again: the rifle comes down after a shot), then the rifle's own shot animation, which
+; fires it, as at an enemy; fired from them without it only if that won't play. 1: the shot animation, 2: fired without
+; it, 0: no one to fire it
 Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	If !a || !w
 		Return 0
 	EndIf
+	If !a.IsWeaponDrawn()
+		a.DrawWeapon()
+		Utility.Wait(0.6)
+	EndIf
+	Aim(a)
+	Utility.Wait(0.25)
 	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
 		Return 1
 	EndIf
-	Aim(a)
 	a.PlayAnimation("attackStart")
 	w.Fire(a, Game.GetForm(aiAmmo) as Ammo)
 	Return 2

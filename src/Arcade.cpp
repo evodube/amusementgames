@@ -347,6 +347,9 @@ namespace ag
 		if (!menus::AnyBlocking()) {
 			Scoreboards::Tick(dt);
 			TickShow(dt);
+		} else if (menus::Open(menus::kWorkshop) && !menus::Open(menus::kPause) && !menus::Open(menus::kPipboy) &&
+				   !menus::Open(menus::kLoading) && !menus::Open(menus::kMain) && !menus::Open(menus::kConsole)) {
+			Scoreboards::Tick(dt);  // (build mode: a machine moved gets its board and things back up where it's put)
 		}
 		if (!_playing) {
 			if (_resultsLeft > 0.0) {
@@ -850,7 +853,7 @@ namespace ag
 				const char* why = r == 10 ? "a form's missing" : r == 11 ? "dead" : r == 12 ? "fighting" : r == 13 ? "following you" :
 				                  r == 14 ? "knocked out" : r == 15 ? "doing something for you" : r == 17 ? "bleeding out" :
 				                  r == 18 ? "the walk couldn't be given them" : r == 20 ? "not a person (a dog, brahmin or robot)" :
-				                  r == 21 ? "at a Wasteland Wagers table" : r >= 160 ? "sitting, or at a workstation" : "Papyrus didn't say";
+				                  r == 21 ? "sat at a Wasteland Wagers table" : r == 22 ? "dealing at a Wasteland Wagers table" : r >= 160 ? "sitting, or at a workstation" : "Papyrus didn't say";
 				log::info("{}: {} ({:08X}) couldn't come: {} ({})", sim::GameName(_show.gameId), _show.name, _show.actorID, why, r);
 				_refused.push_back(_show.actorID);
 				_show.ready.reset();  // (not in the quest: nothing to let go)
@@ -981,12 +984,26 @@ namespace ag
 			if (!workshop) {
 				continue;
 			}
-			// the settlers of its settlement near it
+			// the settlers of its settlement near it (people: not its turrets, dogs, brahmin, robots)
+			static auto*            npcType = RE::TESForm::GetFormByID<RE::BGSKeyword>(0x00013794);  // ActorTypeNPC
 			std::vector<RE::Actor*> settlers;
+			int                     elsewhere = 0, far = 0;
+			std::string             others;
 			for (auto& ah : lists->highActorHandles) {
 				auto a = ah.get();
 				if (!a || a.get() == player || a->IsDead(false) || a->IsDisabled() || !a->Get3D() || a->IsInCombat() ||
-					a->GetLinkedRef(kw) != workshop || (a->data.location - machine->data.location).Length() > kShowReach) {
+					(npcType && !a->HasKeywordHelper(npcType, nullptr))) {
+					continue;
+				}
+				if ((a->data.location - machine->data.location).Length() > kShowReach) {
+					++far;
+					continue;
+				}
+				if (a->GetLinkedRef(kw) != workshop) {
+					++elsewhere;  // (not of this settlement: a visitor, a companion, a trader)
+					if (others.size() < 200) {
+						others += std::format("{}{}", others.empty() ? "" : ", ", a->GetDisplayFullName() ? a->GetDisplayFullName() : "?");
+					}
 					continue;
 				}
 				if (std::ranges::find(_refused, a->GetFormID()) != _refused.end()) {
@@ -995,6 +1012,8 @@ namespace ag
 				settlers.push_back(a.get());
 			}
 			if (settlers.empty()) {
+				log::info("{}: no settler of its settlement free to ask ({} people not of it near: {})", sim::GameName(sim::GameId::kBanditRoundup),
+					elsewhere, others.empty() ? "none" : others);
 				if (!_refused.empty()) {
 					log::info("{}: no settler free just now ({} asked couldn't come)", sim::GameName(sim::GameId::kBanditRoundup), _refused.size());
 					_refused.clear();  // (they may be free by the next try)
@@ -1002,7 +1021,8 @@ namespace ag
 				continue;
 			}
 			auto* who = settlers[std::uniform_int_distribution<std::size_t>(0, settlers.size() - 1)(_showRng)];
-			log::info("{}: {} settler(s) of its settlement about", sim::GameName(sim::GameId::kBanditRoundup), settlers.size());
+			log::info("{}: {} settler(s) of its settlement about (and {} people not of it near: {}; {} further off)",
+				sim::GameName(sim::GameId::kBanditRoundup), settlers.size(), elsewhere, others.empty() ? "none" : others, far);
 			Frame f;
 			if (!FrameOf(machine.get(), f)) {
 				continue;
