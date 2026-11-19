@@ -206,7 +206,7 @@ EndFunction
 ; ...there: put on the spot, facing the targets, the rifle taken up (lent if they've none) and raised to the shoulder.
 ; Their AI stays on (with it off no idle plays: they froze half way through drawing): the walk package, still linked to
 ; the spot, keeps them there. 1 ready, 2 ready (the rifle lent), 0 not
-Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker) Global
+Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
@@ -217,7 +217,13 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	AmusementGamesQuest q = TheQuest()
 	Keyword k = LinkSpot()
 	If q && k
-		q.Hold(aiActor, aiMarker, k.GetFormID())  ; (the spot held, weapon drawn, no other idles or chatter)
+		Keyword ak = Game.GetFormFromFile(0x82D, "AmusementGames.esl") as Keyword
+		Int akId = 0
+		If ak
+			akId = ak.GetFormID()
+		EndIf
+		; (the spot held, aiming at the targets, no other idles or chatter)
+		q.Hold(aiActor, aiMarker, k.GetFormID(), aiAimAt, akId)
 	EndIf
 	Int r = 1
 	If a.GetItemCount(w) == 0
@@ -239,8 +245,8 @@ Function Aim(Actor a) Global
 	EndIf
 EndFunction
 
-; ...a shot: up to the shoulder (again: the rifle comes down after a shot), then the rifle's own shot animation, which
-; fires it, as at an enemy; fired from them without it only if that won't play. 1: the shot animation, 2: fired without
+; ...a shot (they're aiming already: their hold package aims at the targets; drawn and raised again if they've put it
+; away): the rifle's own shot animation, which fires it, as at an enemy; fired from them without it only if that won't play. 1: the shot animation, 2: fired without
 ; it, 0: no one to fire it
 Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	Actor a = Game.GetForm(aiActor) as Actor
@@ -251,9 +257,9 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	If !a.IsWeaponDrawn()
 		a.DrawWeapon()
 		Utility.Wait(0.6)
+		Aim(a)
+		Utility.Wait(0.25)
 	EndIf
-	Aim(a)
-	Utility.Wait(0.25)
 	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
 		Return 1
 	EndIf

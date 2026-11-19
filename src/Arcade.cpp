@@ -903,7 +903,9 @@ namespace ag
 			_show.phase = Show::Phase::kArming;
 			_show.armed = std::make_shared<std::atomic<std::int32_t>>(-1);
 			auto armed = _show.armed;
-			Papyrus::Call("NpcTakeUp", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(_show.weapon), Papyrus::Id(marker.get()) },
+			auto aimAt = _show.aimAt.get();
+			Papyrus::Call("NpcTakeUp", { static_cast<std::int32_t>(_show.actorID), Papyrus::Id(_show.weapon), Papyrus::Id(marker.get()),
+										   Papyrus::Id(aimAt.get()) },
 				[armed](std::int32_t a_r) { *armed = a_r; });
 			log::info("{}: {} ({:08X}) at the counter after {:.0f}s", sim::GameName(_show.gameId), _show.name, _show.actorID, _show.walked);
 			return;
@@ -1029,6 +1031,7 @@ namespace ag
 			}
 			_show = {};
 			_show.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().stand));
+			_show.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().aimAt));
 			auto marker = _show.marker.get();
 			if (!marker) {
 				_show = {};
@@ -1078,6 +1081,7 @@ namespace ag
 			Remove(h);
 		}
 		Remove(_show.marker);
+		Remove(_show.aimAt);
 		_show = {};
 		const auto& set = Settings::Get();
 		_nextShow = std::uniform_real_distribution<double>(set.settlersGapShortest, std::max(set.settlersGapShortest, set.settlersGapLongest))(_showRng);

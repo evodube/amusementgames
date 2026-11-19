@@ -179,6 +179,7 @@ namespace sim::layout
 		Vec3                     stand{ -15.0, -80.0, 0.0 };   // where a settler playing it stands: a step back from the
 		                                                        // counter (its front at -47; right up against it, the
 		                                                        // rifle's in the counter), a little left of the middle
+		Vec3                     aimAt{ 0.0, 397.0, 155.0 };  // a settler playing it aims here: between the two tracks
 		Vec3                     rifleRest{ 12.0, 3.0, 67.0 };  // the rifle lying along the counter (its top at 64, from y -32 to
 		                                                        // 38: too shallow for it to point at the targets), its grip here
 		double                   deadCentre{ 2.0 };   // within this of a bullseye's centre (either row's)...

@@ -202,6 +202,7 @@ namespace ag
 			RE::TESFormID                          machineID{ 0 };
 			sim::GameId                            gameId{ sim::GameId::kCount };
 			RE::ObjectRefHandle                    marker;  // where they stand
+			RE::ObjectRefHandle                    aimAt;   // ...and what they aim at (the middle of the targets)
 			sim::Vec3                              eye;     // their eye, in the machine's space
 			RE::TESObjectWEAP*                     weapon{ nullptr };
 			bool                                   added{ false };  // the rifle lent (taken back after)
