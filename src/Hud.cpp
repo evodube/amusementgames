@@ -322,6 +322,26 @@ namespace ag::Hud
 			}
 		}
 
+		// Bandit Roundup 1v1: you and your rival's scores, yours bright (as the zapper race's panel)
+		void Scores(const View& a_v, const Arcade::HudState& a_st)
+		{
+			if (a_st.info.scores.empty()) {
+				return;
+			}
+			const float rowH = 30.0f, w = 300.0f, x = a_v.w - w - 30.0f, y = a_v.h * 0.22f;
+			const float h = 40.0f + rowH * static_cast<float>(a_st.info.scores.size());
+			Chamfer(a_v, x, y, w, h, 10.0f, kPanel, kEdge);
+			Print(a_v, Mono(), "1V1", x + 14, y + 10, 12, kDim, 0, 2.0f);
+			float ry = y + 32.0f;
+			for (const auto& [name, score] : a_st.info.scores) {
+				const bool  you = name == "YOU";
+				const ImU32 col = you ? kBright : kText;
+				Print(a_v, Mono(), name, x + 14, ry, 14, col, you ? kGlow : 0, 1.0f);
+				Print(a_v, Mono(), std::format("{}", score), x + w - 14, ry, 14, col, you ? kGlow : 0, 1.0f, Align::kRight);
+				ry += rowH;
+			}
+		}
+
 		// the end of a game: the score, the tickets out, a new best
 		void Results(const View& a_v, const Arcade::HudState& a_st)
 		{
@@ -372,6 +392,7 @@ namespace ag::Hud
 			if (st.game == sim::GameId::kNukaZapperRace) {
 				Race(v, st);
 			}
+			Scores(v, st);
 			if (st.info.showPoints) {
 				Points(v, st);
 			}

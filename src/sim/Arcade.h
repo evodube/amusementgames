@@ -37,6 +37,7 @@ namespace sim
 		bool released{ false };// ...came up this frame
 		bool hasFrom{ false }; // a throw leaves from here, not the hand by the eye (a settler's hands, as animated)
 		Vec3 from;
+		int  who{ 0 };         // Bandit Roundup 1v1: whose shot (0: the game's own player, 1: their rival)
 	};
 
 	// a sound the plugin plays (the game's own Nuka-Cade sound descriptors: Cue picks which)
@@ -89,6 +90,7 @@ namespace sim
 		double      timeLeft{ -1.0 }; // seconds (-1: not a timed game)
 		double      power{ -1.0 };    // 0..1 while charging a throw (-1: no meter)
 		std::vector<std::pair<std::string, double>> race;  // the zapper race: each lane's name and how far up (0..1)
+		std::vector<std::pair<std::string, int>>    scores;  // Bandit Roundup 1v1: each shooter's name and score
 		std::string verdict;             // the zapper race over: "YOU WON!" or "YOU LOST · <winner> WON"
 		std::string clock;               // an untimed game's stand-in for the clock (Atomic Rollers' ball, the race's countdown)
 		bool        showPoints{ false }; // the points as they come, on screen (Atomic Rollers)
@@ -161,6 +163,12 @@ namespace sim
 	// that lane, named a_names[lane], or negative: nobody there (its rocket stays down); a_you: your lane, or -1 (the
 	// settlers race each other: the game's score is then the winner's)
 	void SetZapperRacers(Game& a_game, int a_you, const std::vector<double>& a_skill, const std::vector<std::string>& a_names);
+	// Bandit Roundup 1v1: two shooting at the same targets, any of them (Input::who 0 and 1; the rival's shots come in
+	// with no time passing, Update(0, ...)). Named for the HUD ("YOU" for you); the winner's 10 more at the end. Each's
+	// score, and whether it's a 1v1
+	void SetGalleryVersus(Game& a_game, const std::string& a_name0, const std::string& a_name1);
+	int  GalleryScore(const Game& a_game, int a_who);
+	bool GalleryVersus(const Game& a_game);
 	// ...the lanes that squirted since the last call (their settlers' shots to show)
 	std::vector<int> TakeZapperShots(Game& a_game);
 	// ...and whether each was a hit (the plugin points their stream on or off the bullseye to match)

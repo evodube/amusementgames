@@ -196,6 +196,9 @@ namespace sim::layout
 		double                   shotSeconds{ 0.6 };  // the lever between shots
 	};
 
+	// Bandit Roundup 1v1: the left (0) and right (1) shooters' spots, as far back as one alone stands
+	inline Vec3 SettlerStand1v1(int a_side) { return { a_side == 0 ? -70.0 : 60.0, -135.0, 0.0 }; }
+
 	// where a settler stands to play each game (machine space, on the floor)
 	inline Vec3 SettlerStand(GameId a_game)
 	{

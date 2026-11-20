@@ -493,8 +493,14 @@ namespace ag::Scoreboards
 				b.score.shown.fill(-2);
 				b.high.shown.fill(-2);
 			}
-			Show(b.score, arcade.ScoreOn(b.id));
-			Show(b.high, arcade.Best(b.game));
+			// (a Bandit Roundup 1v1: the left shooter's score on top, the right's below)
+			if (int left = 0, right = 0; arcade.DuelScoresOn(b.id, left, right)) {
+				Show(b.score, left);
+				Show(b.high, right);
+			} else {
+				Show(b.score, arcade.ScoreOn(b.id));
+				Show(b.high, arcade.Best(b.game));
+			}
 		}
 	}
 

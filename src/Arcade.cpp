@@ -11,6 +11,8 @@
 #include "Sounds.h"
 #include "sim/Layouts.h"
 
+#include <cctype>
+
 namespace ag
 {
 	namespace
@@ -144,6 +146,18 @@ namespace ag
 			_leavePressed = true;
 		}
 		_leaveWas = leave;
+		// the Activate key: how long it's held (a machine activated with it tapped or held)
+		const int  actVk = _activateVk.load();
+		const bool act = focus && actVk != 0 && (::GetAsyncKeyState(actVk) & 0x8000) != 0;
+		const auto nowT = std::chrono::steady_clock::now();
+		if (act && !_activateWas) {
+			_activateDownAt = nowT;
+		}
+		if (act || _activateWas) {
+			_activateHeld = std::chrono::duration<double>(nowT - _activateDownAt).count();
+		}
+		_activateDown = act;
+		_activateWas = act;
 		if (_tickPending.exchange(true)) {
 			return;
 		}
@@ -204,6 +218,15 @@ namespace ag
 		if (game == sim::GameId::kCount || _playing) {
 			return;
 		}
+		// waiting for a settler to take you on at Bandit Roundup: activated again, you leave (token back)
+		if (_duel.on && !_duel.started) {
+			if (_duel.machineID == a_machine->GetFormID()) {
+				EndDuel("Bandit Roundup: you've left. Your token's back.", true);
+			} else {
+				Notify("Bandit Roundup: you're waiting for a settler to take you on. Activate it again to leave.");
+			}
+			return;
+		}
 		for (auto& sh : _shows) {
 			if (sh.phase == Show::Phase::kNone || sh.machineID != a_machine->GetFormID()) {
 				continue;
@@ -248,6 +271,12 @@ namespace ag
 			Notify(race->countdown >= 0.0 ? std::format("Nuka-Zapper Race: the race starts in {:.0f} seconds. Get behind your gun.", race->countdown) :
 			                                "Nuka-Zapper Race: racers are on their way. The race starts 10 seconds after one's ready.");
 			log::info("NUKA-ZAPPER RACE {:08X}: you're in, waiting for racers", race->machineID);
+			return;
+		}
+		if (game == sim::GameId::kBanditRoundup) {
+			// tapped or held? (held: a settler takes you on). Known once it's let go, or held long enough
+			_pending.machine = a_machine->GetHandle();
+			_pending.age = 0.0;
 			return;
 		}
 		if (!TakeToken()) {
@@ -373,6 +402,8 @@ namespace ag
 	void Arcade::Abort(const char* a_why)
 	{
 		// a load: a settler's game just dropped (the save being loaded says who to let go)
+		_duel = {};
+		_pending = {};
 		if (!_shows.empty() || !_letGo.empty() || !_races.empty()) {
 			_shows.clear();
 			_races.clear();
@@ -397,6 +428,9 @@ namespace ag
 
 	void Arcade::Cleanup()
 	{
+		if (_duel.on && _duel.started) {
+			EndDuel(nullptr, false);  // (your 1v1 over: your rival let go)
+		}
 		if (Race* race = RaceOn(_machineID); race && race->withYou) {
 			EndRace(*race, nullptr);  // (your race with settlers over: they're let go)
 		}
@@ -420,8 +454,23 @@ namespace ag
 		const auto   now = std::chrono::steady_clock::now();
 		const double dt = std::clamp(std::chrono::duration<double>(now - _last).count(), 0.0, 0.1);
 		_last = now;
+		// the Activate key as bound (looked up again now and then: rebound in the settings)
+		_activateVkAge += dt;
+		if (_activateVkAge > 2.0) {
+			_activateVkAge = 0.0;
+			int vk = 0;
+			if (auto* map = RE::ControlMap::GetSingleton()) {
+				const auto key = map->GetMappedKey("Activate", RE::INPUT_DEVICE::kKeyboard);
+				if (key != RE::ControlMap::kInvalid && key != 0) {
+					vk = static_cast<int>(::MapVirtualKeyW(key, MAPVK_VSC_TO_VK_EX));
+				}
+			}
+			_activateVk = vk;
+		}
+		ResolvePending(dt);
 		if (!menus::AnyBlocking()) {
 			Scoreboards::Tick(dt);
+			TickDuel();
 			TickShow(dt);
 			TickRaces(dt);
 			TickRedress(dt);
@@ -875,6 +924,19 @@ namespace ag
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
 		constexpr double    kSteadyBeforeShot = 0.4;           // the gun drawn this long before a shot (out, then fire)
+		constexpr double    kDuelWait = 90.0;                  // a 1v1's settler, ready: their rival not ready by then, called off
+		constexpr double    kHoldToDuel = 0.5;                 // Bandit Roundup's Activate held this long: a 1v1
+		constexpr double    kDuelMiddle = 20.0;                // you this near the counter's middle: your side picked at random
+		constexpr int       kDuelTries = 3;                    // settlers called to take you on (one couldn't come: another)
+
+		// a name as the HUD shows it
+		std::string Upper(std::string a_s)
+		{
+			for (auto& c : a_s) {
+				c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+			}
+			return a_s;
+		}
 		constexpr float     kWhacMalletReach = 30.0f;          // a settler's mallet head this near an up head's middle: a hit
 		                                                       // (they swing straight ahead, still: the holes are 48 across)
 		constexpr float     kWhacHeadMiddle = 8.0f;            // ...its middle above where it's placed
@@ -1045,7 +1107,7 @@ namespace ag
 			EndShow(a_s, "the settler's gone, down or fighting");
 			return;
 		}
-		if (_playing && _machineID == a_s.machineID) {
+		if (_playing && _machineID == a_s.machineID && !a_s.vsYou) {
 			EndShow(a_s, "you're at it");
 			return;
 		}
@@ -1150,10 +1212,9 @@ namespace ag
 			}
 			// at it (the gun or mallet up): the game starts, its pieces put up
 			a_s.added = r == 2;
-			a_s.game = sim::MakeGame(a_s.gameId);
 			const auto seed = static_cast<std::uint32_t>(_showRng());
-			a_s.game->Start(seed);
 			const double skill = std::uniform_real_distribution<double>(0.0, 1.0)(_showRng);  // how good they are
+			a_s.skill = skill;
 			const double spread = 0.03 - 0.024 * skill;  // (a shot's spread at the gallery: 0.006 to 0.03)
 			switch (a_s.gameId) {
 			case sim::GameId::kWhacACommie:
@@ -1175,17 +1236,47 @@ namespace ag
 				break;
 			default: a_s.shooter = std::make_unique<sim::GalleryShooter>(seed ^ 0x5EED, spread); break;
 			}
-			std::vector<sim::Piece> pieces;
-			a_s.game->Pieces(pieces);
-			const auto models = Forms::PiecesOf(a_s.gameId);
-			for (const auto& p : pieces) {
-				auto* form = p.model >= 0 && p.model < static_cast<int>(models.size()) ? Forms::Bound(Forms::Own(models[p.model])) : nullptr;
-				a_s.pieces.push_back(form ? Spawn(form, machine.get(), ToWorld(f, p.pos)) : RE::ObjectRefHandle{});
-				a_s.pieceModel.push_back(p.model);
+			if (a_s.side >= 0) {
+				// a 1v1: the rifle up, waiting for their rival (you, or the other settler)
+				a_s.phase = Show::Phase::kWaiting;
+				a_s.waited = 0.0;
+				log::info("{}: {} ({:08X}) ready (skill {:.2f}), waiting for {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, skill,
+					a_s.vsYou ? "you" : "their rival");
+				return;
 			}
-			Sounds::Music(a_s.gameId, machine.get(), true);
-			a_s.phase = Show::Phase::kPlaying;
+			a_s.game = sim::MakeGame(a_s.gameId);
+			a_s.game->Start(seed);
+			BeginGame(a_s, machine.get(), f);
 			log::info("{}: {} ({:08X}) playing (skill {:.2f})", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, skill);
+			return;
+		}
+
+		if (a_s.phase == Show::Phase::kWaiting) {
+			// a 1v1 waiting: yours starts when you're both ready (TickDuel); two settlers', when the host's rival is
+			a_s.waited += a_dt;
+			if (a_s.vsYou || a_s.guest) {
+				if (a_s.waited > kDuelWait) {
+					EndShow(a_s, "their rival never came");
+				}
+				return;
+			}
+			Show* other = PartnerOf(a_s);
+			if (!other) {
+				EndShow(a_s, "their rival's gone");
+				return;
+			}
+			if (other->phase != Show::Phase::kWaiting) {
+				if (a_s.waited > kDuelWait) {
+					EndShow(a_s, "their rival never came");
+				}
+				return;
+			}
+			a_s.game = sim::MakeGame(a_s.gameId);
+			a_s.game->Start(static_cast<std::uint32_t>(_showRng()));
+			sim::SetGalleryVersus(*a_s.game, Upper(a_s.name), Upper(other->name));
+			BeginGame(a_s, machine.get(), f);
+			other->phase = Show::Phase::kPlaying;
+			log::info("{}: {} and {} playing each other ({:08X})", sim::GameName(a_s.gameId), a_s.name, other->name, a_s.machineID);
 			return;
 		}
 
@@ -1394,7 +1485,20 @@ namespace ag
 				a_s.name, a_s.diagT, z, a_s.marker.get() ? a_s.marker.get()->data.location.z : 0.0f, root ? root->world.translate.z - z : 0.0f,
 				pelvis ? pelvis->world.translate.z - z : 0.0f, static_cast<int>(actor->gunState), actor->GetWeaponMagicDrawn(), actor->IsSneaking());
 		}
-		sim::Input in = a_s.shooter->Next(*a_s.game, a_s.eye, a_dt);
+		// (a 1v1's rival, yours or another settler's: their shots go into that game, no time passing; its owner plays it)
+		sim::Game* game = a_s.game.get();
+		const bool owner = !a_s.vsYou && !a_s.guest;
+		if (a_s.vsYou) {
+			game = _playing && _machineID == a_s.machineID ? _game.get() : nullptr;
+		} else if (a_s.guest) {
+			Show* host = PartnerOf(a_s);
+			game = host && host->phase == Show::Phase::kPlaying ? host->game.get() : nullptr;
+		}
+		if (!game) {
+			EndShow(a_s, a_s.vsYou ? nullptr : "their rival's game is over");
+			return;
+		}
+		sim::Input in = a_s.shooter->Next(*game, a_s.eye, a_dt);
 		// a shot only once they've turned onto where it's aimed (their real bullet goes where the rifle points: on a
 		// fast target their turn lags), or after a moment however they stand
 		if (in.pressed && std::abs(in.dir.y) > 0.05) {
@@ -1412,7 +1516,8 @@ namespace ag
 				a_s.onTarget = 0.0;
 			}
 		}
-		a_s.game->Update(a_dt, in);
+		in.who = owner ? 0 : 1;
+		game->Update(owner ? a_dt : 0.0, in);
 		// what they aim at follows their shot: the marker their hold package aims at put where the shooter's looking,
 		// out at the targets' tracks (so they swing from target to target, and each shot goes where it's aimed)
 		if (auto aimAt = a_s.aimAt.get(); aimAt && std::abs(in.dir.y) > 0.05) {
@@ -1446,6 +1551,19 @@ namespace ag
 			in.pressed = false;
 			a_s.shooter->Again();
 		}
+		// the magazine kept full, as yours is: the rifle's handed over empty, and their first shots were reloads till one
+		// filled it
+		if (a_s.weapon && actor->GetWeaponMagicDrawn()) {
+			const RE::BGSEquipIndex hand{ 0 };
+			const auto              full = a_s.weapon->weaponData.ammoCapacity > 0 ? a_s.weapon->weaponData.ammoCapacity : 10u;
+			if (const auto now = actor->GetCurrentAmmoCount(hand); now < full) {
+				actor->SetCurrentAmmoCount(hand, full);
+				if (!a_s.loaded) {
+					a_s.loaded = true;
+					log::info("BANDIT ROUNDUP: {}'s magazine filled ({} of {})", a_s.name, now, full);
+				}
+			}
+		}
 		if (in.pressed && a_s.weapon && CanFire(actor, a_s.name)) {
 			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
 			const std::string       name = a_s.name;
@@ -1459,6 +1577,9 @@ namespace ag
 					}
 				});
 		}
+		if (!owner) {
+			return;  // (the game's owner plays it: its sounds, pieces and end)
+		}
 		for (const auto& s : a_s.game->TakeSounds()) {
 			Sounds::Play(a_s.gameId, s.cue, machine.get(), s.gain);
 		}
@@ -1466,7 +1587,14 @@ namespace ag
 		if (a_s.game->Over()) {
 			_lastScores[a_s.machineID] = a_s.game->Score();
 			_played[Played(a_s.actorID, sim::GameId::kBanditRoundup)] = kShowTurnAbout;
-			log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
+			if (const Show* other = sim::GalleryVersus(*a_s.game) ? PartnerOf(a_s) : nullptr) {
+				_played[Played(other->actorID, sim::GameId::kBanditRoundup)] = kShowTurnAbout;
+				const int mine = sim::GalleryScore(*a_s.game, 0), theirs = sim::GalleryScore(*a_s.game, 1);
+				log::info("{}: {} ({:08X}) {} to {} ({:08X}): {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, mine, theirs, other->name,
+					other->actorID, mine == theirs ? "a tie" : mine > theirs ? std::format("{} won", a_s.name) : std::format("{} won", other->name));
+			} else {
+				log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
+			}
 			EndShow(a_s, nullptr);
 		}
 	}
@@ -1495,7 +1623,7 @@ namespace ag
 			}
 			auto machine = h.get();
 			if (!machine || (_playing && _machineID == machine->GetFormID()) || ShowOn(machine->GetFormID()) ||
-				_rest.contains(machine->GetFormID())) {
+				_rest.contains(machine->GetFormID()) || (_duel.on && _duel.machineID == machine->GetFormID())) {
 				continue;  // (yours, a settler's already, or resting after one)
 			}
 			auto* workshop = machine->GetLinkedRef(kw);
@@ -1546,42 +1674,256 @@ namespace ag
 			auto* who = settlers[std::uniform_int_distribution<std::size_t>(0, settlers.size() - 1)(_showRng)];
 			log::info("{}: {} settler(s) of its settlement about (and {} people not of it near: {}; {} further off)",
 				sim::GameName(gameId), settlers.size(), elsewhere, others.empty() ? "none" : others, farOff);
-			Frame f;
-			if (!FrameOf(machine.get(), f)) {
+			// Bandit Roundup: now and then two settlers playing each other, one each side
+			if (gameId == sim::GameId::kBanditRoundup && settlers.size() >= 2 &&
+				std::uniform_real_distribution<double>(0.0, 100.0)(_showRng) < Settings::Get().settlersDuel) {
+				RE::Actor* rival = who;
+				while (rival == who) {
+					rival = settlers[std::uniform_int_distribution<std::size_t>(0, settlers.size() - 1)(_showRng)];
+				}
+				const int side = std::uniform_int_distribution<int>(0, 1)(_showRng);
+				if (CallToPlay(machine.get(), who, gameId, side, false, false, rival->GetFormID())) {
+					if (CallToPlay(machine.get(), rival, gameId, 1 - side, false, true, who->GetFormID())) {
+						log::info("{}: a 1v1 ({:08X} and {:08X})", sim::GameName(gameId), who->GetFormID(), rival->GetFormID());
+						return true;
+					}
+					for (auto& o : _shows) {
+						if (o.actorID == who->GetFormID() && o.phase != Show::Phase::kNone) {
+							o.partner = 0;
+							EndShow(o, "their rival couldn't be called");
+						}
+					}
+				}
 				continue;
 			}
-			Show sh;
-			sh.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::SettlerStand(gameId)));
-			if (gameId == sim::GameId::kBanditRoundup) {
-				sh.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().aimAt));
-			} else if (gameId == sim::GameId::kWhacACommie) {
-				sh.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, sim::Vec3{ 0.0, 0.0, 67.0 }));  // (the middle of the holes: what they face)
+			if (CallToPlay(machine.get(), who, gameId, -1, false, false, 0)) {
+				return true;
 			}
-			auto marker = sh.marker.get();
-			if (!marker) {
-				Remove(sh.aimAt);
-				return false;
-			}
-			sh.phase = Show::Phase::kWalking;
-			sh.actor = who->GetHandle();
-			sh.actorID = who->GetFormID();
-			if (const char* n = who->GetDisplayFullName(); n && *n) {
-				sh.name = n;
-			}
-			sh.machine = h;
-			sh.machineID = machine->GetFormID();
-			sh.gameId = gameId;
-			sh.eye = sim::layout::SettlerStand(gameId) + sim::Vec3{ 0.0, 0.0, kGalleryEyeHeight };
-			sh.weapon = weapon;
-			sh.ready = std::make_shared<std::atomic<std::int32_t>>(-1);
-			auto ready = sh.ready;
-			Papyrus::Call("NpcStartGallery", { static_cast<std::int32_t>(sh.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()) },
-				[ready](std::int32_t a_r) { *ready = a_r; });
-			log::info("{}: {} ({:08X}) coming to play ({:08X})", sim::GameName(sh.gameId), sh.name, sh.actorID, sh.machineID);
-			_shows.push_back(std::move(sh));
-			return true;
 		}
 		return false;
+	}
+
+	// a settler called to play a game on a machine: their spot (alone, or a 1v1's side), the rifle's aim marker, the walk
+	bool Arcade::CallToPlay(RE::TESObjectREFR* a_machine, RE::Actor* a_who, sim::GameId a_game, int a_side, bool a_vsYou, bool a_guest,
+		RE::TESFormID a_partner)
+	{
+		auto* markerForm = Forms::Bound(RE::TESForm::GetFormByID(Forms::kXMarkerHeading));
+		Frame f;
+		if (!a_machine || !a_who || !markerForm || !FrameOf(a_machine, f)) {
+			return false;
+		}
+		auto*           weapon = Forms::SettlerWeaponOf(a_game);
+		const sim::Vec3 stand = a_side >= 0 ? sim::layout::SettlerStand1v1(a_side) : sim::layout::SettlerStand(a_game);
+		Show            sh;
+		sh.marker = Spawn(markerForm, a_machine, ToWorld(f, stand));
+		if (a_game == sim::GameId::kBanditRoundup) {
+			sh.aimAt = Spawn(markerForm, a_machine, ToWorld(f, sim::layout::Gallery().aimAt));
+		} else if (a_game == sim::GameId::kWhacACommie) {
+			sh.aimAt = Spawn(markerForm, a_machine, ToWorld(f, sim::Vec3{ 0.0, 0.0, 67.0 }));  // (the middle of the holes: what they face)
+		}
+		auto marker = sh.marker.get();
+		if (!marker) {
+			Remove(sh.aimAt);
+			return false;
+		}
+		sh.phase = Show::Phase::kWalking;
+		sh.actor = a_who->GetHandle();
+		sh.actorID = a_who->GetFormID();
+		if (const char* n = a_who->GetDisplayFullName(); n && *n) {
+			sh.name = n;
+		}
+		sh.machine = a_machine->GetHandle();
+		sh.machineID = a_machine->GetFormID();
+		sh.gameId = a_game;
+		sh.eye = stand + sim::Vec3{ 0.0, 0.0, kGalleryEyeHeight };
+		sh.weapon = weapon;
+		sh.side = a_side;
+		sh.vsYou = a_vsYou;
+		sh.guest = a_guest;
+		sh.partner = a_partner;
+		sh.ready = std::make_shared<std::atomic<std::int32_t>>(-1);
+		auto ready = sh.ready;
+		Papyrus::Call("NpcStartGallery", { static_cast<std::int32_t>(sh.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()) },
+			[ready](std::int32_t a_r) { *ready = a_r; });
+		log::info("{}: {} ({:08X}) coming to play ({:08X}){}", sim::GameName(sh.gameId), sh.name, sh.actorID, sh.machineID,
+			a_vsYou ? ", against you" : a_side == 0 ? ", on the left" : a_side == 1 ? ", on the right" : "");
+		_shows.push_back(std::move(sh));
+		return true;
+	}
+
+	// a settler's game under way: its pieces put up, its music on
+	void Arcade::BeginGame(Show& a_s, RE::TESObjectREFR* a_machine, const Frame& a_f)
+	{
+		std::vector<sim::Piece> pieces;
+		a_s.game->Pieces(pieces);
+		const auto models = Forms::PiecesOf(a_s.gameId);
+		for (const auto& p : pieces) {
+			auto* form = p.model >= 0 && p.model < static_cast<int>(models.size()) ? Forms::Bound(Forms::Own(models[p.model])) : nullptr;
+			a_s.pieces.push_back(form ? Spawn(form, a_machine, ToWorld(a_f, p.pos)) : RE::ObjectRefHandle{});
+			a_s.pieceModel.push_back(p.model);
+		}
+		Sounds::Music(a_s.gameId, a_machine, true);
+		a_s.phase = Show::Phase::kPlaying;
+	}
+
+	Arcade::Show* Arcade::PartnerOf(const Show& a_s)
+	{
+		if (a_s.partner == 0) {
+			return nullptr;
+		}
+		for (auto& o : _shows) {
+			if (o.phase != Show::Phase::kNone && o.actorID == a_s.partner && o.machineID == a_s.machineID) {
+				return &o;
+			}
+		}
+		return nullptr;
+	}
+
+	bool Arcade::DuelScoresOn(RE::TESFormID a_machine, int& a_left, int& a_right) const
+	{
+		const sim::Game* g = nullptr;
+		int              side = 0;  // the game's own player's (its score 0)
+		if (_playing && _machineID == a_machine && _game && sim::GalleryVersus(*_game)) {
+			g = _game.get();
+			side = _duel.yourSide;
+		} else if (const auto* s = ShowOn(a_machine); s && s->phase == Show::Phase::kPlaying && s->game && sim::GalleryVersus(*s->game)) {
+			g = s->game.get();
+			side = s->side;
+		}
+		if (!g) {
+			return false;
+		}
+		const int own = sim::GalleryScore(*g, 0), rival = sim::GalleryScore(*g, 1);
+		a_left = side == 1 ? rival : own;
+		a_right = side == 1 ? own : rival;
+		return true;
+	}
+
+	// ------------------------------------------------------------------------ your Bandit Roundup 1v1
+
+	// a Bandit Roundup activated: tapped, you play alone; held, a settler's called to take you on
+	void Arcade::ResolvePending(double a_dt)
+	{
+		if (!_pending.machine) {
+			return;
+		}
+		_pending.age += a_dt;
+		const bool   down = _activateDown.load();
+		const double held = _activateHeld.load();
+		if (down && held < kHoldToDuel && _pending.age < 1.5) {
+			return;  // (still down: not known yet)
+		}
+		auto machine = _pending.machine.get();
+		_pending = {};
+		if (!machine || _playing || _duel.on) {
+			return;
+		}
+		if (held >= kHoldToDuel) {
+			StartDuel(machine.get());
+			return;
+		}
+		if (!TakeToken()) {
+			Notify(std::format("{}: insert a Nuka-Cade token. Buy them at a Token Stand.", sim::GameName(sim::GameId::kBanditRoundup)));
+			return;
+		}
+		Start(machine.get(), sim::GameId::kBanditRoundup);
+	}
+
+	void Arcade::StartDuel(RE::TESObjectREFR* a_machine)
+	{
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		Frame f;
+		if (!player || !FrameOf(a_machine, f)) {
+			return;
+		}
+		if (!TakeToken()) {
+			Notify("Bandit Roundup: insert a Nuka-Cade token. Buy them at a Token Stand.");
+			return;
+		}
+		// your side: where you are at the counter (near its middle, either); the settler's the other
+		const double x = ToLocal(f, player->data.location).x;
+		_duel = {};
+		_duel.on = true;
+		_duel.machine = a_machine->GetHandle();
+		_duel.machineID = a_machine->GetFormID();
+		_duel.yourSide = x < -kDuelMiddle ? 0 : x > kDuelMiddle ? 1 : std::uniform_int_distribution<int>(0, 1)(_showRng);
+		log::info("BANDIT ROUNDUP {:08X}: you held it: a 1v1, you on the {} ({:.0f} across)", _duel.machineID,
+			_duel.yourSide == 0 ? "left" : "right", x);
+		if (!CallRival()) {
+			EndDuel("Bandit Roundup: no settler's free to take you on. Your token's back.", true);
+		}
+	}
+
+	bool Arcade::CallRival()
+	{
+		auto machine = _duel.machine.get();
+		while (machine && _duel.tries < kDuelTries) {
+			++_duel.tries;
+			auto* who = PickSettler(machine.get(), sim::GameId::kBanditRoundup);
+			if (!who) {
+				return false;
+			}
+			if (CallToPlay(machine.get(), who, sim::GameId::kBanditRoundup, 1 - _duel.yourSide, true, false, 0)) {
+				const char* n = who->GetDisplayFullName();
+				Notify(std::format("Bandit Roundup: {} is coming to take you on. Activate it again to leave.", n && *n ? n : "a settler"));
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// your 1v1 waiting: your rival ready (the rifle up), the game starts; your rival gone, another called
+	void Arcade::TickDuel()
+	{
+		if (!_duel.on || _duel.started) {
+			return;
+		}
+		Show* rival = nullptr;
+		for (auto& sh : _shows) {
+			if (sh.vsYou && sh.phase != Show::Phase::kNone) {
+				rival = &sh;
+			}
+		}
+		if (!rival) {
+			if (!CallRival()) {
+				EndDuel("Bandit Roundup: no settler could come to take you on. Your token's back.", true);
+			}
+			return;
+		}
+		if (rival->phase != Show::Phase::kWaiting) {
+			return;
+		}
+		auto machine = _duel.machine.get();
+		if (!machine) {
+			EndDuel(nullptr, true);
+			return;
+		}
+		Start(machine.get(), sim::GameId::kBanditRoundup);
+		if (!_game) {
+			EndDuel(nullptr, true);
+			return;
+		}
+		sim::SetGalleryVersus(*_game, "YOU", Upper(rival->name));
+		_duel.started = true;
+		rival->phase = Show::Phase::kPlaying;
+		log::info("BANDIT ROUNDUP {:08X}: you and {} ({:08X})", _duel.machineID, rival->name, rival->actorID);
+	}
+
+	void Arcade::EndDuel(const char* a_notify, bool a_tokenBack)
+	{
+		const bool was = _duel.on;
+		_duel = {};  // (first: the rival's EndShow doesn't come back here)
+		for (auto& sh : _shows) {
+			if (sh.vsYou && sh.phase != Show::Phase::kNone) {
+				EndShow(sh, nullptr);
+			}
+		}
+		if (was && a_tokenBack) {
+			GiveToken();
+		}
+		if (a_notify) {
+			Notify(a_notify);
+		}
 	}
 
 	void Arcade::EndShow(Show& a_s, const char* a_why)
@@ -1593,10 +1935,12 @@ namespace ag
 			log::info("{}: {}'s game called off ({})", sim::GameName(a_s.gameId), a_s.name.empty() ? "the settler" : a_s.name, a_why);
 		}
 		const auto weaponID = a_s.weapon ? a_s.weapon->GetFormID() : 0;
-		if (a_s.phase == Show::Phase::kPlaying) {
+		const auto partner = a_s.partner;
+		const auto machineID = a_s.machineID;
+		if (a_s.phase == Show::Phase::kPlaying || a_s.phase == Show::Phase::kWaiting) {
 			Release(a_s.actorID, weaponID, a_s.added);
-			if (auto machine = a_s.machine.get()) {
-				Sounds::Music(a_s.gameId, machine.get(), false);
+			if (auto machine = a_s.machine.get(); machine && a_s.game) {
+				Sounds::Music(a_s.gameId, machine.get(), false);  // (its owner's: not a rival's, yours playing on)
 			}
 		} else if (a_s.phase == Show::Phase::kArming && a_s.armed) {
 			_letGo.push_back({ a_s.armed, a_s.actorID, weaponID, false });  // (let go once they've the rifle up)
@@ -1616,6 +1960,14 @@ namespace ag
 		                           std::uniform_real_distribution<double>(set.settlersGapShortest, std::max(set.settlersGapShortest, set.settlersGapLongest))(_showRng) :
 		                           kShowNextTry;
 		a_s = {};
+		// a 1v1 between settlers: the other's game over too
+		if (partner != 0) {
+			for (auto& o : _shows) {
+				if (o.phase != Show::Phase::kNone && o.actorID == partner && o.machineID == machineID) {
+					EndShow(o, a_why ? "their rival's game was called off" : nullptr);
+				}
+			}
+		}
 	}
 
 
