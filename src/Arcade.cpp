@@ -1201,6 +1201,7 @@ namespace ag
 				if (in.released) {
 					a_s.sinceThrow = 0.0;
 					a_s.holding = false;
+					a_s.ballShown = false;
 				}
 				if (a_s.thrower->TakeCue()) {
 					a_s.holding = true;
@@ -1276,9 +1277,12 @@ namespace ag
 									// side): shown once the palm's turned to face forward, the ball out in front of it
 									const float        heading = actor->data.angle.z;
 									const RE::NiPoint3 forward{ std::sin(heading), std::cos(heading), 0.0f };
-									if (n.x * forward.x + n.y * forward.y > 0.45f) {
+									// (once shown, kept till it's let go: the palm's turn hovers about the line through the set
+									// point, and the ball blinked in and out there)
+									if (a_s.ballShown || n.x * forward.x + n.y * forward.y > 0.45f) {
 										at = wrist + along * 0.75f + n * radius;
 										show = true;
+										a_s.ballShown = true;
 									}
 								} else {
 									at = wrist + along * 1.0f + n * (radius * 1.1f);  // (up at the fingers' roots, clear of the palm: it sat at the wrist)

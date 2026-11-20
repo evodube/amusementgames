@@ -236,6 +236,7 @@ namespace ag
 			RE::ObjectRefHandle                    handBall; // ...the ball in their hand
 			double                                 sinceThrow{ 9.0 };
 			bool                                   holding{ false };
+			bool                                   ballShown{ false };  // ...the ball in their hands shown this throw
 			int                                    hits{ 0 };  // ...their mallet's hits on the heads  // ...the throw's animation on, the ball in their hand(s)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
