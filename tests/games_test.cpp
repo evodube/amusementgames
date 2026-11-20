@@ -302,11 +302,33 @@ namespace
 			for (int k = 0; k < 2; ++k) {
 				auto    g = MakeGame(id);
 				Thrower t(3, k == 0 ? 0.9 : 0.2, id);
-				got[k] = Play(*g, [&](Game&, double) { return t.Next(1.0 / 60.0); }, 200.0);
+				got[k] = Play(*g, [&](Game& a_g, double) { return t.Next(1.0 / 60.0, a_g.Ready()); }, 200.0);
 			}
 			std::printf("     %s settlers: a good one %d, a poor one %d\n", GameName(id), got[0], got[1]);
 			Check(got[0] > 0, id == GameId::kHoopShot ? "hoop shot: a settler plays it" : "atomic rollers: a settler plays it");
 		}
+	}
+
+	void ThrowWaits()
+	{
+		// a settler at Atomic Rollers throws only with the last ball counted and the next in hand, and not after the last
+		auto    g = MakeGame(GameId::kAtomicRollers);
+		Thrower t(11, 0.6, GameId::kAtomicRollers);
+		g->Start(3);
+		int    early = 0, presses = 0;
+		double tm = 0.0;
+		while (tm < 120.0) {
+			const bool  ready = g->Ready();
+			const Input in = t.Next(1.0 / 60.0, ready);
+			if (in.pressed) {
+				++presses;
+				early += ready ? 0 : 1;
+			}
+			g->Update(1.0 / 60.0, in);
+			tm += 1.0 / 60.0;
+		}
+		std::printf("     atomic rollers settler: %d throws, %d while the game was busy or over\n", presses, early);
+		Check(g->Over() && presses == layout::Rollers().balls && early == 0, "atomic rollers: a settler waits for each ball to count, and stops after the last");
 	}
 
 	void ThrowCue()
@@ -434,6 +456,7 @@ int main()
 	WhacSettlers();
 	ThrowSettlers();
 	ThrowCue();
+	ThrowWaits();
 	Tickets();
 	std::printf(g_failed ? "%d FAILED\n" : "all passed\n", g_failed);
 	return g_failed ? 1 : 0;

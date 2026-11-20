@@ -60,6 +60,8 @@ namespace sim
 				_phase = Phase::kAim;
 				_wait = 0.0;
 				_last = -1;
+				_reballs = 0;
+				_reball = false;
 				_score = 0;
 				Say(Cue::kStart, L.release);
 				HoldBall();
@@ -106,10 +108,26 @@ namespace sim
 							OnEvent(e);
 						}
 						auto& b = _world.balls[_ball];
-						if (b.state == BallState::kFlying && (b.still > 0.8 || b.age > 9.0 || b.pos.z < -50.0)) {
-							b.state = BallState::kCaught;  // stuck or lost: no points
-							_last = 0;
-							Add(0);
+						if (b.state == BallState::kFlying) {
+							// stopped (no movement for 2 s), or still rattling about after 9 s, past the hump: caught on
+							// the board's sides or in a corner, where a ball can't come to rest in the real thing; or
+							// out of the machine. No points were counted: gone, and the same ball again (a few times
+							// a game at most)
+							const bool onBoard = b.pos.y > L.rampStartY;
+							const bool stuck = (onBoard && (b.still > 2.0 || b.age > 9.0)) || b.pos.z < -50.0;
+							if (stuck && _reballs < kMostReballs) {
+								b.state = BallState::kOff;
+								++_reballs;
+								_reball = true;
+								_phase = Phase::kBetween;
+								_wait = 0.6;
+								break;
+							}
+							if (stuck || b.still > 0.8 || b.age > 9.0) {
+								b.state = BallState::kCaught;  // rolled back down the lane short of the hump: no points
+								_last = 0;
+								Add(0);
+							}
 						}
 						if (b.state == BallState::kCaught) {
 							_phase = Phase::kBetween;
@@ -119,7 +137,11 @@ namespace sim
 					break;
 				case Phase::kBetween:
 					_wait -= a_dt;
-					if (_wait <= 0.0) {
+					if (_wait <= 0.0 && _reball) {
+						_reball = false;  // (the stuck ball again: not one of the nine used)
+						_phase = Phase::kAim;
+						HoldBall();
+					} else if (_wait <= 0.0) {
 						if (--_left <= 0) {
 							_phase = Phase::kDone;
 							_wait = 1.5;
@@ -137,6 +159,7 @@ namespace sim
 			}
 
 			bool Over() const override { return _phase == Phase::kDone && _wait <= 0.0; }
+			bool Ready() const override { return _phase == Phase::kAim; }
 
 			void Pieces(std::vector<Piece>& a_out) const override
 			{
@@ -248,6 +271,9 @@ namespace sim
 			Vec3   _aimDir{ 0, 1, 0 };
 			int    _last{ -1 };
 			Charge _charge;
+			int    _reballs{ 0 };      // stuck balls given back this game
+			bool   _reball{ false };   // ...one now
+			static constexpr int kMostReballs = 5;
 		};
 
 		// ======================================================================== Hoop Shot
@@ -324,6 +350,11 @@ namespace sim
 			}
 
 			bool Over() const override { return _time <= 0.0 && _ending <= 0.0; }
+			bool Ready() const override
+			{
+				return _time > 0.0 && _cool <= 0.0 &&
+				       std::ranges::any_of(_world.balls, [](const Ball& b) { return b.state != BallState::kFlying; });
+			}
 
 			void Pieces(std::vector<Piece>& a_out) const override
 			{
@@ -1040,7 +1071,7 @@ namespace sim
 		if (_game == GameId::kHoopShot) {
 			const auto& L = layout::Hoop();
 			_at = L.rim + Vec3{ n(_rng) * 4.0 * off, 0.0, n(_rng) * 3.0 * off };
-			_charge = std::max(0.05, 0.34 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
+			_charge = std::max(0.05, 0.35 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
 		} else {
 			const auto& L = layout::Rollers();
 			_at = Vec3{ n(_rng) * (2.0 + 10.0 * off), L.release.y + 40.0, L.release.z };
@@ -1057,12 +1088,16 @@ namespace sim
 		return { 0.0, L.release.y - 40.0, L.release.z + 60.0 };
 	}
 
-	Input Thrower::Next(double a_dt)
+	Input Thrower::Next(double a_dt, bool a_ready)
 	{
 		Input in;
 		in.eye = Eye();
 		if (_held < 0.0) {
-			_wait -= a_dt;
+			if (a_ready) {
+				_wait -= a_dt;
+			} else {
+				_wait = std::max(_wait, 1.0);  // (the game's busy: the last ball not counted yet, or over)
+			}
 			if (_wait > 0.0) {
 				in.dir = (_game == GameId::kHoopShot ? layout::Hoop().rim : Vec3{ 0.0, layout::Rollers().release.y + 40.0, layout::Rollers().release.z }) - in.eye;
 				in.dir = in.dir.Normalized();
@@ -1084,7 +1119,7 @@ namespace sim
 				in.from = layout::SettlerRelease(_game);
 			}
 			_held = -1.0;
-			_wait = _game == GameId::kHoopShot ? 2.2 : 3.0;
+			_wait = _game == GameId::kHoopShot ? 2.2 : 1.4;  // (Atomic Rollers: from the last ball counted)
 			Plan();
 			_cued = false;
 		}
@@ -1116,7 +1151,7 @@ namespace sim
 			_swing -= a_dt;
 			if (_swing < 0.0) {
 				// the mallet comes down: on the head if they're good enough and it's still up
-				if (u(_rng) < 0.5 + 0.4 * _skill) {
+				if (u(_rng) < 0.6 + 0.35 * _skill) {
 					a_game.OnPieceHit(_target);
 				}
 				_target = -1;
@@ -1142,7 +1177,7 @@ namespace sim
 				return false;
 			}
 			_target = up[std::uniform_int_distribution<std::size_t>(0, up.size() - 1)(_rng)];
-			_react = 0.45 - 0.25 * _skill + 0.1 * u(_rng);
+			_react = 0.4 - 0.25 * _skill + 0.1 * u(_rng);
 			return false;
 		}
 		_react -= a_dt;
