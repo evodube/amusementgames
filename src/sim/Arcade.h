@@ -110,6 +110,9 @@ namespace sim
 		virtual void   Hud(HudInfo& a_out) const = 0;
 		// one of the game's pieces hit by your weapon (Whac-a-Commie: a head whacked)
 		virtual void   OnPieceHit(int) {}
+		// a throw would be taken now (Atomic Rollers: the last ball counted and the next in hand; Hoop Shot: time left
+		// and a ball free). A settler starts a throw, and its animation, only then
+		virtual bool   Ready() const { return !Over(); }
 
 		int Score() const { return _score; }
 		// the tickets a score is worth at this game
@@ -189,7 +192,9 @@ namespace sim
 	{
 	public:
 		Thrower(std::uint32_t a_seed, double a_skill, GameId a_game);
-		Input Next(double a_dt);
+		// a_ready: the game would take a throw now (Game::Ready): till it would, no throw is started, and none for a moment
+		// after (the last ball counted first)
+		Input Next(double a_dt, bool a_ready = true);
 		Vec3  Eye() const;
 		// the throw's animation lets go a_seconds after it starts: TakeCue() is true once a throw, that long before
 		// the ball's released (so the hand opens as the game lets the ball go)

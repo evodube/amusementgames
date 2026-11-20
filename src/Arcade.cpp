@@ -1165,7 +1165,7 @@ namespace ag
 					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()), Papyrus::Id(at.get()), Papyrus::Id(a_s.weapon) });
 				}
 			} else if (a_s.thrower) {
-				in = a_s.thrower->Next(a_dt);
+				in = a_s.thrower->Next(a_dt, a_s.game->Ready());
 				a_s.sinceThrow += a_dt;
 				if (in.released) {
 					a_s.sinceThrow = 0.0;
