@@ -2,6 +2,8 @@
 
 #include "sim/Arcade.h"
 
+#include <unordered_set>
+
 // The arcade in the game: the machines you activate, the game you're playing (sim::Game) and what it shows, the
 // tokens it takes and the tickets it pays, your best scores, and what the HUD draws.
 //
@@ -222,6 +224,7 @@ namespace ag
 			double                                 onTarget{ 0.0 }; // a shot held back this long, turning onto the target
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been
+			int                                    resends{ 0 };    // ...walks sent again with no step closer between
 			std::shared_ptr<std::atomic<std::int32_t>> ready;  // NpcStartGallery: -1 not yet, 1 walking, 10+ not coming
 			std::shared_ptr<std::atomic<std::int32_t>> armed;  // NpcTakeUp: -1 not yet, 0 didn't, 1 ready, 2 ready (lent)
 			std::unique_ptr<sim::Game>             game;
@@ -314,6 +317,10 @@ namespace ag
 			return nullptr;
 		}
 		RE::Actor* PickSettler(RE::TESObjectREFR* a_machine, sim::GameId a_game);
+		// a settler's gun can fire: what it fires (its current ammo) known, a pocketful given once; none: no shot (firing a
+		// gun with nothing to fire crashes the game)
+		bool CanFire(RE::Actor* a_actor, const std::string& a_name);
+		std::unordered_set<RE::TESFormID> _loaded;
 		std::vector<Race>  _races;
 		double             _nextRace{ 20.0 };
 		std::unordered_map<RE::TESFormID, double> _rest;  // a machine's rest after a settler's game there (seconds)

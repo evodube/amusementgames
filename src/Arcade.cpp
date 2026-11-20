@@ -840,6 +840,8 @@ namespace ag
 		constexpr float     kShowArrived = 12.0f;              // this near the spot: there
 		constexpr float     kShowAtSpot = 40.0f;               // ...or this near and no closer for a moment
 		constexpr double    kShowStallResend = 6.0;            // no closer for this long: the walk sent again
+		constexpr float     kShowStuckNear = 300.0f;           // ...stuck this near after two of those: near enough
+		constexpr int       kShowStuckResends = 3;             // ...further off, after this many: someone else
 		constexpr float     kShowReach = 3000.0f;              // settlers this near the machine
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
@@ -961,6 +963,7 @@ namespace ag
 			if (d < a_s.best - 10.0f) {
 				a_s.best = d;
 				a_s.stall = 0.0;
+				a_s.resends = 0;
 			} else {
 				a_s.stall += a_dt;
 			}
@@ -976,14 +979,30 @@ namespace ag
 				}
 			}
 			if (!there) {
-				if (a_s.stall > kShowStallResend) {
+				if (a_s.stall > kShowStallResend && d < kShowStuckNear && a_s.resends >= 2) {
+					// a couple of metres off and stuck there (the machine, or something put by it, in the way of their path):
+					// near enough, the counter puts them on the spot
+					there = true;
+					log::info("{}: {} ({:08X}) stuck {:.0f} from the spot: near enough", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, d);
+				} else if (a_s.stall > kShowStallResend && a_s.resends >= kShowStuckResends) {
+					// further off and not a step closer for a while: no way through from where they are; someone else
+					log::info("{}: {} ({:08X}) can't find a way ({:.0f} away, no closer in {:.0f}s): someone else", sim::GameName(a_s.gameId),
+						a_s.name, a_s.actorID, d, kShowStallResend * (a_s.resends + 1));
+					_refused.push_back(a_s.actorID);
+					EndShow(a_s, nullptr);
+					_nextShow = kShowNextTry;
+					return;
+				} else if (a_s.stall > kShowStallResend) {
+					++a_s.resends;
 					log::info("{}: {} ({:08X}) no closer in {:.0f}s ({:.0f} away): sending the walk again", sim::GameName(a_s.gameId), a_s.name,
 						a_s.actorID, a_s.stall, d);
 					a_s.stall = 0.0;
 					a_s.best = d;
 					Papyrus::Call("NpcWalk", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(marker.get()), 1 });
 				}
-				return;
+				if (!there) {
+					return;
+				}
 			}
 			a_s.phase = Show::Phase::kArming;
 			a_s.armed = std::make_shared<std::atomic<std::int32_t>>(-1);
@@ -1020,6 +1039,8 @@ namespace ag
 			case sim::GameId::kHoopShot:
 				{
 					a_s.thrower = std::make_unique<sim::Thrower>(seed ^ 0x5EED, skill, a_s.gameId);
+					// our own throw animations let go at frame 24 (Hoop Shot) and 22 (Atomic Rollers), at 30 fps
+					a_s.thrower->SetLead(a_s.gameId == sim::GameId::kHoopShot ? 24.0 / 30.0 : 22.0 / 30.0);
 					// the ball in their hand
 					const auto ids = Forms::PiecesOf(a_s.gameId);
 					if (auto* ball = ids.empty() ? nullptr : Forms::Bound(Forms::Own(ids[0]))) {
@@ -1056,8 +1077,21 @@ namespace ag
 				in = a_s.thrower->Next(a_dt);
 				a_s.sinceThrow += a_dt;
 				if (in.released) {
-					Papyrus::Call(a_s.gameId == sim::GameId::kHoopShot ? "NpcToss" : "NpcRoll", { static_cast<std::int32_t>(a_s.actorID) });
 					a_s.sinceThrow = 0.0;
+				}
+				if (a_s.thrower->TakeCue()) {
+					static std::atomic<int> told{ -1 };  // (how the throws go: logged once each way)
+					const std::string       name = a_s.name;
+					const auto              game = a_s.gameId;
+					Papyrus::Call(a_s.gameId == sim::GameId::kHoopShot ? "NpcToss" : "NpcRoll", { static_cast<std::int32_t>(a_s.actorID) },
+						[name, game](std::int32_t a_r) {
+							if (told.exchange(a_r) != a_r) {
+								log::info("{}: {}'s throws: {}", sim::GameName(game), name,
+									a_r == 4 ? (game == sim::GameId::kHoopShot ? "our basketball shot" : "our skee-ball roll") :
+									a_r == 1 ? (game == sim::GameId::kHoopShot ? "the grenade throw" : "the mine throw") :
+									a_r == 3 ? "Nuka-World's smoke bomb toss (the throw wouldn't play)" : "no animation would play");
+							}
+						});
 				}
 			}
 			a_s.game->Update(a_dt, in);
@@ -1068,11 +1102,12 @@ namespace ag
 			if (a_s.thrower) {
 				// the game's own ball waiting to be thrown (where your hand or the lane's start would be) out of sight:
 				// theirs is in their hand
-				const sim::Vec3 held = a_s.gameId == sim::GameId::kHoopShot ? a_s.thrower->Eye() : sim::layout::Rollers().release;
+				// (Hoop Shot's is its last piece, the one by your eye; its thrown balls leave from her hands and show at once)
+				const sim::Vec3 held = sim::layout::Rollers().release;
 				std::vector<sim::Piece> pieces;
 				a_s.game->Pieces(pieces);
 				for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
-					if ((pieces[i].pos - held).Length() < (a_s.gameId == sim::GameId::kHoopShot ? 60.0 : 12.0)) {
+					if (a_s.gameId == sim::GameId::kHoopShot ? i + 1 == pieces.size() : (pieces[i].pos - held).Length() < 12.0) {
 						if (auto ref = a_s.pieces[i].get(); ref && ref->Get3D()) {
 							ref->Get3D()->SetAppCulled(true);
 						}
@@ -1082,10 +1117,23 @@ namespace ag
 				if (auto ball = a_s.handBall.get()) {
 					auto* root = actor->Get3D();
 					auto* hand = root ? root->GetObjectByName("RArm_Hand") : nullptr;
+					auto* knuckle = root ? root->GetObjectByName("RArm_Finger31") : nullptr;  // (the middle finger's base)
 					const bool show = hand && a_s.sinceThrow > 1.0;
 					if (show) {
+						// in the palm: most of the way from the wrist (the hand's node) to the knuckles
+						RE::NiPoint3 at = hand->world.translate;
+						if (knuckle) {
+							at = at + (knuckle->world.translate - at) * 0.85f;
+						}
+						// (Hoop Shot's set shot holds it in both: between the palms)
+						auto* handL = a_s.gameId == sim::GameId::kHoopShot && root ? root->GetObjectByName("LArm_Hand") : nullptr;
+						auto* knuckleL = handL ? root->GetObjectByName("LArm_Finger31") : nullptr;
+						if (handL && knuckleL) {
+							const RE::NiPoint3 atL = handL->world.translate + (knuckleL->world.translate - handL->world.translate) * 0.85f;
+							at = (at + atL) * 0.5f;
+						}
 						Freeze(ball.get(), a_s.frozen);
-						PlaceNode(ball.get(), hand->world.translate, f.rot, f.scale, false);
+						PlaceNode(ball.get(), at, f.rot, f.scale, false);
 					} else if (auto* b3 = ball->Get3D()) {
 						b3->SetAppCulled(true);
 					}
@@ -1131,7 +1179,7 @@ namespace ag
 				aimAt->data.location.z = w.z;
 			}
 		}
-		if (in.pressed && a_s.weapon) {
+		if (in.pressed && a_s.weapon && CanFire(actor, a_s.name)) {
 			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
 			const std::string       name = a_s.name;
 			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(a_s.weapon), Papyrus::Id(a_s.weapon->weaponData.ammo) },
@@ -1580,6 +1628,25 @@ namespace ag
 		}
 	}
 
+	bool Arcade::CanFire(RE::Actor* a_actor, const std::string& a_name)
+	{
+		if (!a_actor) {
+			return false;
+		}
+		auto* ammo = a_actor->GetCurrentAmmo(RE::BGSEquipIndex{ 0 });
+		if (!ammo) {
+			static std::unordered_set<RE::TESFormID> told;
+			if (told.insert(a_actor->GetFormID()).second) {
+				log::warn("{}'s gun has nothing to fire just now (no ammo for it): no shot from it till it has", a_name);
+			}
+			return false;
+		}
+		if (_loaded.insert(a_actor->GetFormID() ^ ammo->GetFormID()).second) {
+			Papyrus::Call("AddTo", { static_cast<std::int32_t>(a_actor->GetFormID()), static_cast<std::int32_t>(ammo->GetFormID()), 50 });
+		}
+		return true;
+	}
+
 	void Arcade::RaceShots(Race& a_r, sim::Game& a_game, double a_dt)
 	{
 		auto* weapon = Forms::WeaponOf(sim::GameId::kNukaZapperRace);
@@ -1590,6 +1657,10 @@ namespace ag
 			auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == lane && a_q.state == 2; });
 			if (it == a_r.racers.end() || it->sinceShot < 0.35 || !weapon) {
 				continue;  // (a squirt's animation still going: the next one shown)
+			}
+			auto  ref = it->actor.get();
+			if (!CanFire(ref ? ref->As<RE::Actor>() : nullptr, it->name)) {
+				continue;
 			}
 			it->sinceShot = 0.0;
 			static std::atomic<int> told{ -1 };  // (how the squirts go: logged once each way)

@@ -2,6 +2,8 @@
 #include "sim/Arcade.h"
 #include "sim/Layouts.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -307,6 +309,36 @@ namespace
 		}
 	}
 
+	void ThrowCue()
+	{
+		// the throw's animation cue comes its lead before each release, once a throw
+		for (GameId id : { GameId::kAtomicRollers, GameId::kHoopShot }) {
+			Thrower t(7, 0.5, id);
+			const double lead = id == GameId::kHoopShot ? 0.8 : 22.0 / 30.0;
+			t.SetLead(lead);
+			const double dt = 1.0 / 60.0;
+			double       cueAt = -1.0, worst = 0.0;
+			int          cues = 0, throws = 0;
+			bool         twice = false;
+			for (int i = 0; i < 60 * 30; ++i) {
+				const double now = i * dt;
+				const Input  in = t.Next(dt);
+				if (t.TakeCue()) {
+					twice = twice || cueAt >= 0.0;
+					cueAt = now;
+					++cues;
+				}
+				if (in.released && cueAt >= 0.0) {
+					worst = std::max(worst, std::abs((now - cueAt) - lead));
+					cueAt = -1.0;
+					++throws;
+				}
+			}
+			std::printf("     %s: %d throws, %d cues, worst %.3f s off\n", GameName(id), throws, cues, worst);
+			Check(throws > 3 && !twice && worst < 0.05, id == GameId::kHoopShot ? "hoop shot: the shot's animation cued on time" : "atomic rollers: the roll's animation cued on time");
+		}
+	}
+
 	void WhacSettlers()
 	{
 		// a settler at Whac-a-Commie: a good one whacks more than a poor one
@@ -401,6 +433,7 @@ int main()
 	Gallery();
 	WhacSettlers();
 	ThrowSettlers();
+	ThrowCue();
 	Tickets();
 	std::printf(g_failed ? "%d FAILED\n" : "all passed\n", g_failed);
 	return g_failed ? 1 : 0;

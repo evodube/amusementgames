@@ -213,6 +213,10 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	If !a || !m || a.IsDead() || a.IsInCombat()
 		Return 0
 	EndIf
+	; onto the spot, at the height of the ground they're standing on: the spot's own height is the machine's, and where
+	; the ground's a little higher there, MoveTo put them a few centimetres into it till the game pushed them back up
+	; (after a few seconds: their first shots, sunk)
+	m.SetPosition(m.GetPositionX(), m.GetPositionY(), a.GetPositionZ())
 	a.MoveTo(m)
 	AmusementGamesQuest q = TheQuest()
 	Keyword k = LinkSpot()
@@ -233,7 +237,14 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	EndIf
 	Int r = 1
 	If a.GetItemCount(w) == 0
-		a.AddItem(w, 1, True)
+		; built whole (PlaceAtMe makes a modular gun with its parts, the Thirst Zapper's with what it fires: one added
+		; as a bare record has nothing to fire, and firing it crashed the game), then into their hands
+		ObjectReference g = a.PlaceAtMe(w, 1, False, True)
+		If g
+			a.AddItem(g, 1, True)
+		Else
+			a.AddItem(w, 1, True)
+		EndIf
 		r = 2
 	EndIf
 	; its own ammo in their pockets, so it fires what it's made to (the Thirst Zapper's water, not a bullet): a few
@@ -275,8 +286,7 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
 		Return 1
 	EndIf
-	a.PlayAnimation("attackStart")
-	w.Fire(a)  ; (its own projectile: the Thirst Zapper's water)
+	a.PlayAnimation("attackStart")  ; (no Weapon.Fire: from a settler whose gun has nothing to fire, it crashed the game)
 	Return 2
 EndFunction
 
@@ -354,12 +364,39 @@ Int Function NpcSwing(Int aiActor, Int aiSpot, Int aiAt) Global
 	Return Act(a, 0x00056123, 0x000516EE, "meleeattackStart")  ; MeleeAttackStanding_3rdP, MeleeAttack
 EndFunction
 
-; Atomic Rollers: the ball rolled up the lane, a mine's throw (low and underhand)
+; Atomic Rollers: the ball rolled up the lane, a mine's throw (low and underhand); if that won't play without a mine
+; in hand, Nuka-World's own smoke bomb toss (an idle of its own, nothing in hand needed). 1 the mine's, 3 the toss, 2
+; neither (the event sent)
 Int Function NpcRoll(Int aiActor) Global
-	Return Act(Game.GetForm(aiActor) as Actor, 0x000EE0F0, 0x000EC533, "mineThrowStart")  ; CharacterMTMineThrow, CharacterWeaponMineThrow
+	Actor a = Game.GetForm(aiActor) as Actor
+	If a && a.PlayIdle(Game.GetFormFromFile(0x000831, "AmusementGames.esl") as Idle)
+		Return 4  ; (AmusementGamesSkeeballRoll: our own)
+	EndIf
+	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F0, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000EC533, "Fallout4.esm") as Idle))
+		Return 1  ; (CharacterMTMineThrow, CharacterWeaponMineThrow)
+	EndIf
+	Return Toss(a, "mineThrowStart")
 EndFunction
 
-; Hoop Shot: the basketball thrown, a grenade's throw
+; Hoop Shot: the basketball thrown, a grenade's throw; or the smoke bomb toss
 Int Function NpcToss(Int aiActor) Global
-	Return Act(Game.GetForm(aiActor) as Actor, 0x000EE0F1, 0x000CF927, "grenadeThrowStart")  ; CharacterMTGrenadeThrow, CharacterWeaponGrenadeThrow
+	Actor a = Game.GetForm(aiActor) as Actor
+	If a && a.PlayIdle(Game.GetFormFromFile(0x000830, "AmusementGames.esl") as Idle)
+		Return 4  ; (AmusementGamesBasketballShot: our own)
+	EndIf
+	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F1, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000CF927, "Fallout4.esm") as Idle))
+		Return 1  ; (CharacterMTGrenadeThrow, CharacterWeaponGrenadeThrow)
+	EndIf
+	Return Toss(a, "grenadeThrowStart")
+EndFunction
+
+Int Function Toss(Actor a, String asEvent) Global
+	If !a
+		Return 0
+	EndIf
+	If a.PlayIdle(Game.GetFormFromFile(0x0004A45A, "DLCNukaWorld.esm") as Idle)  ; DLC04LooseSmokeBombThrow
+		Return 3
+	EndIf
+	a.PlayAnimation(asEvent)
+	Return 2
 EndFunction
