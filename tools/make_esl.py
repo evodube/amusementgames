@@ -66,8 +66,9 @@ FLAG_MASTER = 0x1
 FLAG_LIGHT = 0x200
 FIRST_ID = 0x800
 
-NUKA = 0x01000000  # DLCNukaWorld.esm, our second master
-OWN = 0x02000000   # our records come after the two masters
+COAST = 0x01000000  # DLCCoast.esm (Far Harbor), our second master: Bandit Roundup's lever-action rifle
+NUKA = 0x02000000   # DLCNukaWorld.esm, our third master
+OWN = 0x03000000    # our records come after the three masters
 
 # components (Fallout4.esm)
 WOOD, STEEL, SCREWS, CIRCUITRY, COPPER, GEARS = 0x0001FAC2, 0x0001FABD, 0x0003D294, 0x0001FA9B, 0x0001FA9C, 0x0001FAB0
@@ -75,7 +76,10 @@ WORKBENCH_FURNITURE = 0x0005B5E3  # WorkshopWorkbenchTypeFurniture (the settleme
 ARCADE_SOUNDS = (NUKA | 0x05710E, NUKA | 0x05710F)  # DLC04UIWorkshopModeItemPickUp/PutDownArcadeMachinex
 METAL_SOUNDS = (0x000196B0, 0x000196BA)             # the token dispenser's, as Nuka-World's recipe has them
 CAPS = 0x0000000F
-HUNTING_RIFLE = 0x0004F46A                           # HuntingRifle: Bandit Roundup's rifle
+LEVER_GUN = COAST | 0x02C8B0                         # DLC03_LeverGun: Bandit Roundup's rifle
+ANIMS_LEVER_ACTION = COAST | 0x02F834                # its animations' keyword (Far Harbor's, for the lever)
+ANIMS_HUNTING_RIFLE = 0x00058E37                     # the Hunting Rifle's
+AP_LEGENDARY = 0x001E32C8                            # ap_Legendary: an attach point the lever-action has, empty
 TOKEN = NUKA | 0x01998A                              # DLC04_Nukacade_Token01
 TOKEN_SOUND = NUKA | 0x04E5E4                        # DLC04OBJArcadeTokenExchangeDispense
 TOKEN_PRICE = 5.0                                    # caps a token
@@ -254,6 +258,18 @@ def aim_package(form_id: int, editor_id: str, spot_keyword: int, target_keyword:
     return record(b"PACK", 0, form_id, body)
 
 
+def anim_mod(form_id: int, editor_id: str, attach_point: int, remove: int, add: int) -> bytes:
+    """A weapon mod (OMOD) changing nothing but which animations the weapon is played with: one keyword off, another on.
+    DATA as Fallout4.esm's: includes 0, properties, 2 unknown bytes, form type WEAP, max rank, level tier, attach point,
+    attach parent slots (none), items (none), then each property: value type 4 (form), function (1 remove, 2 add),
+    property 0x1F (Keywords), the keyword, 1, 0.0."""
+    props = [(1, remove), (2, add)]
+    data = (struct.pack("<II", 0, len(props)) + b"\x00\x00" + b"WEAP" + b"\x00\x00"
+            + struct.pack("<III", attach_point, 0, 0)
+            + b"".join(struct.pack("<IIIIIf", 4, fn, 0x1F, kw, 1, 0.0) for fn, kw in props))
+    return record(b"OMOD", 0, form_id, subrecord(b"EDID", zstring(editor_id)) + subrecord(b"DATA", data))
+
+
 def quest(form_id: int, editor_id: str, package: int, hold: int, hold_drawn: int, hold_zapper: int, priority: int = 100) -> bytes:
     """AmusementGamesQuest: start game enabled, priority 100, collection alias 0 'Players' with the walk package.
     Scripts: AmusementGamesQuest on the quest (property Players), AmusementGamesGroupAlias on the alias (papyrus/).
@@ -421,8 +437,8 @@ def build() -> bytes:
     hold_drawn = OWN | (FIRST_ID + 0x2E)
     hold_zapper = OWN | (FIRST_ID + 0x2F)  # (the zapper race's: aiming the Thirst Zapper itself)
     packages = [travel_package(walk, "AmusementGamesWalkToSpot", link),
-                # (Bandit Roundup's: that very rifle, the Hunting Rifle, as the zapper race's names the Thirst Zapper)
-                aim_package(hold, "AmusementGamesHoldAtSpot", link, target, weapon=HUNTING_RIFLE),
+                # (Bandit Roundup's: that very rifle, the lever-action, as the zapper race's names the Thirst Zapper)
+                aim_package(hold, "AmusementGamesHoldAtSpot", link, target, weapon=LEVER_GUN),
                 travel_package(hold_drawn, "AmusementGamesHoldDrawnAtSpot", link, general=0x00802000, interrupts=0),
                 aim_package(hold_zapper, "AmusementGamesHoldZapperAtSpot", link, target, weapon=NUKA | 0x007BC8)]  # DLC04_ThirstZapper
     # (priority 101: above Wasteland Wagers' 100, so a roulette bettor called over isn't pulled back mid-walk)
@@ -464,15 +480,24 @@ def build() -> bytes:
     idles = [idle(OWN | (FIRST_ID + 0x30), "AmusementGamesBasketballShot", "AGBasketballShot"),
              idle(OWN | (FIRST_ID + 0x31), "AmusementGamesSkeeballRoll", "AGSkeeballRoll")]
 
-    count = len(idles) + len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests)
+    # ---- a settler's lever-action at Bandit Roundup fired with the Hunting Rifle's animations: Far Harbor's own for it
+    # (third person) had them lower it and drop into the floor at each shot. A weapon's animations are picked by its
+    # keyword (as the laser rifle's barrels pick theirs): this mod, on the settler's lent rifle only (its empty legendary
+    # slot), takes Far Harbor's keyword off and puts the Hunting Rifle's on. Yours keeps its own
+    omods = [anim_mod(OWN | (FIRST_ID + 0x32), "AmusementGamesSettlerLeverActionAnims", AP_LEGENDARY,
+                      remove=ANIMS_LEVER_ACTION, add=ANIMS_HUNTING_RIFLE)]
+
+    count = len(omods) + len(idles) + len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests)
     header = record(
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x32))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x33))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
+        + subrecord(b"DATA", struct.pack("<Q", 0))
+        + subrecord(b"MAST", zstring("DLCCoast.esm"))
         + subrecord(b"DATA", struct.pack("<Q", 0))
         + subrecord(b"MAST", zstring("DLCNukaWorld.esm"))
         + subrecord(b"DATA", struct.pack("<Q", 0)),
@@ -481,7 +506,7 @@ def build() -> bytes:
     return (header + group(b"GLOB", b"".join(globs)) + group(b"KYWD", b"".join(keywords))
             + group(b"ACTI", b"".join(acti)) + group(b"STAT", b"".join(stats)) + group(b"QUST", b"".join(quests))
             + group(b"IDLE", b"".join(idles)) + group(b"PACK", b"".join(packages)) + group(b"MESG", b"".join(messages)) + group(b"ARTO", b"".join(art))
-            + group(b"COBJ", b"".join(recipes)))
+            + group(b"COBJ", b"".join(recipes)) + group(b"OMOD", b"".join(omods)))
 
 
 def main() -> int:

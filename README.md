@@ -13,7 +13,7 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Nuka-Zapper Race**: six lanes; yours is the one with a Thirst Zapper lying on the counter, so stand behind it.
   Squirt your target with the Thirst Zapper: each hit sends your rocket a step up, ten and you've won (the other
   lanes race you). Unlimited ammo while you play.
-- **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with a Hunting Rifle
+- **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with Far Harbor's Lever-Action Rifle
   (iron sights, no scope), for 60 seconds. A point a hit, 3 for dead centre of a
   bullseye, either row. Unlimited ammo while you play: it never needs reloading.
 - **Settings** in F4SE Menu Framework (Amusement Games > Whac-a-Commie, Settlers): the Agility swing (on/off, how much,
@@ -51,7 +51,8 @@ bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own 
 ## Requirements
 
 - Fallout 4 1.10.163 ("Old Gen"; also built for Next-Gen and Anniversary).
-- The Nuka-World DLC (`DLCNukaWorld.esm` is a master).
+- The Nuka-World and Far Harbor DLCs (`DLCNukaWorld.esm` and `DLCCoast.esm` are masters: Far Harbor for Bandit
+  Roundup's lever-action rifle).
 - F4SE and Address Library for F4SE Plugins.
 - [F4SE Menu Framework](https://www.nexusmods.com/fallout4/mods/105090) for the HUD (without it, results come as
   corner messages).

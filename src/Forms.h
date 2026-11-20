@@ -118,7 +118,10 @@ namespace ag::Forms
 		case sim::GameId::kWhacACommie: form = Nuka(kCommieWhacker); break;
 		case sim::GameId::kNukaZapperRace: form = Nuka(kThirstZapper); break;
 		case sim::GameId::kBanditRoundup:
-			form = RE::TESForm::GetFormByID(kHuntingRifle);  // (the Hunting Rifle: its aim package names it)
+			form = From("DLCCoast.esm", kLeverGun);  // (a settler's played with the Hunting Rifle's animations: NpcTakeUp)
+			if (!form) {
+				form = RE::TESForm::GetFormByID(kHuntingRifle);
+			}
 			break;
 		default: return nullptr;
 		}
