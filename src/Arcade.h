@@ -233,6 +233,7 @@ namespace ag
 			std::unique_ptr<sim::Thrower>          thrower;  // Atomic Rollers' and Hoop Shot's
 			RE::ObjectRefHandle                    handBall; // ...the ball in their hand
 			double                                 sinceThrow{ 9.0 };
+			bool                                   holding{ false };  // ...the throw's animation on, the ball in their hand(s)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
 			std::vector<RE::NiAVObject*>           frozen;
@@ -334,6 +335,27 @@ namespace ag
 		double             _nextShow{ 20.0 };
 		std::mt19937       _showRng{ std::random_device{}() };
 		std::vector<Held>  _heldFromSave;  // (read from the cosave: let go after the load)
+		// what a settler wore when they took up a game's weapon: put back on after (their inventory changed, the game
+		// had them dress in whatever it picked)
+		struct Worn
+		{
+			RE::TESBoundObject*                   object{ nullptr };
+			RE::BSTSmartPointer<RE::TBO_InstanceData> instance;
+			std::uint32_t                         stackID{ 0 };
+		};
+		struct Redress
+		{
+			RE::TESFormID     actor{ 0 };
+			std::vector<Worn> worn;
+			double            in{ 1.0 };  // seconds till it's done (the game's own re-dress first)
+			int               times{ 2 }; // ...done this many times, a second after another
+		};
+		static std::vector<Worn> WornBy(RE::Actor* a_actor);
+		void                     Snapshot(RE::Actor* a_actor);
+		void                     TickRedress(double a_dt);
+		std::unordered_map<RE::TESFormID, std::vector<Worn>> _worn;
+		std::mutex                 _redressMutex;
+		std::vector<Redress>       _redress;
 		std::vector<RE::TESFormID> _refused;  // settlers who couldn't come lately (asked again once everyone has)
 	};
 }
