@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes AmusementGames.esl: the Nuka-Cade's arcade machines, buildable in settlements under
-Furniture > Amusement Games.
+Furniture > Amusement Games, and a Prize Counter terminal that trades the tickets for Nuka-World prizes.
 
     python tools/make_esl.py [out.esl]
 
@@ -50,6 +50,14 @@ Form IDs (src/Forms.h expects these):
                                                bottle and star, 82A the zapper's target, 82B the Nuka-Cade's mallet
                                                resting on Whac-a-Commie (its whacker01 node)
 
+    xx000838  TERM AmusementGamesPrizeCounter  the Prize Counter: the base game's buildable Terminal (unpowered), a
+                                               menu of its sections; xx000839-83B TERM its sections (Prizes,
+                                               Souvenirs, Nuka-Cola), each prize shown buyable when you've its
+                                               tickets (GetItemCount on the player) and "not enough" when not; buying
+                                               runs a fragment of AmusementGamesPrizeCounterFragments (papyrus/,
+                                               written by --psc from PRIZES), which calls AmusementGamesNative.BuyPrize
+    xx00083C  COBJ workshop_co_AmusementGamesPrizeCounter -> xx000838
+
 Tokens and tickets are Nuka-World's own items (DLC04_Nukacade_Token01 0001998A, DLC04_Nukacade_Ticket01 00019988),
 so the Nuka-Cade's machines and prize terminal take ours and ours take theirs.
 
@@ -84,6 +92,41 @@ TOKEN = NUKA | 0x01998A                              # DLC04_Nukacade_Token01
 TOKEN_SOUND = NUKA | 0x04E5E4                        # DLC04OBJArcadeTokenExchangeDispense
 TOKEN_PRICE = 5.0                                    # caps a token
 INCOME_PER_SETTLER = 1.0                             # caps a machine earns a day, a settler
+
+# ---- the Prize Counter: a terminal, tickets in, Nuka-World's prizes out
+TICKET = NUKA | 0x019988                             # DLC04_Nukacade_Ticket01
+PLAYER_REF = 0x00000014
+PRIZE_COUNTER = OWN | (FIRST_ID + 0x38)              # TERM: the top page (its sections)
+PRIZE_PAGE_FIRST = FIRST_ID + 0x39                   # TERM: a section each (0x839-0x83B)
+PRIZE_RECIPE = FIRST_ID + 0x3C                       # COBJ: built at the workbench
+PRIZE_FRAGMENTS = "AmusementGamesPrizeCounterFragments"  # papyrus/: one function a prize (written by --psc)
+RUBBER, ALUMINUM = 0x0001FAB9, 0x0001FA91
+TERMINAL_COMPONENTS = [(RUBBER, 2), (COPPER, 2), (CIRCUITRY, 2), (ALUMINUM, 4)]  # as workshop_co_Terminal
+NOT_ENOUGH = 100                                     # a prize's "not enough tickets" line: its menu id + 100
+
+# the catalogue: (section, [(what the terminal says, DLCNukaWorld.esm id, how many, tickets)]). Only Nuka-World's
+# own things (its prize counter's Paddle Ball and Acid Soaker, its souvenirs, its sodas ice-cold, its 7.62)
+PRIZES = [
+    ("Prizes", [
+        ("Paddle Ball", 0x00A6C0, 1, 50),
+        ("Paddle Balls x10", 0x00A6C2, 10, 10),          # DLC04_Ammo_PaddleBall
+        ("Acid Soaker", 0x007BC6, 1, 75),
+        ("7.62 Rounds x20", 0x037897, 20, 20),           # DLC04_Ammo_HandmadeRound
+    ]),
+    ("Souvenirs", [
+        ("Souvenir Teddy Bear", 0x02689C, 1, 150),
+        ("Souvenir Sloth Toy", 0x02A185, 1, 150),
+        ("Souvenir Magnet Cow", 0x0268A1, 1, 150),       # DLC04_SouvenirMagnet01
+    ]),
+    ("Nuka-Cola", [
+        ("Ice-Cold Nuka-Cola Orange", 0x02EDAD, 1, 15),
+        ("Ice-Cold Nuka-Grape", 0x02EDAB, 1, 15),
+        ("Ice-Cold Nuka-Cola Wild", 0x02EDB1, 1, 15),
+        ("Ice-Cold Nuka-Cola Dark", 0x02EDA9, 1, 20),
+        ("Ice-Cold Nuka-Cola Victory", 0x02EDB0, 1, 20),
+        ("Ice-Cold Nuka-Cola Quartz", 0x02EDAF, 1, 20),
+    ]),
+]
 
 
 def subrecord(sig: bytes, data: bytes) -> bytes:
@@ -425,6 +468,119 @@ def global_float(form_id: int, editor_id: str, value: float) -> bytes:
                   subrecord(b"EDID", zstring(editor_id)) + subrecord(b"FNAM", b"f") + subrecord(b"FLTV", struct.pack("<f", value)))
 
 
+def prize_number(page: int, row: int) -> int:
+    """a prize's number across the catalogue (1 up): its menu item id and its fragment's"""
+    return sum(len(items) for _, items in PRIZES[:page]) + row + 1
+
+
+def tickets_condition(at_least: bool, tickets: int) -> bytes:
+    """GetItemCount (function 47) of the tickets on the player (run on reference PlayerRef, as Fallout4.esm's own
+    item checks are) >= or < tickets: comparison, value, function, param 1, param 2, run on, reference, param 3"""
+    op = 0x60 if at_least else 0x80  # (>= is 3, < is 4, in the top three bits)
+    return subrecord(b"CTDA", struct.pack("<B3xfHxxIIIIi", op, float(tickets), 47, TICKET, 0, 2, PLAYER_REF, -1))
+
+
+def terminal_fragments(fragments: list[tuple[int, str]]) -> bytes:
+    """a terminal's script fragments, laid out as DLCNukaWorld.esm's DLC04NukacadeSubTerminalTicketSpendConfirm: no
+    scripts of its own; then the fragment script (bind data version 3, its name, flags 0, no properties) and each
+    fragment: the menu item id it runs for, 1, the script, the function"""
+    out = struct.pack("<HHH", 6, 2, 0) + b"\x03" + wstring(PRIZE_FRAGMENTS) + b"\x00" + struct.pack("<H", 0)
+    out += struct.pack("<H", len(fragments))
+    for item_id, function in fragments:
+        out += struct.pack("<IB", item_id, 1) + wstring(PRIZE_FRAGMENTS) + wstring(function)
+    return out
+
+
+# what a page of the counter has besides its menu: Nuka-World's subterminals' (DLC04NukacadeSubTerminalTicketSpend01)
+# keywords, display settings and marker parameters
+SUBTERMINAL_KEYWORDS = (0x000A56D7, 0x0006D5BB, 0x000C2022)  # FurnitureForce1stPerson, PlayerPathToFurniture, AnimFurnWallTerminal
+
+
+def terminal_frame(mesh: str, keywords: tuple, marker: bytes) -> bytes:
+    return (subrecord(b"MODL", zstring(mesh))
+            + subrecord(b"KSIZ", struct.pack("<I", len(keywords)))
+            + subrecord(b"KWDA", b"".join(struct.pack("<I", k) for k in keywords))
+            + subrecord(b"PNAM", struct.pack("<I", 0x00334CCC))
+            + subrecord(b"FNAM", struct.pack("<H", 0))
+            + subrecord(b"COCT", struct.pack("<I", 0))
+            + subrecord(b"MNAM", bytes.fromhex("01000040"))
+            + subrecord(b"WBDT", b"\x00")
+            + subrecord(b"SNAM", marker))
+
+
+def prize_page(form_id: int, page: int) -> bytes:
+    """a section of the Prize Counter: each prize twice, one shown when you've the tickets (it runs its fragment, which
+    takes them and gives the prize, then redraws: type 6, as Nuka-World's main terminal's), one when you haven't (type
+    8, display text: how many it takes)"""
+    title, items = PRIZES[page]
+    menu = b""
+    fragments = []
+    for row, (name, _, _, tickets) in enumerate(items):
+        n = prize_number(page, row)
+        menu += (subrecord(b"ITXT", zstring(f"{name} - {tickets} tickets"))
+                 + subrecord(b"ANAM", b"\x06") + subrecord(b"ITID", struct.pack("<H", n))
+                 + tickets_condition(True, tickets))
+        menu += (subrecord(b"ITXT", zstring(f"{name} - {tickets} tickets (not enough)"))
+                 + subrecord(b"ANAM", b"\x08") + subrecord(b"ITID", struct.pack("<H", NOT_ENOUGH + n))
+                 + subrecord(b"UNAM", zstring(f"{name} takes {tickets} Nuka-Cade tickets.\n"
+                                              "Win more at the machines."))
+                 + tickets_condition(False, tickets))
+        fragments.append((n, f"Fragment_Terminal_{n:02d}"))
+    body = (subrecord(b"EDID", zstring(f"AmusementGamesPrizeCounter{title.replace('-', '')}"))
+            + subrecord(b"VMAD", terminal_fragments(fragments))
+            + subrecord(b"OBND", struct.pack("<6h", -18, -52, 86, 21, 0, 135))
+            + terminal_frame("Furniture\\Terminals\\TerminalWall01.nif", SUBTERMINAL_KEYWORDS,
+                             bytes.fromhex("000000000000acc2000000000000000000000000ffffffff"))
+            + subrecord(b"BSIZ", struct.pack("<I", 1))
+            + subrecord(b"BTXT", zstring(f"{title.upper()}\n\nPick a prize to trade your tickets for it."))
+            + subrecord(b"ISIZ", struct.pack("<I", 2 * len(items)))
+            + menu)
+    return record(b"TERM", 0, form_id, body)
+
+
+def prize_counter(form_id: int) -> bytes:
+    """the Prize Counter: the base game's buildable Terminal (WorkshopTerminal: its model, bounds, workshop preview,
+    furniture keywords and marker parameters) without its power (no WorkshopCanBePowered / WorkshopPowerConnection,
+    no workshop script): a menu of the sections"""
+    menu = b""
+    for page, (title, items) in enumerate(PRIZES):
+        menu += (subrecord(b"ITXT", zstring(title)) + subrecord(b"ANAM", b"\x04")
+                 + subrecord(b"ITID", struct.pack("<H", page + 1))
+                 + subrecord(b"TNAM", struct.pack("<I", OWN | (PRIZE_PAGE_FIRST + page))))
+    keywords = (0x0006D5BB, 0x000FCB12, 0x000A56D7, 0x000286E6, 0x00224A6B)  # PlayerPathToFurniture,
+    # AnimFurnDeskTerminalNoChair, FurnitureForce1stPerson, AnimFurnDeskTerminal, IsCircularTerminal
+    body = (subrecord(b"EDID", zstring("AmusementGamesPrizeCounter"))
+            + subrecord(b"OBND", struct.pack("<6h", -31, -29, -1, 23, 27, 89))
+            + subrecord(b"PTRN", struct.pack("<I", 0x0017B540))  # workshop_Terminal
+            + subrecord(b"WNAM", zstring("Nuka-Cade Prize Counter"))
+            + subrecord(b"FULL", zstring("Prize Counter"))
+            + terminal_frame("Furniture\\Terminals\\TerminalOnImprovisedWorkshop.nif", keywords,
+                             bytes.fromhex("068155c0000084c2000000000000000000000000ffffffff"))
+            + subrecord(b"BSIZ", struct.pack("<I", 1))
+            + subrecord(b"BTXT", zstring("NUKA-CADE PRIZE COUNTER\n\nTrade your Nuka-Cade tickets for prizes."))
+            + subrecord(b"ISIZ", struct.pack("<I", len(PRIZES)))
+            + menu)
+    return record(b"TERM", 0, form_id, body)
+
+
+def fragments_psc() -> str:
+    """papyrus/AmusementGamesPrizeCounterFragments.psc: a function a prize, each buying it (AmusementGamesNative.BuyPrize)"""
+    lines = [";BEGIN FRAGMENT CODE - written by tools/make_esl.py --psc: the Prize Counter's prizes",
+             f"Scriptname {PRIZE_FRAGMENTS} Extends Terminal Hidden Const", ""]
+    for page, (_, items) in enumerate(PRIZES):
+        for row, (name, item, count, tickets) in enumerate(items):
+            n = prize_number(page, row)
+            lines += [f";BEGIN FRAGMENT Fragment_Terminal_{n:02d}",
+                      f"Function Fragment_Terminal_{n:02d}(ObjectReference akTerminalRef)",
+                      ";BEGIN CODE",
+                      f"AmusementGamesNative.BuyPrize(0x{item:06X}, {count}, {tickets})  ; {name}",
+                      ";END CODE",
+                      "EndFunction",
+                      ";END FRAGMENT", ""]
+    lines.append(";END FRAGMENT CODE - Do not edit anything between this and the begin comment")
+    return "\n".join(lines) + "\n"
+
+
 GAMES_DIR = "DLC04\\SetDressing\\Games\\"
 
 # the machines: (form id offset, editor id suffix, name, Nuka-World's model, its bounds, its workshop preview TRNS)
@@ -538,12 +694,17 @@ def build() -> bytes:
     # are picked by its keyword. (0.8.0's mod changing the keyword on their lent rifle didn't take)
     weapons = [settler_lever_gun(SETTLER_LEVER_GUN, "AmusementGamesSettlerLeverGun")]
 
-    count = len(weapons) + len(idles) + len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests)
+    # ---- the Prize Counter: tickets in, Nuka-World's prizes out (its sections, then the page you open)
+    terminals = [prize_counter(PRIZE_COUNTER)] + [prize_page(OWN | (PRIZE_PAGE_FIRST + i), i) for i in range(len(PRIZES))]
+    recipes.append(workshop_recipe(OWN | PRIZE_RECIPE, "workshop_co_AmusementGamesPrizeCounter", PRIZE_COUNTER,
+                                   TERMINAL_COMPONENTS, menu, METAL_SOUNDS))
+
+    count = len(terminals) + len(weapons) + len(idles) + len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests)
     header = record(
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x38))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x3D))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
@@ -556,13 +717,19 @@ def build() -> bytes:
     # groups in the order the game's own master has them
     return (header + group(b"GLOB", b"".join(globs)) + group(b"KYWD", b"".join(keywords))
             + group(b"ACTI", b"".join(acti)) + group(b"STAT", b"".join(stats)) + group(b"WEAP", b"".join(weapons))
-            + group(b"QUST", b"".join(quests))
+            + group(b"TERM", b"".join(terminals)) + group(b"QUST", b"".join(quests))
             + group(b"IDLE", b"".join(idles)) + group(b"PACK", b"".join(packages)) + group(b"MESG", b"".join(messages)) + group(b"ARTO", b"".join(art))
             + group(b"COBJ", b"".join(recipes)))
 
 
 def main() -> int:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if "--psc" in sys.argv:  # the Prize Counter's fragment script, from the catalogue above
+        out = args[0] if args else f"papyrus/{PRIZE_FRAGMENTS}.psc"
+        with open(out, "w", newline="\n") as f:
+            f.write(fragments_psc())
+        print(f"wrote {out}")
+        return 0
     out = args[0] if args else "AmusementGames.esl"
     data = build()
     with open(out, "wb") as f:

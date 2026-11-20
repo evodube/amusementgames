@@ -125,6 +125,20 @@ Function AddTo(Int aiRef, Int aiItem, Int aiCount) Global
 	EndIf
 EndFunction
 
+; the Prize Counter's buy (its fragments, AmusementGamesPrizeCounterFragments): a Nuka-World item (its id in
+; DLCNukaWorld.esm), how many, for how many Nuka-Cade tickets. The terminal only offers it when you've the tickets;
+; checked again here (a double press)
+Function BuyPrize(Int aiItem, Int aiCount, Int aiTickets) Global
+	Actor player = Game.GetPlayer()
+	Form ticket = Game.GetFormFromFile(0x019988, "DLCNukaWorld.esm")   ; (DLC04_Nukacade_Ticket01)
+	Form item = Game.GetFormFromFile(aiItem, "DLCNukaWorld.esm")
+	If !ticket || !item || player.GetItemCount(ticket) < aiTickets
+		Return
+	EndIf
+	player.RemoveItem(ticket, aiTickets, True)
+	player.AddItem(item, aiCount)
+EndFunction
+
 ; ---------------------------------------------------------------- settlers at the games
 ; walked over by AmusementGamesQuest's package (as Wasteland Wagers walks its players), then the plugin takes it from
 ; there: NpcStartGallery, NpcWalk (again, if they stall), NpcTakeUp (there: the rifle up, held), NpcEnd

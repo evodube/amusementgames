@@ -34,6 +34,14 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Takings**: each machine earns its settlement 1 cap a day for every settler there, put in the workshop when you're
   back (up to 30 days' worth). The rate is the global `AmusementGamesIncomePerSettler` (`set AmusementGamesIncomePerSettler to 2`).
 - **Token Stand**: press F to buy 5 Nuka-Cade tokens (5 caps a token, 25 a press). Each game takes a token.
+- **Prize Counter**: a terminal (no power needed) that trades Nuka-Cade tickets for Nuka-World's own things. A prize
+  you haven't the tickets for says "(not enough)".
+  - Prizes: Paddle Ball 50, Paddle Balls x10 10, Acid Soaker 75, 7.62 Rounds x20 20
+  - Souvenirs: Teddy Bear, Sloth Toy, Magnet Cow, 150 each
+  - Nuka-Cola (ice-cold): Orange, Grape, Wild 15 each; Dark, Victory, Quartz 20 each
+
+  The catalogue is `PRIZES` in `tools/make_esl.py`; after changing it, `python tools/make_esl.py --psc` rewrites the
+  terminal's fragment script (`papyrus/AmusementGamesPrizeCounterFragments.psc`).
 
 On screen while you play: just the clock (Atomic Rollers: the ball you're on; the zapper race: its countdown), and
 the power meter while you charge a throw; Atomic Rollers also shows each ball's points as they come and a green aim
