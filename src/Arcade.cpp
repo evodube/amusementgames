@@ -508,7 +508,8 @@ namespace ag
 	}
 
 	void Arcade::PlacePieces(const Frame& a_f, const sim::Game& a_game, sim::GameId a_id, RE::TESObjectREFR* a_machine,
-		std::vector<RE::ObjectRefHandle>& a_pieces, std::vector<int>& a_models, std::vector<RE::NiAVObject*>& a_frozen)
+		std::vector<RE::ObjectRefHandle>& a_pieces, std::vector<int>& a_models, std::vector<RE::NiAVObject*>& a_frozen,
+		const std::vector<bool>* a_keepHidden)
 	{
 		std::vector<sim::Piece> pieces;
 		a_game.Pieces(pieces);
@@ -532,7 +533,8 @@ namespace ag
 			}
 			Freeze(ref.get(), a_frozen);
 			const RE::NiMatrix3 rot = FromRows(pieces[i].rot) * a_f.rot;
-			PlaceNode(ref.get(), ToWorld(a_f, pieces[i].pos), rot, static_cast<float>(pieces[i].scale) * a_f.scale, pieces[i].hidden);
+			const bool hide = pieces[i].hidden || (a_keepHidden && i < a_keepHidden->size() && (*a_keepHidden)[i]);
+			PlaceNode(ref.get(), ToWorld(a_f, pieces[i].pos), rot, static_cast<float>(pieces[i].scale) * a_f.scale, hide);
 		}
 	}
 
@@ -619,7 +621,7 @@ namespace ag
 		});
 	}
 
-	void Arcade::PlaceNode(RE::TESObjectREFR* a_ref, const RE::NiPoint3& a_pos, const RE::NiMatrix3& a_rot, float a_scale, bool a_hidden)
+	void Arcade::PlaceNode(RE::TESObjectREFR* a_ref, const RE::NiPoint3& a_pos, const RE::NiMatrix3& a_rot, float a_scale, bool a_hidden, bool a_moveHidden)
 	{
 		auto* root = a_ref ? a_ref->Get3D() : nullptr;
 		if (!root) {
@@ -628,7 +630,7 @@ namespace ag
 		if (root->GetAppCulled() != a_hidden) {
 			root->SetAppCulled(a_hidden);
 		}
-		if (a_hidden) {
+		if (a_hidden && !a_moveHidden) {
 			return;
 		}
 		RE::NiTransform local;
@@ -1284,29 +1286,31 @@ namespace ag
 			for (const auto& snd : a_s.game->TakeSounds()) {
 				Sounds::Play(a_s.gameId, snd.cue, machine.get(), snd.gain);
 			}
-			PlacePieces(f, *a_s.game, a_s.gameId, machine.get(), a_s.pieces, a_s.pieceModel, a_s.frozen);
+			// the game's own ball waiting to be thrown: Hoop Shot's (its last piece, by your eye) never shown; Atomic
+			// Rollers' on the lane's start till they take it up for a throw. Thrown balls leave from her hands and show at once.
+			// (kept hidden as it's placed: shown and hidden again each frame, the renderer caught it shown now and then,
+			// and the ball on the lane flickered while she held hers)
+			std::vector<bool> waiting;
 			if (a_s.thrower) {
-				// the game's own ball waiting to be thrown: Hoop Shot's (its last piece, by your eye) never shown; Atomic
-				// Rollers' on the lane's start till they take it up for a throw. Thrown balls leave from her hands and show at once
 				const sim::Vec3 held = sim::layout::Rollers().release;
 				std::vector<sim::Piece> pieces;
 				a_s.game->Pieces(pieces);
-				for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
-					const bool waiting = a_s.gameId == sim::GameId::kHoopShot ? i + 1 == pieces.size() :
-					                                                            a_s.holding && (pieces[i].pos - held).Length() < 12.0;
-					if (waiting) {
-						if (auto ref = a_s.pieces[i].get(); ref && ref->Get3D()) {
-							ref->Get3D()->SetAppCulled(true);
-						}
-					}
+				waiting.resize(pieces.size());
+				for (std::size_t i = 0; i < pieces.size(); ++i) {
+					waiting[i] = a_s.gameId == sim::GameId::kHoopShot ? i + 1 == pieces.size() :
+					                                                    a_s.holding && (pieces[i].pos - held).Length() < 12.0;
 				}
+			}
+			PlacePieces(f, *a_s.game, a_s.gameId, machine.get(), a_s.pieces, a_s.pieceModel, a_s.frozen, &waiting);
+			if (a_s.thrower) {
 				// ...theirs in their hand(s) while the throw's on: Hoop Shot's out in front of the right palm (on the ball's back),
 				// Atomic Rollers' cupped in the right palm (out from the palm by its radius, not through the hand)
 				if (auto ball = a_s.handBall.get()) {
 					auto* root = actor->Get3D();
 					RE::NiPoint3 at;
 					bool         show = false;
-					if (a_s.holding) {
+					bool         placed = false;  // (where it'd be in her hand, shown or not)
+					{
 						auto* h = root ? root->GetObjectByName("RArm_Hand") : nullptr;
 						auto* mid = root ? root->GetObjectByName("RArm_Finger31") : nullptr;
 						auto* index = root ? root->GetObjectByName("RArm_Finger21") : nullptr;
@@ -1339,8 +1343,9 @@ namespace ag
 									const RE::NiPoint3 forward{ std::sin(heading), std::cos(heading), 0.0f };
 									// (once shown, kept till it's let go: the palm's turn hovers about the line through the set
 									// point, and the ball blinked in and out there)
-									if (a_s.ballShown || n.x * forward.x + n.y * forward.y > 0.45f) {
-										at = wrist + along * 0.75f + n * (radius + 4.0f);  // (clear of the hand: on its palm, not round its fingers)
+									at = wrist + along * 0.75f + n * (radius + 4.0f);  // (clear of the hand: on its palm, not round its fingers)
+									placed = true;
+									if (a_s.holding && (a_s.ballShown || n.x * forward.x + n.y * forward.y > 0.45f)) {
 										show = true;
 										a_s.ballShown = true;
 									}
@@ -1350,14 +1355,17 @@ namespace ag
 									const RE::NiPoint3 knuckle = mid->world.translate;
 									const RE::NiPoint3 into = tip ? (tip->world.translate - knuckle) * 0.3f : RE::NiPoint3{};
 									at = knuckle + into + n * (radius + 2.0f);
-									show = true;
+									placed = true;
+									show = a_s.holding;
 								}
 							}
 						}
 					}
-					if (show) {
+					// kept in her hand while hidden too: taken up, it shows where it is already (it was left where it was
+					// last let go, and shown in her hand it flickered a moment: the renderer's motion across from there)
+					if (placed) {
 						Freeze(ball.get(), a_s.frozen);
-						PlaceNode(ball.get(), at, f.rot, f.scale, false);
+						PlaceNode(ball.get(), at, f.rot, f.scale, !show, true);
 					} else if (auto* b3 = ball->Get3D()) {
 						b3->SetAppCulled(true);
 					}
