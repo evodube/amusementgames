@@ -31,8 +31,9 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   seconds after the second is ready they race. No racing on your own: put your token in and you wait for a settler
   to be ready (10 seconds after, you're off), racing only the settlers who came; the HUD shows who's racing and their
   rockets, and at the end whether you won or lost (and who won). Activate it again while waiting to leave, token back.
-- **Takings**: each machine earns its settlement 1 cap a day for every settler there, put in the workshop when you're
-  back (up to 30 days' worth). The rate is the global `AmusementGamesIncomePerSettler` (`set AmusementGamesIncomePerSettler to 2`).
+- **Takings**: each machine earns its settlement 1 cap and 2 Nuka-Cade tickets a day for every settler there, put in
+  the workbench when you're back (up to 30 days' worth). Both rates are on the Income page of the mod's settings
+  (F4SE Menu Framework), or `[Income] fCapsPerSettler` / `fTicketsPerSettler` in `AmusementGames_user.ini`.
 - **Token Stand**: press F to buy 5 Nuka-Cade tokens (5 caps a token, 25 a press). Each game takes a token.
 - **Prize Counter**: a terminal (no power needed) that trades Nuka-Cade tickets for Nuka-World's own things. A prize
   you haven't the tickets for says "(not enough)".

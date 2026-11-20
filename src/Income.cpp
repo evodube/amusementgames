@@ -2,6 +2,7 @@
 
 #include "Forms.h"
 #include "Papyrus.h"
+#include "Settings.h"
 
 namespace ag::Income
 {
@@ -58,18 +59,24 @@ namespace ag::Income
 		auto* kw = Forms::WorkshopItemKeyword();
 		auto* workshop = kw ? a_machine->GetLinkedRef(kw) : nullptr;
 		const auto* pop = Population();
-		auto* rate = Forms::Own(Forms::kIncomePerSettler);
-		if (!workshop || !pop || !rate || !rate->As<RE::TESGlobal>()) {
+		if (!workshop || !pop) {
 			return;
 		}
 		const float settlers = workshop->GetActorValue(*pop);
-		const float each = rate->As<RE::TESGlobal>()->GetValue();
-		const int   caps = static_cast<int>(std::lround(settlers * each * std::min(days, kMostDays)));
-		if (caps <= 0) {
-			return;
+		const float span = settlers * std::min(days, kMostDays);
+		const auto& set = Settings::Get();
+		const int   caps = static_cast<int>(std::lround(span * set.incomeCaps));
+		const int   tickets = static_cast<int>(std::lround(span * set.incomeTickets));
+		if (caps > 0) {
+			Papyrus::Call("AddTo", { Papyrus::Id(workshop), static_cast<std::int32_t>(Forms::kCaps), caps });
 		}
-		Papyrus::Call("AddTo", { Papyrus::Id(workshop), static_cast<std::int32_t>(Forms::kCaps), caps });
-		log::info("income: {:08X} earned {} caps over {} day(s) ({} settlers)", id, caps, days, settlers);
+		auto* ticket = Forms::Ticket();
+		if (ticket && tickets > 0) {
+			Papyrus::Call("AddTo", { Papyrus::Id(workshop), static_cast<std::int32_t>(ticket->GetFormID()), tickets });
+		}
+		if (caps > 0 || tickets > 0) {
+			log::info("income: {:08X} earned {} caps, {} tickets over {} day(s) ({} settlers)", id, caps, tickets, days, settlers);
+		}
 	}
 
 	void Save(const F4SE::SerializationInterface* a_intfc)

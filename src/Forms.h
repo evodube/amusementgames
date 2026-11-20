@@ -27,7 +27,7 @@ namespace ag::Forms
 		kGalleryStar = 0x829,
 		kZapperTarget = 0x82A,
 		kCommieWhackerProp = 0x82B,  // the Nuka-Cade's mallet, resting on Whac-a-Commie
-		kIncomePerSettler = 0x80C    // GLOB: caps a machine earns its settlement a day, a settler
+		kIncomePerSettler = 0x80C    // GLOB: (unused since 0.9.7: the rates are in Settings, the Income page)
 	};
 
 	inline constexpr RE::TESFormID kFurnitureTables = 0x00118F59;  // WorkshopRecipeFilterFurniture02Tables

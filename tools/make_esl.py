@@ -35,7 +35,7 @@ Form IDs (src/Forms.h expects these):
                                                MinRecruit00AimWeapon), no interruptions; xx00082D KYWD
                                                AmusementGamesLinkTarget, what they aim at); scripts AmusementGamesQuest,
                                                AmusementGamesGroupAlias
-    xx00080C  GLOB AmusementGamesIncomePerSettler  caps each machine earns its settlement a day for each settler (1)
+    xx00080C  GLOB AmusementGamesIncomePerSettler  unused since 0.9.7 (was the caps rate; the plugin's settings have it now)
 
     xx000810  ACTI AmusementGamesAtomicRollers  the five machines: Nuka-World's own models (DLCNukaWorld's
     xx000811  ACTI AmusementGamesHoopShot       DLC04_Nukacade_* activators', bounds and workshop previews), no script:
