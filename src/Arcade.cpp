@@ -873,12 +873,12 @@ namespace ag
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
 		constexpr double    kSteadyBeforeShot = 2.5;           // the rifle drawn this long before a shot
-		constexpr float     kWhacMalletReach = 14.0f;          // a settler's mallet head this near a head's middle: a hit
+		constexpr float     kWhacMalletReach = 30.0f;          // a settler's mallet head this near an up head's middle: a hit
+		                                                       // (they swing straight ahead, still: the holes are 48 across)
 		constexpr float     kWhacHeadMiddle = 8.0f;            // ...its middle above where it's placed
 		constexpr double    kWhacSwingLong = 1.6;              // ...a swing followed this long (the Papyrus call's wait, the
 		                                                       // turn and the swing's wind-up before it comes down)
 		constexpr double    kWhacSwingDown = 0.6;              // ...by then it's come down
-		constexpr float     kWhacSpotMost = 80.0f;             // ...their spot moved toward the heads no further than this
 		constexpr double    kZapperAimUnder = 59.0;            // a zapper racer's aim point, under their target's centre...
 		constexpr double    kZapperAimRight = -12.0;           // ...and to its right (their stream went in above and right)
 	}
@@ -1198,21 +1198,8 @@ namespace ag
 				// beside) the head they were after, flat on the ground, so the next swings land (no further than 80 from
 				// where the machine puts them). Not off a swing cut short before it could come down
 				const auto missed = [&]() {
-					if (a_s.swingBest < 1e8f && a_s.swingT >= kWhacSwingDown) {
-						if (auto spot = a_s.marker.get()) {
-							const RE::NiPoint3 home = ToWorld(f, sim::layout::SettlerStand(a_s.gameId));
-							RE::NiPoint3       off{ spot->data.location.x + a_s.swingMiss.x * 0.7f - home.x,
-                                spot->data.location.y + a_s.swingMiss.y * 0.7f - home.y, 0.0f };
-							if (const float len = off.Length(); len > kWhacSpotMost) {
-								off = off * (kWhacSpotMost / len);
-							}
-							spot->data.location.x = home.x + off.x;
-							spot->data.location.y = home.y + off.y;
-						}
-						if (a_s.misses++ < 6) {
-							log::info("WHAC-A-COMMIE: {}'s swing missed, its mallet {:.0f} from the head ({:+.0f} {:+.0f} {:+.0f}): their spot moved toward it",
-								a_s.name, a_s.swingBest, a_s.swingMiss.x, a_s.swingMiss.y, a_s.swingMiss.z);
-						}
+					if (a_s.swingBest < 1e8f && a_s.swingT >= kWhacSwingDown && a_s.misses++ < 6) {
+						log::info("WHAC-A-COMMIE: {}'s swing missed, its mallet {:.0f} from the nearest head up", a_s.name, a_s.swingBest);
 					}
 					a_s.swingT = -1.0;
 				};
@@ -1222,12 +1209,8 @@ namespace ag
 					}
 					auto spot = a_s.marker.get();
 					auto at = a_s.aimAt.get();
-					// turned to the head they're after: what they face, moved onto its hole
-					const auto& holes = sim::layout::Whac().holes;
-					if (const int t = a_s.whacker->Target(); at && t >= 0 && t < static_cast<int>(holes.size())) {
-						const RE::NiPoint3 hole = ToWorld(f, holes[t]);
-						at->data.location = RE::NiPoint3A{ hole.x, hole.y, hole.z };
-					}
+					// (they face the middle of the holes, still, the whole game: turned to each head, and their spot moved
+					// after misses, they shuffled about all game)
 					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()), Papyrus::Id(at.get()), Papyrus::Id(a_s.weapon) });
 					a_s.swingT = 0.0;
 					a_s.swingBest = 1e9f;
@@ -1254,12 +1237,11 @@ namespace ag
 							}
 							const RE::NiPoint3 top = h3->world.translate + RE::NiPoint3{ 0.0f, 0.0f, kWhacHeadMiddle };
 							const float        d = (head - top).Length();
-							// (the head they were after, up or not: where the mallet came nearest it)
-							if (static_cast<int>(i) == a_s.swingTarget && d < a_s.swingBest) {
-								a_s.swingBest = d;
-								a_s.swingMiss = top - head;
+							if (pieces[i].hidden) {
+								continue;
 							}
-							if (!pieces[i].hidden && d < kWhacMalletReach) {
+							a_s.swingBest = std::min(a_s.swingBest, d);
+							if (d < kWhacMalletReach) {
 								a_s.game->OnPieceHit(static_cast<int>(i));
 								if (++a_s.hits == 1) {
 									log::info("WHAC-A-COMMIE: {}'s mallet is landing on the heads", a_s.name);
