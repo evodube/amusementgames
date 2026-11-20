@@ -19,7 +19,7 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   called over and the game starts once they've the rifle up (activate it again while waiting to leave, token back).
   You both shoot at the same targets, any of them: whoever hits one first has its points. You're the left shooter if
   you're left of the counter's middle when you hold it, the right if right (near the middle, either); the settler
-  takes the other side. Both scores on the machine's board (the left's on top) and on screen; the winner gets 10 more.
+  takes the other side. Both scores on the machine's boards (the left shooter's on the left one, the right's on the right) and on screen; the winner gets 10 more.
 - **Settings** in F4SE Menu Framework (Amusement Games > Settlers): settlers playing (on/off, how often, how often two
   play each other at Bandit Roundup); kept in
   `Data\F4SE\Plugins\AmusementGames_user.ini`.
