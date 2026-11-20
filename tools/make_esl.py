@@ -112,6 +112,7 @@ PRIZES = [
         ("Paddle Ball", 0x00A6C0, 1, 500),
         ("Paddle Balls x10", 0x00A6C2, 10, 500),          # DLC04_Ammo_PaddleBall
         ("Acid Soaker", 0x007BC6, 1, 6250),
+        ("Acid Concentrate x20", 0x030076, 20, 2000),    # DLC04_Ammo_AcidSoaker: the Acid Soaker's (a load)
         ("7.62 Rounds x20", 0x037897, 20, 2000),           # DLC04_Ammo_HandmadeRound
     ]),
     ("Souvenirs", [
