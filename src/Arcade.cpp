@@ -1376,6 +1376,7 @@ namespace ag
 					a_s.holding = true;
 					a_s.handShown = false;
 					a_s.throwFrames = 0;
+					a_s.pickupLog = a_s.pickups++ < 3 ? 0 : -1;
 					*a_s.throwOn = false;
 					auto throwOn = a_s.throwOn;
 					static std::atomic<int> told{ -1 };  // (how the throws go: logged once each way)
@@ -1483,6 +1484,7 @@ namespace ag
 					}
 					// kept in her hand while hidden too: taken up, it shows where it is already (it was left where it was
 					// last let go, and shown in her hand it flickered a moment: the renderer's motion across from there)
+					const RE::NiPoint3 rawAt = at, prevAt = a_s.lastAt;
 					// (a frame's jump of the hand - the actor turned or moved under it - ignored: the ball kept where it was)
 					if (placed && a_s.lastAtOk && (at - a_s.lastAt).Length() > kHandJump && a_s.jumps < 2) {
 						++a_s.jumps;
@@ -1500,6 +1502,28 @@ namespace ag
 						PlaceNode(ball.get(), at, f.rot, f.scale, !show, true);
 					} else if (auto* b3 = ball->Get3D()) {
 						b3->SetAppCulled(true);
+					}
+					// (a pickup frame by frame, the first three a game: what's shown, the hand, her own moves)
+					if (a_s.pickupLog >= 0 && a_s.pickupLog < 40) {
+						bool laneShown = false;
+						for (std::size_t i = 0; i < waiting.size() && i < a_s.pieces.size(); ++i) {
+							if (auto r = a_s.pieces[i].get(); r && r->Get3D() && !r->Get3D()->GetAppCulled()) {
+								std::vector<sim::Piece> pcs;
+								a_s.game->Pieces(pcs);
+								if (i < pcs.size() && (pcs[i].pos - sim::layout::Rollers().release).Length() < 12.0) {
+									laneShown = true;
+								}
+							}
+						}
+						const RE::NiPoint3 me = actor->data.location;
+						log::info("{} PICKUP {} f{}: on {} hand {} lane ball {} | hand ({:.1f},{:.1f},{:.1f}) moved {:.1f}{} | her moved {:.1f}, turned {:.1f}",
+							sim::GameName(a_s.gameId), a_s.name, a_s.pickupLog, *a_s.throwOn ? 1 : 0, show ? "SHOWN" : "hidden",
+							laneShown ? "SHOWN" : "hidden", rawAt.x, rawAt.y, rawAt.z, (rawAt - prevAt).Length(), at == rawAt ? "" : " (a jump: held)",
+							a_s.pickupLog > 0 ? (me - a_s.lastActorAt).Length() : 0.0f,
+							a_s.pickupLog > 0 ? (actor->data.angle.z - a_s.lastHeading) * 57.2958f : 0.0f);
+						a_s.lastActorAt = me;
+						a_s.lastHeading = actor->data.angle.z;
+						++a_s.pickupLog;
 					}
 				}
 			}
