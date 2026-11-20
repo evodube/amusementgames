@@ -1358,7 +1358,7 @@ namespace ag
 									// (once shown, kept till it's let go: the palm's turn hovers about the line through the set
 									// point, and the ball blinked in and out there)
 									if (a_s.ballShown || n.x * forward.x + n.y * forward.y > 0.45f) {
-										at = wrist + along * 0.75f + n * radius;
+										at = wrist + along * 0.75f + n * (radius + 4.0f);  // (clear of the hand: on its palm, not round its fingers)
 										show = true;
 										a_s.ballShown = true;
 									}
