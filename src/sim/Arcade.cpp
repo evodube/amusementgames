@@ -668,6 +668,7 @@ namespace sim
 				_you = std::clamp(L.playerLane, 0, static_cast<int>(_lanes.size()) - 1);
 				_lanes[_you].name = "YOU";
 				_shots.clear();
+				_shotHits.clear();
 				_winner = -1;
 				_place = 0;
 				_score = 0;
@@ -715,7 +716,9 @@ namespace sim
 						l.next = std::uniform_real_distribution<double>(L.aiShotShortest, L.aiShotLongest)(_rng);
 						_shots.push_back(i);
 						const double chance = L.aiHitWorst + (L.aiHitBest - L.aiHitWorst) * l.skill;
-						if (std::uniform_real_distribution<double>(0.0, 1.0)(_rng) < chance) {
+						const bool   hit = std::uniform_real_distribution<double>(0.0, 1.0)(_rng) < chance;
+						_shotHits.push_back(hit);
+						if (hit) {
 							Hit(i);
 						}
 					}
@@ -778,7 +781,21 @@ namespace sim
 				}
 			}
 
-			std::vector<int> TakeShots() { return std::exchange(_shots, {}); }
+			std::vector<int> TakeShots()
+			{
+				_shotHits.clear();
+				return std::exchange(_shots, {});
+			}
+			std::vector<std::pair<int, bool>> TakeShotsHit()
+			{
+				std::vector<std::pair<int, bool>> out;
+				for (std::size_t i = 0; i < _shots.size(); ++i) {
+					out.emplace_back(_shots[i], i < _shotHits.size() && _shotHits[i]);
+				}
+				_shots.clear();
+				_shotHits.clear();
+				return out;
+			}
 			int              Winner() const { return _winner; }
 
 		private:
@@ -837,6 +854,7 @@ namespace sim
 			double            _countdown{ 3.0 };
 			double            _cool{ 0.0 };
 			std::vector<int>  _shots;
+			std::vector<bool> _shotHits;  // ...each a hit or not
 			int               _winner{ -1 };
 		};
 
@@ -1050,6 +1068,12 @@ namespace sim
 	{
 		auto* z = dynamic_cast<Zapper*>(&a_game);
 		return z ? z->TakeShots() : std::vector<int>{};
+	}
+
+	std::vector<std::pair<int, bool>> TakeZapperShotsHit(Game& a_game)
+	{
+		auto* z = dynamic_cast<Zapper*>(&a_game);
+		return z ? z->TakeShotsHit() : std::vector<std::pair<int, bool>>{};
 	}
 
 	int ZapperWinner(const Game& a_game)

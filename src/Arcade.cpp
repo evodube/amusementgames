@@ -879,7 +879,8 @@ namespace ag
 		                                                       // turn and the swing's wind-up before it comes down)
 		constexpr double    kWhacSwingDown = 0.6;              // ...by then it's come down
 		constexpr float     kWhacSpotMost = 80.0f;             // ...their spot moved toward the heads no further than this
-		constexpr double    kZapperAimUnder = 45.0;            // a zapper racer's aim point, under their target's centre
+		constexpr double    kZapperAimUnder = 59.0;            // a zapper racer's aim point, under their target's centre...
+		constexpr double    kZapperAimRight = -12.0;           // ...and to its right (their stream went in above and right)
 	}
 
 	std::vector<Arcade::Worn> Arcade::WornBy(RE::Actor* a_actor)
@@ -1736,7 +1737,7 @@ namespace ag
 		q.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::Vec3{ ln.gun.x, L.standY, 0.0 }));
 		// what they aim at: their lane's target, put this far under its centre - aimed at the centre itself, their
 		// stream went over it, into the Nuka-Cola bottle above (an NPC aims at a point this much over what it's given)
-		q.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, ln.target - sim::Vec3{ 0.0, 0.0, kZapperAimUnder }));
+		q.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, ln.target + sim::Vec3{ kZapperAimRight, 0.0, -kZapperAimUnder }));
 		auto marker = q.marker.get();
 		if (!marker) {
 			Remove(q.aimAt);
@@ -1981,7 +1982,7 @@ namespace ag
 				}
 			}
 		}
-		for (int lane : sim::TakeZapperShots(a_game)) {
+		for (const auto& [lane, hit] : sim::TakeZapperShotsHit(a_game)) {
 			auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == lane && a_q.state == 2; });
 			if (it == a_r.racers.end() || it->sinceShot < 0.35 || it->steady < kSteadyBeforeShot || !weapon) {
 				continue;  // (a squirt's animation still going: the next one shown)
@@ -1989,6 +1990,22 @@ namespace ag
 			auto  ref = it->actor.get();
 			if (!CanFire(ref ? ref->As<RE::Actor>() : nullptr, it->name)) {
 				continue;
+			}
+			// where this squirt goes, as the race counts it: on the bullseye for a hit, a little off its rim for a miss
+			// (what they aim at moved there; their aim follows it)
+			if (auto aimAt = it->aimAt.get(); aimAt && lane >= 0 && lane < static_cast<int>(sim::layout::Zapper().lanes.size())) {
+				Frame f;
+				auto  machine = a_r.machine.get();
+				if (machine && FrameOf(machine.get(), f)) {
+					sim::Vec3 p = sim::layout::Zapper().lanes[lane].target + sim::Vec3{ kZapperAimRight, 0.0, -kZapperAimUnder };
+					if (!hit) {
+						const double a = std::uniform_real_distribution<double>(0.0, 6.2831853)(_showRng);
+						const double r = std::uniform_real_distribution<double>(14.0, 24.0)(_showRng);
+						p = p + sim::Vec3{ std::cos(a) * r, 0.0, std::sin(a) * r };
+					}
+					const RE::NiPoint3 w = ToWorld(f, p);
+					aimAt->data.location = RE::NiPoint3A{ w.x, w.y, w.z };
+				}
 			}
 			it->sinceShot = 0.0;
 			static std::atomic<int> told{ -1 };  // (how the squirts go: logged once each way)
