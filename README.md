@@ -32,9 +32,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   seconds after the second is ready they race. No racing on your own: put your token in and you wait for a settler
   to be ready (10 seconds after, you're off), racing only the settlers who came; the HUD shows who's racing and their
   rockets, and at the end whether you won or lost (and who won). Activate it again while waiting to leave, token back.
-- **Settlers' skill**: each settler has a talent of their own (rolled the first time they play, theirs for good), plays
-  to their stats (Perception at Bandit Roundup and the zapper race, Agility at Whac-a-Commie, both at Hoop Shot and
-  Atomic Rollers), gets better the more they play a machine (about half the most practice gives after 10 games
+- **Settlers' skill**: each settler has a talent of their own (rolled the first time they play, theirs for good), gets
+  better the more they play a machine (about half the most practice gives after 10 games
   there, nearly all by 30), and has good and bad days; the Settlers page's skill setting shifts everyone (-50 to +50).
   Kept in your save.
 - **Takings**: each machine earns its settlement 1 cap and 2 Nuka-Cade tickets a day for every settler there, put in

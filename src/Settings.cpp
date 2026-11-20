@@ -86,8 +86,8 @@ namespace ag
 				SliderFloat("Bandit Roundup: two settlers playing each other", &s.settlersDuel, 0.0f, 100.0f, "%.0f %% of games");
 				Saved(IsItemDeactivatedAfterEdit());
 				Spacing();
-				TextWrapped("Each settler has a talent of their own, gets better the more they play a machine, and plays to "
-				            "their stats (Perception for aiming, Agility for quick hands). This shifts everyone's skill.");
+				TextWrapped("Each settler has a talent of their own and gets better the more they play a machine. This shifts "
+				            "everyone's skill.");
 				SetNextItemWidth(260.0f);
 				SliderFloat("Settlers' skill", &s.settlersSkill, -50.0f, 50.0f, "%+.0f");
 				Saved(IsItemDeactivatedAfterEdit());

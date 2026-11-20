@@ -1269,8 +1269,8 @@ namespace ag
 			// at it (the gun or mallet up): the game starts, its pieces put up
 			a_s.added = r == 2;
 			const auto seed = static_cast<std::uint32_t>(_showRng());
-			// how good they are: their talent, their stat for it, their practice here, the day's form, the setting
-			const double skill = SettlerSkill::Roll(actor, a_s.actorID, a_s.gameId, _showRng);
+			// how good they are: their talent, their practice here, the day's form, the setting
+			const double skill = SettlerSkill::Roll(a_s.actorID, a_s.gameId, _showRng);
 			a_s.skill = skill;
 			const double spread = 0.03 - 0.024 * skill;  // (a shot's spread at the gallery: 0.006 to 0.03)
 			switch (a_s.gameId) {
@@ -2379,7 +2379,7 @@ namespace ag
 			Remove(q.aimAt);
 			return false;
 		}
-		q.skill = SettlerSkill::Roll(who, q.actorID, sim::GameId::kNukaZapperRace, _showRng);  // (as at the other games)
+		q.skill = SettlerSkill::Roll(q.actorID, sim::GameId::kNukaZapperRace, _showRng);  // (as at the other games)
 		q.ready = std::make_shared<std::atomic<std::int32_t>>(-1);
 		auto ready = q.ready;
 		Papyrus::Call("NpcStartGallery", { static_cast<std::int32_t>(q.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()) },
