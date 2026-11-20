@@ -217,8 +217,8 @@ namespace ag
 		void TopUpAmmo();
 		Lent _lent;
 
-		// Whac-a-Commie: your swing quicker the more Agility you have (WeaponSpeedMult raised while you play; the
-		// amount kept, to take off again, in the cosave too in case you save mid-game)
+		// Whac-a-Commie's Agility swing, gone (0.9.6): nothing's quickened now. What an older version raised
+		// WeaponSpeedMult by (kept in the cosave, a save made mid-game) is taken off still
 		void  Quicken(bool a_on);
 		float _swingBoost{ 0.0f };
 		float _swingFromSave{ 0.0f };
@@ -272,6 +272,9 @@ namespace ag
 			bool                                   lastAtOk{ false };
 			int                                    jumps{ 0 };
 			int                                    pickups{ 0 };    // (logged frame by frame: the first few)
+			int                                    shotsLogged{ 0 };  // Bandit Roundup: the first shots' magazine logged
+			double                                 magCheckIn{ -1.0 };
+			std::uint32_t                          magBefore{ 0 };
 			int                                    pickupLog{ -1 }; // frames of this one logged so far (-1: none)
 			RE::NiPoint3                           lastActorAt{};
 			float                                  lastHeading{ 0.0f };
@@ -301,6 +304,9 @@ namespace ag
 			double                                 swingT{ -1.0 };  // ...the swing coming down this long (-1: none)
 			float                                  swingBest{ 1e9f };  // ...its mallet the nearest it's been to the head they're after
 			int                                    swingTarget{ -1 };
+			float                                  swingLowZ{ 1e9f };  // ...the mallet head's lowest yet, and there
+			RE::NiPoint3                           swingLowAt{};
+			int                                    swingsLogged{ 0 };
 			RE::NiPoint3                           swingMiss;          // ...from the mallet then to that head  // ...the throw's animation on, the ball in their hand(s)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;

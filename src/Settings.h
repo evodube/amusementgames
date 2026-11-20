@@ -12,11 +12,6 @@ namespace ag
 			return s;
 		}
 
-		// Whac-a-Commie: your swing quicker with Agility
-		bool  swingOn{ true };
-		float swingPerAgility{ 3.0f };  // % quicker a point of Agility past 1...
-		float swingMost{ 2.0f };        // ...up to this many times as quick
-
 		// settlers playing (Bandit Roundup)
 		bool  settlersOn{ true };
 		float settlersGapShortest{ 45.0f };  // seconds between their games...

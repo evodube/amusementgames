@@ -29,6 +29,8 @@ namespace ag::Scoreboards
 			RE::NiTransform     placed;  // the machine where it stood when the board went up (moved: put up again)
 			Row                 score;
 			Row                 high;
+			float               scoreX{ 0.0f };  // each row's middle across the machine (its own space: left is less)
+			float               highX{ 0.0f };
 			double              refresh{ 0.0 };
 			struct Prop
 			{
@@ -217,7 +219,10 @@ namespace ag::Scoreboards
 			if (!root || !form) {
 				return false;
 			}
-			int placed = 0;
+			int   placed = 0;
+			float sx = 0.0f, hx = 0.0f;
+			int   sn = 0, hn = 0;
+			const auto& w = root->world;
 			for (int i = 0; i < kDigits; ++i) {
 				for (auto [row, prefix] : { std::pair{ &a_b.score, "Score" }, std::pair{ &a_b.high, "HighScore" } }) {
 					auto* node = root->GetObjectByName(RE::BSFixedString(std::format("{}{:02}", prefix, i + 1)));
@@ -227,10 +232,17 @@ namespace ag::Scoreboards
 					row->refs[i] = Place(a_machine, form, node->world.translate);
 					row->shown[i] = -2;
 					++placed;
+					// (where it is across the machine, as the game's spots are: its own space, left less)
+					const float x = (w.rotate * (node->world.translate - w.translate)).x;
+					(row == &a_b.score ? sx : hx) += x;
+					++(row == &a_b.score ? sn : hn);
 				}
 			}
+			a_b.scoreX = sn ? sx / static_cast<float>(sn) : 0.0f;
+			a_b.highX = hn ? hx / static_cast<float>(hn) : 0.0f;
 			PutUpProps(a_b, a_machine);
-			log::info("{} {:08X}: its scoreboard up ({} digits)", sim::GameName(a_b.game), a_machine->GetFormID(), placed);
+			log::info("{} {:08X}: its scoreboard up ({} digits; the score row {:.0f} across, the best's {:.0f})", sim::GameName(a_b.game),
+				a_machine->GetFormID(), placed, a_b.scoreX, a_b.highX);
 			return placed > 0;
 		}
 
@@ -493,10 +505,12 @@ namespace ag::Scoreboards
 				b.score.shown.fill(-2);
 				b.high.shown.fill(-2);
 			}
-			// (a Bandit Roundup 1v1: the left shooter's score on top, the right's below)
+			// (a Bandit Roundup 1v1: the left shooter's score on the board on the left, the right's on the right - by
+			// where the boards are on the machine, not which is which)
 			if (int left = 0, right = 0; arcade.DuelScoresOn(b.id, left, right)) {
-				Show(b.score, left);
-				Show(b.high, right);
+				const bool scoreLeft = b.scoreX <= b.highX;
+				Show(b.score, scoreLeft ? left : right);
+				Show(b.high, scoreLeft ? right : left);
 			} else {
 				Show(b.score, arcade.ScoreOn(b.id));
 				Show(b.high, arcade.Best(b.game));

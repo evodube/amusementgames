@@ -769,34 +769,14 @@ namespace ag
 		auto*       player = RE::PlayerCharacter::GetSingleton();
 		const auto* speed = AV("WeaponSpeedMult");
 		if (!player || !speed) {
-			if (a_on && !speed) {
-				log::warn("Whac-a-Commie: no WeaponSpeedMult actor value found: your swing can't be quickened");
-			}
 			return;
 		}
-		if (!a_on) {
-			if (_swingBoost != 0.0f) {
-				player->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kTemporary, *speed, -_swingBoost);
-				_swingBoost = 0.0f;
-			}
-			return;
+		// (the Agility swing's gone: nothing's quickened now. A quickening still on - an older version's, mid-game - is
+		// taken off as a game ends)
+		if (!a_on && _swingBoost != 0.0f) {
+			player->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kTemporary, *speed, -_swingBoost);
+			_swingBoost = 0.0f;
 		}
-		const auto& set = Settings::Get();
-		if (!set.swingOn) {
-			return;
-		}
-		const auto* agility = AV("Agility");
-		const float agi = agility ? player->GetActorValue(*agility) : 1.0f;
-		const float mult = std::clamp(1.0f + set.swingPerAgility / 100.0f * (agi - 1.0f), 1.0f, set.swingMost);
-		// (0: the game's default, as quick as normal)
-		const float now = player->GetActorValue(*speed);
-		const float base = now > 0.0f ? now : 1.0f;
-		_swingBoost = base * mult - now;
-		if (_swingBoost != 0.0f) {
-			player->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kTemporary, *speed, _swingBoost);
-		}
-		log::info("Whac-a-Commie: Agility {}: your swing x{:.2f} (WeaponSpeedMult {:.2f} -> {:.2f})", agi, mult, now,
-			player->GetActorValue(*speed));
 	}
 
 	// unlimited ammo while you play: the weapon's magazine is put back to full after every shot, so it's never
@@ -956,6 +936,8 @@ namespace ag
 		constexpr double    kWhacSwingLong = 1.6;              // ...a swing followed this long (the Papyrus call's wait, the
 		                                                       // turn and the swing's wind-up before it comes down)
 		constexpr double    kWhacSwingDown = 0.6;              // ...by then it's come down
+		constexpr float     kWhacBottomReach = 45.0f;          // ...where it bottoms out, a head out this near: a hit
+		constexpr double    kWhacSettlerUp = 1.6;              // a settler's game's heads up this much longer
 		constexpr double    kZapperAimUnder = 59.0;            // a zapper racer's aim point, under their target's centre...
 		constexpr double    kZapperAimRight = -12.0;           // ...and to its right (their stream went in above and right)
 	}
@@ -1261,6 +1243,9 @@ namespace ag
 			}
 			a_s.game = sim::MakeGame(a_s.gameId);
 			a_s.game->Start(seed);
+			if (a_s.gameId == sim::GameId::kWhacACommie) {
+				sim::SetWhacUpScale(*a_s.game, kWhacSettlerUp);  // (their swing's a second coming: heads up longer)
+			}
 			BeginGame(a_s, machine.get(), f);
 			log::info("{}: {} ({:08X}) playing (skill {:.2f})", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, skill);
 			return;
@@ -1322,6 +1307,7 @@ namespace ag
 					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()), Papyrus::Id(at.get()), Papyrus::Id(a_s.weapon) });
 					a_s.swingT = 0.0;
 					a_s.swingBest = 1e9f;
+					a_s.swingLowZ = 1e9f;
 					a_s.swingTarget = a_s.whacker->Target();
 				}
 				// the swing's mallet coming down: a head it gets to is hit (a settler's melee hits on the heads never come
@@ -1358,6 +1344,43 @@ namespace ag
 								break;
 							}
 						}
+						// the bottom of the swing (the mallet head's come down and is going back up): a head still out
+						// of its hole near where it came down is hit - their mallet seen landing on it (its head's place
+						// in their hand is only reckoned, and they swing at the middle, still)
+						if (a_s.swingT >= 0.0) {
+							if (head.z < a_s.swingLowZ) {
+								a_s.swingLowZ = head.z;
+								a_s.swingLowAt = head;
+							} else if (a_s.swingT > 0.3 && head.z > a_s.swingLowZ + 3.0f) {
+								int   best = -1;
+								float bestD = 1e9f;
+								for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
+									auto  ref = a_s.pieces[i].get();
+									auto* h3 = ref ? ref->Get3D() : nullptr;
+									if (!h3 || pieces[i].hidden || sim::WhacHeight(*a_s.game, static_cast<int>(i)) <= 0.25) {
+										continue;
+									}
+									const float d = (a_s.swingLowAt - (h3->world.translate + RE::NiPoint3{ 0.0f, 0.0f, kWhacHeadMiddle })).Length();
+									if (d < bestD) {
+										bestD = d;
+										best = static_cast<int>(i);
+									}
+								}
+								const bool hit = best >= 0 && bestD < kWhacBottomReach;
+								if (a_s.swingsLogged++ < 15) {
+									log::info("WHAC-A-COMMIE: {}'s swing came down {:.0f} from the nearest head out{}", a_s.name, bestD,
+										hit ? ": a hit" : best < 0 ? " (none out)" : ": a miss");
+								}
+								if (hit) {
+									a_s.game->OnPieceHit(best);
+									++a_s.hits;
+									a_s.swingT = -1.0;
+								} else {
+									a_s.swingBest = std::min(a_s.swingBest, bestD);
+									missed();
+								}
+							}
+						}
 					}
 					if (a_s.swingT > kWhacSwingLong) {
 						missed();
@@ -1377,6 +1400,12 @@ namespace ag
 					a_s.handShown = false;
 					a_s.throwFrames = 0;
 					a_s.pickupLog = a_s.pickups++ < 3 ? 0 : -1;
+					if (a_s.pickups <= 3) {
+						const sim::Vec3 at = ToLocal(f, actor->data.location);
+						const sim::Vec3 spot = sim::layout::SettlerStand(a_s.gameId);
+						log::info("{}: {} stands at ({:.1f}, {:.1f}) on the machine, her spot ({:.1f}, {:.1f}): {:.1f} off", sim::GameName(a_s.gameId),
+							a_s.name, at.x, at.y, spot.x, spot.y, std::hypot(at.x - spot.x, at.y - spot.y));
+					}
 					*a_s.throwOn = false;
 					auto throwOn = a_s.throwOn;
 					static std::atomic<int> told{ -1 };  // (how the throws go: logged once each way)
@@ -1633,7 +1662,22 @@ namespace ag
 				log::info("BANDIT ROUNDUP: {}'s magazine filled ({} of {})", a_s.name, now, full);
 			}
 		}
+		// (the first ten shots: the magazine just before and half a second after - back up, a reload; one down, the
+		// action worked after the shot)
+		if (a_s.magCheckIn >= 0.0) {
+			a_s.magCheckIn -= a_dt;
+			if (a_s.magCheckIn < 0.0) {
+				const auto now = actor->GetCurrentAmmoCount(RE::BGSEquipIndex{ 0 });
+				log::info("BANDIT ROUNDUP: {}'s shot {}: magazine {} before, {} after{}", a_s.name, a_s.shotsLogged, a_s.magBefore, now,
+					now > a_s.magBefore ? " (reloaded)" : now == a_s.magBefore ? " (no round used: the shot never fired)" : "");
+			}
+		}
 		if (in.pressed && a_s.weapon && CanFire(actor, a_s.name)) {
+			if (a_s.shotsLogged < 10 && a_s.magCheckIn < 0.0) {
+				++a_s.shotsLogged;
+				a_s.magBefore = actor->GetCurrentAmmoCount(RE::BGSEquipIndex{ 0 });
+				a_s.magCheckIn = 0.5;
+			}
 			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
 			const std::string       name = a_s.name;
 			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(a_s.weapon), Papyrus::Id(a_s.weapon->weaponData.ammo) },
