@@ -223,9 +223,18 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	EndIf
 	Int r = 1
 	If a.GetItemCount(w) == 0
-		; the same gun you're handed at the machine (added as you get it, the rifles with their iron sights; PlaceAtMe
-		; built one of the gun's other variants). (Weapon.Fire on it crashed the game; nothing calls that now)
-		a.AddItem(w, 1, True)
+		; the rifles as you're handed them (added, with their iron sights). The Thirst Zapper built whole (PlaceAtMe):
+		; added as a bare record, a settler's has no ammo of its own and never squirts (yours is filled when you take it up)
+		If w == Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm")
+			ObjectReference g = a.PlaceAtMe(w, 1, False, True)
+			If g
+				a.AddItem(g, 1, True)
+			Else
+				a.AddItem(w, 1, True)
+			EndIf
+		Else
+			a.AddItem(w, 1, True)
+		EndIf
 		ObjectMod sights = None
 		If w == Game.GetFormFromFile(0x02C8B0, "DLCCoast.esm")
 			sights = Game.GetFormFromFile(0x042E6F, "DLCCoast.esm") as ObjectMod   ; (DLC03_mod_LeverGun_Scope_SightsIron)
