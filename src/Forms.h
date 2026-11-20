@@ -12,7 +12,7 @@ namespace ag::Forms
 	inline constexpr std::uint32_t kFirstMachineID = 0x810;  // ACTI the five machines, in sim::GameId order (0x810-0x814)
 	inline constexpr std::uint32_t kFirstPieceID = 0x820;    // STAT the pieces (0x820-0x82A)
 	inline constexpr std::uint32_t kPrizeCounterID = 0x838;  // TERM AmusementGamesPrizeCounter: tickets for prizes
-	inline constexpr std::uint32_t kTicketsHeldID = 0x83E;    // GLOB AmusementGamesTicketsHeld: your tickets (its screen)
+	inline constexpr std::uint32_t kTicketsCarriedID = 0x845;  // GLOB AmusementGamesTicketsCarried: the tickets on you
 	inline constexpr std::uint32_t kFirstBestID = 0x840;      // GLOB AmusementGamesBest*: your bests, sim::GameId order
 
 	// the pieces, by their ids in the .esl

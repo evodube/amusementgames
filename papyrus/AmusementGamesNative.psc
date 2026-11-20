@@ -125,27 +125,47 @@ Function AddTo(Int aiRef, Int aiItem, Int aiCount) Global
 	EndIf
 EndFunction
 
-; the Prize Counter's buy (its fragments, AmusementGamesPrizeCounterFragments): a Nuka-World item (its id in
-; DLCNukaWorld.esm), how many, for how many Nuka-Cade tickets. The terminal only offers it when you've the tickets;
-; checked again here (a double press)
-Function BuyPrize(Int aiItem, Int aiCount, Int aiTickets) Global
+; the Prize Counter's (AmusementGamesPrizeCounterFragments), as the Nuka-Cade's prize terminal: tickets are redeemed
+; into it (one account, every counter: AmusementGamesTicketsCurrent) and prizes bought from what's redeemed
+
+; Redeem Tickets: all the Nuka-Cade tickets you carry, into the counter
+Function RedeemTickets() Global
 	Actor player = Game.GetPlayer()
 	Form ticket = Game.GetFormFromFile(0x019988, "DLCNukaWorld.esm")   ; (DLC04_Nukacade_Ticket01)
-	Form item = Game.GetFormFromFile(aiItem, "DLCNukaWorld.esm")
-	If !ticket || !item || player.GetItemCount(ticket) < aiTickets
+	GlobalVariable current = CounterGlobal(0x83E)
+	GlobalVariable redeemed = CounterGlobal(0x83F)
+	GlobalVariable carried = CounterGlobal(0x845)
+	Int n = 0
+	If ticket
+		n = player.GetItemCount(ticket)
+	EndIf
+	If n < 1 || !current
 		Return
 	EndIf
-	player.RemoveItem(ticket, aiTickets, True)
-	player.AddItem(item, aiCount)
-	; (the counter's screen: your tickets now, and redeemed all told)
-	GlobalVariable held = Game.GetFormFromFile(0x83E, "AmusementGames.esl") as GlobalVariable
-	GlobalVariable redeemed = Game.GetFormFromFile(0x83F, "AmusementGames.esl") as GlobalVariable
-	If held
-		held.SetValue(player.GetItemCount(ticket))
-	EndIf
+	player.RemoveItem(ticket, n, True)
+	current.Mod(n)
 	If redeemed
-		redeemed.Mod(aiTickets)
+		redeemed.Mod(n)
 	EndIf
+	If carried
+		carried.SetValue(0)
+	EndIf
+EndFunction
+
+; a prize bought: a Nuka-World item (its id in DLCNukaWorld.esm), how many, for how many tickets redeemed. The
+; counter only offers it when you've redeemed enough; checked again here (a double press)
+Function BuyPrize(Int aiItem, Int aiCount, Int aiTickets) Global
+	GlobalVariable current = CounterGlobal(0x83E)
+	Form item = Game.GetFormFromFile(aiItem, "DLCNukaWorld.esm")
+	If !current || !item || current.GetValueInt() < aiTickets
+		Return
+	EndIf
+	current.Mod(-aiTickets)
+	Game.GetPlayer().AddItem(item, aiCount)
+EndFunction
+
+GlobalVariable Function CounterGlobal(Int aiID) Global
+	Return Game.GetFormFromFile(aiID, "AmusementGames.esl") as GlobalVariable
 EndFunction
 
 ; ---------------------------------------------------------------- settlers at the games

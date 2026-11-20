@@ -161,4 +161,12 @@ AmusementGamesNative.BuyPrize(0x0268A1, 1, 150)  ; Souvenir Magnet Cow
 EndFunction
 ;END FRAGMENT
 
+;BEGIN FRAGMENT Fragment_Terminal_Redeem
+Function Fragment_Terminal_Redeem(ObjectReference akTerminalRef)
+;BEGIN CODE
+AmusementGamesNative.RedeemTickets()  ; Redeem Tickets: Yes
+;END CODE
+EndFunction
+;END FRAGMENT
+
 ;END FRAGMENT CODE - Do not edit anything between this and the begin comment

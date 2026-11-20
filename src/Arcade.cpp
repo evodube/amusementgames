@@ -852,7 +852,7 @@ namespace ag
 				static_cast<RE::TESGlobal*>(f)->value = static_cast<float>(a_value);
 			}
 		};
-		set(Forms::kTicketsHeldID, Count(Forms::Ticket()));
+		set(Forms::kTicketsCarriedID, Count(Forms::Ticket()));
 		for (int i = 0; i < static_cast<int>(_best.size()); ++i) {
 			set(Forms::kFirstBestID + static_cast<std::uint32_t>(i), _best[i]);
 		}
