@@ -147,7 +147,7 @@ Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
 	AmusementGamesQuest q = TheQuest()
 	Keyword k = LinkSpot()
-	If !a || !w || !m || !q || !k
+	If !a || !m || !q || !k  ; (no weapon: a game played with the hands)
 		Return 10
 	ElseIf a.IsDead()
 		Return 11
@@ -223,7 +223,7 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 			akId = ak.GetFormID()
 		EndIf
 		; (the spot held, aiming at the targets, no other idles or chatter)
-		q.Hold(aiActor, aiMarker, k.GetFormID(), aiAimAt, akId)
+		q.Hold(aiActor, aiMarker, k.GetFormID(), aiAimAt, akId, w && w == Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm"))
 	EndIf
 	If !w
 		Return 1  ; (a game played with the hands: Atomic Rollers, Hoop Shot)
@@ -330,9 +330,24 @@ Int Function Act(Actor a, Int aiIdle, Int aiIdle2, String asEvent) Global
 EndFunction
 
 ; Whac-a-Commie: a one-handed swing of the Commie Whacker (drawn again first if it's been put away)
-Int Function NpcSwing(Int aiActor) Global
+Int Function NpcSwing(Int aiActor, Int aiSpot, Int aiAt) Global
 	Actor a = Game.GetForm(aiActor) as Actor
-	If a && !a.IsWeaponDrawn()
+	If !a
+		Return 0
+	EndIf
+	; at the machine, facing it: back on their spot if a swing's carried them off it, turned to the holes
+	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
+	ObjectReference at = Game.GetForm(aiAt) as ObjectReference
+	If spot && a.GetDistance(spot) > 20.0
+		a.MoveTo(spot)
+	EndIf
+	If at
+		Float off = a.GetHeadingAngle(at)
+		If off > 5.0 || off < -5.0
+			a.SetAngle(0.0, 0.0, a.GetAngleZ() + off)
+		EndIf
+	EndIf
+	If !a.IsWeaponDrawn()
 		a.DrawWeapon()
 		Utility.Wait(0.5)
 	EndIf
