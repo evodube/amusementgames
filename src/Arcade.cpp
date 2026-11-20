@@ -930,13 +930,14 @@ namespace ag
 			}
 			return a_s;
 		}
-		constexpr float     kWhacMalletReach = 30.0f;          // a settler's mallet head this near an up head's middle: a hit
+		constexpr float     kWhacMalletReach = 36.0f;          // a settler's mallet head this near an up head's middle: a hit
 		                                                       // (they swing straight ahead, still: the holes are 48 across)
 		constexpr float     kWhacHeadMiddle = 8.0f;            // ...its middle above where it's placed
 		constexpr double    kWhacSwingLong = 1.6;              // ...a swing followed this long (the Papyrus call's wait, the
 		                                                       // turn and the swing's wind-up before it comes down)
 		constexpr double    kWhacSwingDown = 0.6;              // ...by then it's come down
-		constexpr float     kWhacBottomReach = 45.0f;          // ...where it bottoms out, a head out this near: a hit
+		constexpr float     kWhacBottomReach = 52.0f;          // ...where it bottoms out, a head out this near: a hit
+		                                                       // (a hole and a half: the mallet seen to come down by it)
 		constexpr double    kWhacSettlerUp = 1.6;              // a settler's game's heads up this much longer
 		constexpr double    kZapperAimUnder = 59.0;            // a zapper racer's aim point, under their target's centre...
 		constexpr double    kZapperAimRight = -12.0;           // ...and to its right (their stream went in above and right)
@@ -1079,6 +1080,7 @@ namespace ag
 				_nextShow = StartShow() ? kShowNextTry : kShowRetry;
 			}
 		}
+		CallOffAtGamesInPlay();
 		for (std::size_t i = 0; i < _shows.size(); ++i) {
 			TickOne(_shows[i], a_dt);
 		}
@@ -2057,6 +2059,31 @@ namespace ag
 		}
 	}
 
+	// a game in play on a machine (yours, your 1v1, or settlers'): anyone else on their way to it or waiting at it is
+	// called off (a settler's not sent to a machine in play, but whatever brought one, they don't come up mid-game)
+	void Arcade::CallOffAtGamesInPlay()
+	{
+		for (auto& sh : _shows) {
+			if (sh.phase == Show::Phase::kNone || sh.phase == Show::Phase::kPlaying) {
+				continue;
+			}
+			const auto id = sh.machineID;
+			bool       inPlay = false;
+			if (_playing && _machineID == id) {
+				inPlay = !(sh.vsYou && _duel.on);  // (your rival's yours)
+			} else {
+				for (const auto& o : _shows) {
+					if (&o != &sh && o.machineID == id && o.phase == Show::Phase::kPlaying && o.game && o.actorID != sh.partner) {
+						inPlay = true;
+					}
+				}
+			}
+			if (inPlay) {
+				EndShow(sh, "a game's on there");
+			}
+		}
+	}
+
 	// a settler still linked to a game's spot when no game has them (one let go while walking that kept on, or stood
 	// there after): let go now, once a second at most
 	void Arcade::SweepStragglers(double a_dt)
@@ -2074,6 +2101,40 @@ namespace ag
 		auto* link = Forms::Own(0x80D) ? Forms::Own(0x80D)->As<RE::BGSKeyword>() : nullptr;  // AmusementGamesLinkSpot
 		if (!lists || !link) {
 			return;
+		}
+		// (who's about a Bandit Roundup in play and not in its game: logged once each a game, to see who they are)
+		std::vector<std::pair<RE::TESFormID, RE::NiPoint3>> inPlay;
+		std::vector<RE::TESFormID>                          playing;
+		if (_playing && _gameId == sim::GameId::kBanditRoundup) {
+			if (auto m = _machine.get()) {
+				inPlay.push_back({ _machineID, m->data.location });
+			}
+		}
+		for (const auto& sh : _shows) {
+			if (sh.phase != Show::Phase::kNone) {
+				playing.push_back(sh.actorID);
+			}
+			if (sh.gameId == sim::GameId::kBanditRoundup && sh.phase == Show::Phase::kPlaying && sh.game) {
+				if (auto m = sh.machine.get()) {
+					inPlay.push_back({ sh.machineID, m->data.location });
+				}
+			}
+		}
+		for (auto& ah : lists->highActorHandles) {
+			auto a = ah.get();
+			if (!a || a->IsDead(false) || inPlay.empty() || std::ranges::find(playing, a->GetFormID()) != playing.end()) {
+				continue;
+			}
+			for (const auto& [mid, at] : inPlay) {
+				if ((a->data.location - at).Length() < 220.0f && _bystanders.insert({ mid, a->GetFormID() }).second) {
+					const char* n = a->GetDisplayFullName();
+					log::info("BANDIT ROUNDUP {:08X}: {} ({:08X}) about it mid-game, not in it ({}; {:.0f} away)", mid, n && *n ? n : "someone",
+						a->GetFormID(), a->GetLinkedRef(link) ? "one of ours, still linked" : "not called by us", (a->data.location - at).Length());
+				}
+			}
+		}
+		if (inPlay.empty()) {
+			_bystanders.clear();
 		}
 		for (auto& ah : lists->highActorHandles) {
 			auto a = ah.get();

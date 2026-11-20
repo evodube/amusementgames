@@ -1,5 +1,7 @@
 #pragma once
 
+#include <set>
+
 #include "sim/Arcade.h"
 
 #include <unordered_set>
@@ -345,6 +347,8 @@ namespace ag
 		std::unordered_map<RE::TESFormID, std::pair<int, int>> _lastDuel;
 		// settlers still linked to a spot no game's using (let go late, or a walk that outlived its game): let go
 		void   SweepStragglers(double a_dt);
+		void   CallOffAtGamesInPlay();
+		std::set<std::pair<RE::TESFormID, RE::TESFormID>> _bystanders;  // (machine, actor): logged about it mid-game
 		double _sweep{ 1.0 };
 		std::unordered_map<RE::TESFormID, double> _swept;  // (let go lately: not again while Papyrus does it)
 
