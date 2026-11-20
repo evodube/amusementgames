@@ -1590,8 +1590,8 @@ namespace ag
 			if (const Show* other = sim::GalleryVersus(*a_s.game) ? PartnerOf(a_s) : nullptr) {
 				_played[Played(other->actorID, sim::GameId::kBanditRoundup)] = kShowTurnAbout;
 				const int mine = sim::GalleryScore(*a_s.game, 0), theirs = sim::GalleryScore(*a_s.game, 1);
-				log::info("{}: {} ({:08X}) {} to {} ({:08X}): {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, mine, theirs, other->name,
-					other->actorID, mine == theirs ? "a tie" : mine > theirs ? std::format("{} won", a_s.name) : std::format("{} won", other->name));
+				log::info("{}: {} ({:08X}) {}, {} ({:08X}) {}: {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, mine, other->name,
+					other->actorID, theirs, mine == theirs ? std::string("a tie") : std::format("{} won", mine > theirs ? a_s.name : other->name));
 			} else {
 				log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
 			}
