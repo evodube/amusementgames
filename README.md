@@ -8,8 +8,7 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   700 in the top corners, nothing in the gutter or over the top.
 - **Hoop Shot**: hold to charge, let go to lob it at the hoop, as many baskets as you can in 45 seconds.
 - **Whac-a-Commie**: seven holes; swing the Commie Whacker at the commies popping up, for 30 seconds: a point is
-  your mallet landing on a commie (its hit), not a click. The more Agility you have, the quicker you swing (3% a
-  point past 1, up to twice as quick; both in the settings).
+  your mallet landing on a commie (its hit), not a click.
 - **Nuka-Zapper Race**: six lanes; yours is the one with a Thirst Zapper lying on the counter, so stand behind it.
   Squirt your target with the Thirst Zapper: each hit sends your rocket a step up, ten and you've won (the other
   lanes race you). Unlimited ammo while you play.
@@ -21,9 +20,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   You both shoot at the same targets, any of them: whoever hits one first has its points. You're the left shooter if
   you're left of the counter's middle when you hold it, the right if right (near the middle, either); the settler
   takes the other side. Both scores on the machine's board (the left's on top) and on screen; the winner gets 10 more.
-- **Settings** in F4SE Menu Framework (Amusement Games > Whac-a-Commie, Settlers): the Agility swing (on/off, how much,
-  with your Agility and swing speed shown live) and settlers playing (on/off, how often, how often two play each other
-  at Bandit Roundup); kept in
+- **Settings** in F4SE Menu Framework (Amusement Games > Settlers): settlers playing (on/off, how often, how often two
+  play each other at Bandit Roundup); kept in
   `Data\F4SE\Plugins\AmusementGames_user.ini`.
 - **Settlers play too**, one settler to each machine: Bandit Roundup (rifle to the shoulder; now and then two settlers
   play each other, one each side: how often in the settings), Whac-a-Commie (the

@@ -769,34 +769,14 @@ namespace ag
 		auto*       player = RE::PlayerCharacter::GetSingleton();
 		const auto* speed = AV("WeaponSpeedMult");
 		if (!player || !speed) {
-			if (a_on && !speed) {
-				log::warn("Whac-a-Commie: no WeaponSpeedMult actor value found: your swing can't be quickened");
-			}
 			return;
 		}
-		if (!a_on) {
-			if (_swingBoost != 0.0f) {
-				player->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kTemporary, *speed, -_swingBoost);
-				_swingBoost = 0.0f;
-			}
-			return;
+		// (the Agility swing's gone: nothing's quickened now. A quickening still on - an older version's, mid-game - is
+		// taken off as a game ends)
+		if (!a_on && _swingBoost != 0.0f) {
+			player->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kTemporary, *speed, -_swingBoost);
+			_swingBoost = 0.0f;
 		}
-		const auto& set = Settings::Get();
-		if (!set.swingOn) {
-			return;
-		}
-		const auto* agility = AV("Agility");
-		const float agi = agility ? player->GetActorValue(*agility) : 1.0f;
-		const float mult = std::clamp(1.0f + set.swingPerAgility / 100.0f * (agi - 1.0f), 1.0f, set.swingMost);
-		// (0: the game's default, as quick as normal)
-		const float now = player->GetActorValue(*speed);
-		const float base = now > 0.0f ? now : 1.0f;
-		_swingBoost = base * mult - now;
-		if (_swingBoost != 0.0f) {
-			player->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kTemporary, *speed, _swingBoost);
-		}
-		log::info("Whac-a-Commie: Agility {}: your swing x{:.2f} (WeaponSpeedMult {:.2f} -> {:.2f})", agi, mult, now,
-			player->GetActorValue(*speed));
 	}
 
 	// unlimited ammo while you play: the weapon's magazine is put back to full after every shot, so it's never

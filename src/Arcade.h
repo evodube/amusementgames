@@ -217,8 +217,8 @@ namespace ag
 		void TopUpAmmo();
 		Lent _lent;
 
-		// Whac-a-Commie: your swing quicker the more Agility you have (WeaponSpeedMult raised while you play; the
-		// amount kept, to take off again, in the cosave too in case you save mid-game)
+		// Whac-a-Commie's Agility swing, gone (0.9.6): nothing's quickened now. What an older version raised
+		// WeaponSpeedMult by (kept in the cosave, a save made mid-game) is taken off still
 		void  Quicken(bool a_on);
 		float _swingBoost{ 0.0f };
 		float _swingFromSave{ 0.0f };
