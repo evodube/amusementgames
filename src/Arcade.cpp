@@ -840,6 +840,8 @@ namespace ag
 		constexpr float     kShowArrived = 12.0f;              // this near the spot: there
 		constexpr float     kShowAtSpot = 40.0f;               // ...or this near and no closer for a moment
 		constexpr double    kShowStallResend = 6.0;            // no closer for this long: the walk sent again
+		constexpr float     kShowStuckNear = 300.0f;           // ...stuck this near after two of those: near enough
+		constexpr int       kShowStuckResends = 3;             // ...further off, after this many: someone else
 		constexpr float     kShowReach = 3000.0f;              // settlers this near the machine
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
@@ -961,6 +963,7 @@ namespace ag
 			if (d < a_s.best - 10.0f) {
 				a_s.best = d;
 				a_s.stall = 0.0;
+				a_s.resends = 0;
 			} else {
 				a_s.stall += a_dt;
 			}
@@ -976,14 +979,30 @@ namespace ag
 				}
 			}
 			if (!there) {
-				if (a_s.stall > kShowStallResend) {
+				if (a_s.stall > kShowStallResend && d < kShowStuckNear && a_s.resends >= 2) {
+					// a couple of metres off and stuck there (the machine, or something put by it, in the way of their path):
+					// near enough, the counter puts them on the spot
+					there = true;
+					log::info("{}: {} ({:08X}) stuck {:.0f} from the spot: near enough", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, d);
+				} else if (a_s.stall > kShowStallResend && a_s.resends >= kShowStuckResends) {
+					// further off and not a step closer for a while: no way through from where they are; someone else
+					log::info("{}: {} ({:08X}) can't find a way ({:.0f} away, no closer in {:.0f}s): someone else", sim::GameName(a_s.gameId),
+						a_s.name, a_s.actorID, d, kShowStallResend * (a_s.resends + 1));
+					_refused.push_back(a_s.actorID);
+					EndShow(a_s, nullptr);
+					_nextShow = kShowNextTry;
+					return;
+				} else if (a_s.stall > kShowStallResend) {
+					++a_s.resends;
 					log::info("{}: {} ({:08X}) no closer in {:.0f}s ({:.0f} away): sending the walk again", sim::GameName(a_s.gameId), a_s.name,
 						a_s.actorID, a_s.stall, d);
 					a_s.stall = 0.0;
 					a_s.best = d;
 					Papyrus::Call("NpcWalk", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(marker.get()), 1 });
 				}
-				return;
+				if (!there) {
+					return;
+				}
 			}
 			a_s.phase = Show::Phase::kArming;
 			a_s.armed = std::make_shared<std::atomic<std::int32_t>>(-1);

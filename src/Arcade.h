@@ -224,6 +224,7 @@ namespace ag
 			double                                 onTarget{ 0.0 }; // a shot held back this long, turning onto the target
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been
+			int                                    resends{ 0 };    // ...walks sent again with no step closer between
 			std::shared_ptr<std::atomic<std::int32_t>> ready;  // NpcStartGallery: -1 not yet, 1 walking, 10+ not coming
 			std::shared_ptr<std::atomic<std::int32_t>> armed;  // NpcTakeUp: -1 not yet, 0 didn't, 1 ready, 2 ready (lent)
 			std::unique_ptr<sim::Game>             game;
