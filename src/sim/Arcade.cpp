@@ -1131,8 +1131,8 @@ namespace sim
 		return in;
 	}
 
-	WhacPlayer::WhacPlayer(std::uint32_t a_seed, double a_skill) :
-		_rng(a_seed), _skill(std::clamp(a_skill, 0.0, 1.0))
+	WhacPlayer::WhacPlayer(std::uint32_t a_seed, double a_skill, bool a_scores) :
+		_rng(a_seed), _skill(std::clamp(a_skill, 0.0, 1.0)), _scores(a_scores)
 	{}
 
 	bool WhacPlayer::Update(Game& a_game, double a_dt)
@@ -1151,7 +1151,7 @@ namespace sim
 			_swing -= a_dt;
 			if (_swing < 0.0) {
 				// the mallet comes down: on the head if they're good enough and it's still up
-				if (u(_rng) < 0.6 + 0.35 * _skill) {
+				if (u(_rng) < 0.6 + 0.35 * _skill && _scores) {
 					a_game.OnPieceHit(_target);
 				}
 				_target = -1;

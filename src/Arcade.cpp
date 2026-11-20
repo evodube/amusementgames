@@ -58,12 +58,18 @@ namespace ag
 			RE::BSEventNotifyControl ProcessEvent(const RE::TESHitEvent& a_event, RE::BSTEventSource<RE::TESHitEvent>*) override
 			{
 				auto* player = RE::PlayerCharacter::GetSingleton();
-				if (a_event.target && a_event.cause && a_event.cause.get() == player) {
-					auto handle = a_event.target->GetHandle();
+				if (a_event.target && a_event.cause) {
+					auto       handle = a_event.target->GetHandle();
+					const bool you = a_event.cause.get() == player;
+					const auto cause = a_event.cause->GetFormID();
 					if (auto* tasks = F4SE::GetTaskInterface()) {
-						tasks->AddTask([handle]() {
+						tasks->AddTask([handle, you, cause]() {
 							if (auto ref = handle.get()) {
-								Arcade::Get().OnHit(ref.get());
+								if (you) {
+									Arcade::Get().OnHit(ref.get());
+								} else {
+									Arcade::Get().OnSettlerHit(ref.get(), cause);  // (a settler's mallet on a head)
+								}
 							}
 						});
 					}
@@ -166,6 +172,26 @@ namespace ag
 				}
 				_game->OnPieceHit(static_cast<int>(i));
 				return;
+			}
+		}
+	}
+
+	// a settler's swing landing on one of their game's pieces (Whac-a-Commie's heads): the only way they score there
+	void Arcade::OnSettlerHit(RE::TESObjectREFR* a_target, RE::TESFormID a_cause)
+	{
+		for (auto& sh : _shows) {
+			if (sh.phase != Show::Phase::kPlaying || sh.actorID != a_cause || !sh.game || !sh.whacker) {
+				continue;
+			}
+			for (std::size_t i = 0; i < sh.pieces.size(); ++i) {
+				if (auto ref = sh.pieces[i].get(); ref && ref.get() == a_target) {
+					sh.game->OnPieceHit(static_cast<int>(i));
+					++sh.hits;
+					if (sh.hits == 1) {
+						log::info("{}: {}'s mallet is landing on the heads", sim::GameName(sh.gameId), sh.name);
+					}
+					return;
+				}
 			}
 		}
 	}
@@ -846,6 +872,7 @@ namespace ag
 		constexpr float     kShowReach = 3000.0f;              // settlers this near the machine
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
+		constexpr double    kSteadyBeforeShot = 2.5;           // the rifle drawn this long before a shot
 	}
 
 	std::vector<Arcade::Worn> Arcade::WornBy(RE::Actor* a_actor)
@@ -1119,7 +1146,10 @@ namespace ag
 			const double skill = std::uniform_real_distribution<double>(0.0, 1.0)(_showRng);  // how good they are
 			const double spread = 0.03 - 0.024 * skill;  // (a shot's spread at the gallery: 0.006 to 0.03)
 			switch (a_s.gameId) {
-			case sim::GameId::kWhacACommie: a_s.whacker = std::make_unique<sim::WhacPlayer>(seed ^ 0x5EED, 0.45 + 0.55 * skill); break;  // (none hopeless with a mallet)
+			case sim::GameId::kWhacACommie:
+				// (none hopeless with a mallet; their score only from their mallet's real hits on the heads)
+				a_s.whacker = std::make_unique<sim::WhacPlayer>(seed ^ 0x5EED, 0.45 + 0.55 * skill, false);
+				break;
 			case sim::GameId::kAtomicRollers:
 			case sim::GameId::kHoopShot:
 				{
@@ -1176,7 +1206,8 @@ namespace ag
 					static std::atomic<int> told{ -1 };  // (how the throws go: logged once each way)
 					const std::string       name = a_s.name;
 					const auto              game = a_s.gameId;
-					Papyrus::Call(a_s.gameId == sim::GameId::kHoopShot ? "NpcToss" : "NpcRoll", { static_cast<std::int32_t>(a_s.actorID) },
+					auto spot = a_s.marker.get();
+					Papyrus::Call(a_s.gameId == sim::GameId::kHoopShot ? "NpcToss" : "NpcRoll", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()) },
 						[name, game](std::int32_t a_r) {
 							if (told.exchange(a_r) != a_r) {
 								log::info("{}: {}'s throws: {}", sim::GameName(game), name,
@@ -1249,7 +1280,7 @@ namespace ag
 										show = true;
 									}
 								} else {
-									at = wrist + along * 0.7f + n * (radius * 0.9f);
+									at = wrist + along * 1.0f + n * (radius * 1.1f);  // (up at the fingers' roots, clear of the palm: it sat at the wrist)
 									show = true;
 								}
 							}
@@ -1302,6 +1333,17 @@ namespace ag
 				aimAt->data.location.y = w.y;
 				aimAt->data.location.z = w.z;
 			}
+		}
+		// ...and not till the rifle's been up and steady a while: taking it up they raise it, lower it as their hold
+		// package takes over and raise it again, and the first shots of that went into the ground
+		if (actor->GetWeaponMagicDrawn()) {
+			a_s.steady += a_dt;
+		} else {
+			a_s.steady = 0.0;
+		}
+		if (in.pressed && a_s.steady < kSteadyBeforeShot) {
+			in.pressed = false;
+			a_s.shooter->Again();
 		}
 		if (in.pressed && a_s.weapon && CanFire(actor, a_s.name)) {
 			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
@@ -1759,12 +1801,47 @@ namespace ag
 			return false;
 		}
 		auto* ammo = a_actor->GetCurrentAmmo(RE::BGSEquipIndex{ 0 });
+		const char* from = "loaded";
+		if (!ammo) {
+			// not loaded yet as far as the process knows (a settler's Thirst Zapper never was): the ammo its equipped
+			// instance takes, or failing that the gun's own, in their pockets (what it fires is the gun's: the shot's its
+			// animation, nothing calls Weapon.Fire)
+			from = "the gun's own";
+			if (auto* list = a_actor->inventoryList) {
+				RE::BSAutoReadLock lock{ list->rwLock };
+				for (auto& item : list->data) {
+					auto* weap = item.object ? item.object->As<RE::TESObjectWEAP>() : nullptr;
+					if (!weap) {
+						continue;
+					}
+					for (auto* stack = item.stackData.get(); stack && !ammo; stack = stack->nextStack.get()) {
+						if (!stack->IsEquipped()) {
+							continue;
+						}
+						auto* extra = stack->extra.get();
+						auto* inst = extra ? extra->GetByType<RE::ExtraInstanceData>() : nullptr;
+						auto* data = inst && inst->data ? static_cast<RE::TESObjectWEAP::InstanceData*>(inst->data.get()) : nullptr;
+						ammo = data && data->ammo ? data->ammo : weap->weaponData.ammo;
+						from = data && data->ammo ? "its instance's" : "the gun's own";
+					}
+					if (ammo) {
+						break;
+					}
+				}
+			}
+		}
 		if (!ammo) {
 			static std::unordered_set<RE::TESFormID> told;
 			if (told.insert(a_actor->GetFormID()).second) {
 				log::warn("{}'s gun has nothing to fire just now (no ammo for it): no shot from it till it has", a_name);
 			}
 			return false;
+		}
+		{
+			static std::unordered_set<RE::TESFormID> told;
+			if (told.insert(a_actor->GetFormID()).second) {
+				log::info("{}'s gun fires ammo {:08X} ({})", a_name, ammo->GetFormID(), from);
+			}
 		}
 		if (_loaded.insert(a_actor->GetFormID() ^ ammo->GetFormID()).second) {
 			Papyrus::Call("AddTo", { static_cast<std::int32_t>(a_actor->GetFormID()), static_cast<std::int32_t>(ammo->GetFormID()), 50 });
@@ -1777,10 +1854,13 @@ namespace ag
 		auto* weapon = Forms::WeaponOf(sim::GameId::kNukaZapperRace);
 		for (auto& q : a_r.racers) {
 			q.sinceShot += a_dt;
+			auto  r = q.actor.get();
+			auto* a = r ? r->As<RE::Actor>() : nullptr;
+			q.steady = a && a->GetWeaponMagicDrawn() ? q.steady + a_dt : 0.0;  // (as at the gallery: drawn a while first)
 		}
 		for (int lane : sim::TakeZapperShots(a_game)) {
 			auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == lane && a_q.state == 2; });
-			if (it == a_r.racers.end() || it->sinceShot < 0.35 || !weapon) {
+			if (it == a_r.racers.end() || it->sinceShot < 0.35 || it->steady < kSteadyBeforeShot || !weapon) {
 				continue;  // (a squirt's animation still going: the next one shown)
 			}
 			auto  ref = it->actor.get();

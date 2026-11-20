@@ -222,10 +222,17 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 		Return 1  ; (a game played with the hands: Atomic Rollers, Hoop Shot)
 	EndIf
 	Int r = 1
+	Bool zapper = w == Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm")
+	If zapper && a.GetItemCount(w) > 0
+		; a Thirst Zapper they have already may be one handed over bare (0.7.1, 0.7.2: no ammo of its own, it never
+		; squirts) and the game would equip that one: taken away, a whole one given below
+		a.UnequipItem(w, False, True)
+		a.RemoveItem(w, a.GetItemCount(w), True)
+	EndIf
 	If a.GetItemCount(w) == 0
 		; the rifles as you're handed them (added, with their iron sights). The Thirst Zapper built whole (PlaceAtMe):
 		; added as a bare record, a settler's has no ammo of its own and never squirts (yours is filled when you take it up)
-		If w == Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm")
+		If zapper
 			ObjectReference g = a.PlaceAtMe(w, 1, False, True)
 			If g
 				a.AddItem(g, 1, True)
@@ -270,7 +277,10 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 			q.HoldDrawn(aiActor, aiMarker, k.GetFormID())  ; (a melee weapon: kept drawn between swings)
 		EndIf
 	EndIf
-	a.DrawWeapon()
+	If aiAimAt == 0
+		a.DrawWeapon()  ; (the mallet; a gun's raised by their hold package: drawn here too, they raised it, lowered it
+		                ; as the package took over, and raised it again)
+	EndIf
 	; (no raising it ourselves: their hold package aims it, and a sighted idle on top of that put them in a low crouch,
 	; as behind cover, for the first few shots)
 	Return r
@@ -392,8 +402,21 @@ EndFunction
 ; Atomic Rollers: the ball rolled up the lane, a mine's throw (low and underhand); if that won't play without a mine
 ; in hand, Nuka-World's own smoke bomb toss (an idle of its own, nothing in hand needed). 1 the mine's, 3 the toss, 2
 ; neither (the event sent)
-Int Function NpcRoll(Int aiActor) Global
+Int Function NpcRoll(Int aiActor, Int aiSpot) Global
 	Actor a = Game.GetForm(aiActor) as Actor
+	; square to the machine first (their spot faces it): turned away, the throw went off the side
+	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
+	If a && spot
+		Float off = spot.GetAngleZ() - a.GetAngleZ()
+		If off > 180.0
+			off -= 360.0
+		ElseIf off < -180.0
+			off += 360.0
+		EndIf
+		If off > 2.0 || off < -2.0
+			a.SetAngle(0.0, 0.0, spot.GetAngleZ())
+		EndIf
+	EndIf
 	If a && a.PlayIdle(Game.GetFormFromFile(0x000831, "AmusementGames.esl") as Idle)
 		Return 4  ; (AmusementGamesSkeeballRoll: our own)
 	EndIf
@@ -404,8 +427,21 @@ Int Function NpcRoll(Int aiActor) Global
 EndFunction
 
 ; Hoop Shot: the basketball thrown, a grenade's throw; or the smoke bomb toss
-Int Function NpcToss(Int aiActor) Global
+Int Function NpcToss(Int aiActor, Int aiSpot) Global
 	Actor a = Game.GetForm(aiActor) as Actor
+	; square to the machine first (their spot faces it): turned away, the throw went off the side
+	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
+	If a && spot
+		Float off = spot.GetAngleZ() - a.GetAngleZ()
+		If off > 180.0
+			off -= 360.0
+		ElseIf off < -180.0
+			off += 360.0
+		EndIf
+		If off > 2.0 || off < -2.0
+			a.SetAngle(0.0, 0.0, spot.GetAngleZ())
+		EndIf
+	EndIf
 	If a && a.PlayIdle(Game.GetFormFromFile(0x000830, "AmusementGames.esl") as Idle)
 		Return 4  ; (AmusementGamesBasketballShot: our own)
 	EndIf

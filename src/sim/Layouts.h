@@ -210,11 +210,11 @@ namespace sim::layout
 	}
 
 	// where a settler's ball leaves her hands (machine space): the release frame of our animation, from her spot.
-	// Hoop Shot's set shot: the ball on her fingers, in front of the right palm, on the ball's back (5 right, 21 ahead, 139 up)
+	// Hoop Shot's set shot: the ball on her fingers, in front of the right palm, on the ball's back (5 right, 24 ahead, 143 up)
 	inline Vec3 SettlerRelease(GameId a_game)
 	{
 		const Vec3 at = SettlerStand(a_game);
-		return a_game == GameId::kHoopShot ? Vec3{ at.x + 5.3, at.y + 20.7, at.z + 138.8 } : Vec3{ at.x + 21.4, at.y + 45.5, at.z + 42.6 };
+		return a_game == GameId::kHoopShot ? Vec3{ at.x + 5.2, at.y + 24.1, at.z + 143.0 } : Vec3{ at.x + 21.4, at.y + 45.5, at.z + 42.6 };
 	}
 
 	const RollersLayout& Rollers();

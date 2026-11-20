@@ -103,6 +103,7 @@ namespace ag
 
 		// something of the game's hit by you (on the game's thread): Whac-a-Commie's heads are whacked this way
 		void OnHit(RE::TESObjectREFR* a_target);
+		void OnSettlerHit(RE::TESObjectREFR* a_target, RE::TESFormID a_cause);
 
 		// a machine activated by you (on the game's thread)
 		void OnActivated(RE::TESObjectREFR* a_machine);
@@ -222,6 +223,7 @@ namespace ag
 			bool                                   added{ false };  // the rifle lent (taken back after)
 			double                                 walked{ 0.0 };   // seconds on the way
 			double                                 onTarget{ 0.0 }; // a shot held back this long, turning onto the target
+			double                                 steady{ 0.0 };   // their weapon drawn this long
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been
 			int                                    resends{ 0 };    // ...walks sent again with no step closer between
@@ -233,7 +235,8 @@ namespace ag
 			std::unique_ptr<sim::Thrower>          thrower;  // Atomic Rollers' and Hoop Shot's
 			RE::ObjectRefHandle                    handBall; // ...the ball in their hand
 			double                                 sinceThrow{ 9.0 };
-			bool                                   holding{ false };  // ...the throw's animation on, the ball in their hand(s)
+			bool                                   holding{ false };
+			int                                    hits{ 0 };  // ...their mallet's hits on the heads  // ...the throw's animation on, the ball in their hand(s)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
 			std::vector<RE::NiAVObject*>           frozen;
@@ -278,6 +281,7 @@ namespace ag
 			float                                  best{ 1e9f };
 			double                                 skill{ 0.5 };
 			double                                 sinceShot{ 9.0 };
+			double                                 steady{ 0.0 };   // ...their gun drawn this long
 			bool                                   added{ false };
 			std::shared_ptr<std::atomic<std::int32_t>> ready;
 			std::shared_ptr<std::atomic<std::int32_t>> armed;

@@ -171,7 +171,8 @@ namespace sim
 	class WhacPlayer
 	{
 	public:
-		WhacPlayer(std::uint32_t a_seed, double a_skill);
+		// a_scores: a swing that comes down on a head scores (the sim alone); false: the plugin scores their real hits
+		WhacPlayer(std::uint32_t a_seed, double a_skill, bool a_scores = true);
 		bool Update(Game& a_game, double a_dt);
 		int  Target() const { return _target; }  // the hole they're swinging at (-1: none)
 
@@ -179,6 +180,7 @@ namespace sim
 		std::mt19937 _rng;
 		double       _skill;
 		double       _cool{ 1.5 };   // (first: the mallet up)
+		bool         _scores{ true };
 		int          _target{ -1 };
 		double       _react{ 0.0 };
 		double       _swing{ -1.0 };
