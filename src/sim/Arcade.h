@@ -86,6 +86,7 @@ namespace sim
 		double      timeLeft{ -1.0 }; // seconds (-1: not a timed game)
 		double      power{ -1.0 };    // 0..1 while charging a throw (-1: no meter)
 		std::vector<std::pair<std::string, double>> race;  // the zapper race: each lane's name and how far up (0..1)
+		std::string verdict;             // the zapper race over: "YOU WON!" or "YOU LOST · <winner> WON"
 		std::string clock;               // an untimed game's stand-in for the clock (Atomic Rollers' ball, the race's countdown)
 		bool        showPoints{ false }; // the points as they come, on screen (Atomic Rollers)
 		int         waiting{ -1 };       // the machine's things on show while you play (Atomic Rollers: the balls left in its
@@ -158,6 +159,44 @@ namespace sim
 	std::vector<int> TakeZapperShots(Game& a_game);
 	// ...the lane that won (-1: not yet)
 	int ZapperWinner(const Game& a_game);
+
+	// a settler playing Whac-a-Commie: picks a head that's up, reacts (the better, the quicker), swings, and lands it
+	// (or not: the better, the likelier) once the swing comes down. Update: true when a swing starts (its animation)
+	class WhacPlayer
+	{
+	public:
+		WhacPlayer(std::uint32_t a_seed, double a_skill);
+		bool Update(Game& a_game, double a_dt);
+
+	private:
+		std::mt19937 _rng;
+		double       _skill;
+		double       _cool{ 1.5 };   // (first: the mallet up)
+		int          _target{ -1 };
+		double       _react{ 0.0 };
+		double       _swing{ -1.0 };
+	};
+
+	// a settler playing Atomic Rollers or Hoop Shot: stands where you would, looks up the lane (a little off, the
+	// worse, the more) or at the rim, holds the throw a while (Hoop Shot: about the best charge, off by a bit) and lets
+	// go, a few seconds between throws. Next: its input this frame (released: the throw, its animation); Eye: where
+	// it stands to throw from
+	class Thrower
+	{
+	public:
+		Thrower(std::uint32_t a_seed, double a_skill, GameId a_game);
+		Input Next(double a_dt);
+		Vec3  Eye() const;
+
+	private:
+		std::mt19937 _rng;
+		double       _skill;
+		GameId       _game;
+		double       _wait{ 2.0 };   // till the next throw's charge starts
+		double       _charge{ 0.0 }; // ...how long it's held
+		double       _held{ -1.0 };  // ...held so far (-1: not holding)
+		Vec3         _at;            // ...where it's aimed
+	};
 
 	// a settler playing Bandit Roundup: picks an upright target near the middle, aims at its bullseye (off by about
 	// a_spread radians), fires every so often. Next() gives its input for this frame.

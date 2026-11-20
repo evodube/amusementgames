@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sim/Arcade.h"
+
 // Where things are on each machine, in its model's space (x right, y into the machine, z up from the floor; game
 // units). Measured off Nuka-World's models (docs/HANDOFF.md says which and how); the shapes are the ones the balls
 // run on and the spots the heads, rockets and targets go.
@@ -191,6 +193,17 @@ namespace sim::layout
 		double                   flipSeconds{ 0.15 };
 		double                   shotSeconds{ 0.6 };  // the lever between shots
 	};
+
+	// where a settler stands to play each game (machine space, on the floor)
+	inline Vec3 SettlerStand(GameId a_game)
+	{
+		switch (a_game) {
+		case GameId::kAtomicRollers: return { 0.0, -190.0, 0.0 };  // (its front at -162; you at -188, the ball's release at -148)
+		case GameId::kHoopShot: return { 0.0, -160.0, 0.0 };       // (its front at -127)
+		case GameId::kWhacACommie: return { 0.0, -68.0, 0.0 };     // (its front at -40: the mallet reaches the holes)
+		default: return { -15.0, -80.0, 0.0 };                     // Bandit Roundup (GalleryLayout::stand)
+		}
+	}
 
 	const RollersLayout& Rollers();
 	const HoopLayout&    Hoop();

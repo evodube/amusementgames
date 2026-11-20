@@ -51,6 +51,13 @@ if you leave (3000), start that machine yourself, or they die/fight/unload; anyo
 once Papyrus is done with them. Anyone held when the game's saved is written to the cosave ('AGHL') and let go after
 that save loads (kPostLoadGame), and the quest's collection is emptied then too (NpcClearAll).
 
+Other games (StartShow takes Bandit Roundup, Whac-a-Commie, Atomic Rollers and Hoop Shot machines, shuffled): the
+stand from layout::SettlerStand; Whac-a-Commie's sim::WhacPlayer (picks a head up, reacts by skill, swings: NpcSwing,
+MeleeAttackStanding_3rdP, lands it by skill on OnPieceHit); Atomic Rollers' and Hoop Shot's sim::Thrower (aims up the
+lane or at the rim, charges, releases: NpcRoll, the mine throw / NpcToss, the grenade throw), a ball of the game's in
+their right hand (RArm_Hand) but for a second after a throw, the game's own waiting ball hidden. No weapon, no hold
+package (NpcTakeUp with aiAimAt 0 keeps them on the walk package at the spot).
+
 ## Settlers racing
 
 Arcade::TickRaces ("settlers racing (Nuka-Zapper Race)"): a race a Nuka-Zapper Race machine near you. Gathering:

@@ -206,17 +206,17 @@ EndFunction
 ; ...there: put on the spot, facing the targets, the rifle taken up (lent if they've none) and raised to the shoulder.
 ; Their AI stays on (with it off no idle plays: they froze half way through drawing): the walk package, still linked to
 ; the spot, keeps them there. 1 ready, 2 ready (the rifle lent), 0 not
-Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt) Global
+Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int aiAmmo) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
-	If !a || !w || !m || a.IsDead() || a.IsInCombat()
+	If !a || !m || a.IsDead() || a.IsInCombat()
 		Return 0
 	EndIf
 	a.MoveTo(m)
 	AmusementGamesQuest q = TheQuest()
 	Keyword k = LinkSpot()
-	If q && k
+	If q && k && aiAimAt != 0
 		Keyword ak = Game.GetFormFromFile(0x82D, "AmusementGames.esl") as Keyword
 		Int akId = 0
 		If ak
@@ -225,15 +225,27 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt) Glo
 		; (the spot held, aiming at the targets, no other idles or chatter)
 		q.Hold(aiActor, aiMarker, k.GetFormID(), aiAimAt, akId)
 	EndIf
+	If !w
+		Return 1  ; (a game played with the hands: Atomic Rollers, Hoop Shot)
+	EndIf
+	If q && k && aiAimAt == 0
+		q.HoldDrawn(aiActor, aiMarker, k.GetFormID())  ; (a melee weapon: kept drawn between swings)
+	EndIf
 	Int r = 1
 	If a.GetItemCount(w) == 0
 		a.AddItem(w, 1, True)
 		r = 2
 	EndIf
+	; its own ammo in their pockets, so it fires what it's made to (the Thirst Zapper's water, not a bullet): a few
+	; rounds topped up when they're low (left with them: never more than a pocketful)
+	Ammo am = Game.GetForm(aiAmmo) as Ammo
+	If am && a.GetItemCount(am) < 10
+		a.AddItem(am, 50, True)
+	EndIf
 	a.EquipItem(w, False, True)
 	a.DrawWeapon()
-	Utility.Wait(1.0)
-	Aim(a)
+	; (no raising it ourselves: their hold package aims it, and a sighted idle on top of that put them in a low crouch,
+	; as behind cover, for the first few shots)
 	Return r
 EndFunction
 
@@ -264,7 +276,7 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 		Return 1
 	EndIf
 	a.PlayAnimation("attackStart")
-	w.Fire(a, Game.GetForm(aiAmmo) as Ammo)
+	w.Fire(a)  ; (its own projectile: the Thirst Zapper's water)
 	Return 2
 EndFunction
 
@@ -299,4 +311,40 @@ Function NpcClearAll(Int aiUnused) Global
 	If q && k
 		q.ClearAll(k.GetFormID())
 	EndIf
+EndFunction
+
+; a settler's moves at the other games: the game's own idle, its animation event sent straight if that won't play.
+; 1: the idle, 2: the event
+Int Function Act(Actor a, Int aiIdle, Int aiIdle2, String asEvent) Global
+	If !a
+		Return 0
+	EndIf
+	If a.PlayIdle(Game.GetFormFromFile(aiIdle, "Fallout4.esm") as Idle)
+		Return 1
+	EndIf
+	If aiIdle2 != 0 && a.PlayIdle(Game.GetFormFromFile(aiIdle2, "Fallout4.esm") as Idle)
+		Return 1
+	EndIf
+	a.PlayAnimation(asEvent)
+	Return 2
+EndFunction
+
+; Whac-a-Commie: a one-handed swing of the Commie Whacker (drawn again first if it's been put away)
+Int Function NpcSwing(Int aiActor) Global
+	Actor a = Game.GetForm(aiActor) as Actor
+	If a && !a.IsWeaponDrawn()
+		a.DrawWeapon()
+		Utility.Wait(0.5)
+	EndIf
+	Return Act(a, 0x00056123, 0x000516EE, "meleeattackStart")  ; MeleeAttackStanding_3rdP, MeleeAttack
+EndFunction
+
+; Atomic Rollers: the ball rolled up the lane, a mine's throw (low and underhand)
+Int Function NpcRoll(Int aiActor) Global
+	Return Act(Game.GetForm(aiActor) as Actor, 0x000EE0F0, 0x000EC533, "mineThrowStart")  ; CharacterMTMineThrow, CharacterWeaponMineThrow
+EndFunction
+
+; Hoop Shot: the basketball thrown, a grenade's throw
+Int Function NpcToss(Int aiActor) Global
+	Return Act(Game.GetForm(aiActor) as Actor, 0x000EE0F1, 0x000CF927, "grenadeThrowStart")  ; CharacterMTGrenadeThrow, CharacterWeaponGrenadeThrow
 EndFunction

@@ -43,6 +43,7 @@ namespace ag
 			double                     sinceLastPoints{ 99.0 };
 			int                        won{ 0 };           // tickets this game paid
 			bool                       newBest{ false };
+			std::string                verdict;      // the zapper race: won or lost (and who won)
 			double                     resultsAge{ 0.0 };
 			std::string                leaveKey{ "X" };
 			std::vector<std::array<float, 2>> guide;  // the aim line on the screen (0..1), from the ball out
@@ -81,7 +82,13 @@ namespace ag
 		int PropsShown(RE::TESFormID a_machine, int a_all) const
 		{
 			if (const auto* s = ShowOn(a_machine); s && s->phase == Show::Phase::kPlaying) {
-				return 0;  // (a settler's playing: the rifle's in their hands)
+				// (a settler's playing: the gun or mallet's in their hands; Atomic Rollers' pocket as the game has it)
+				if (!s->game) {
+					return 0;
+				}
+				sim::HudInfo h;
+				s->game->Hud(h);
+				return h.waiting < 0 ? 0 : std::min(a_all, h.waiting);
 			}
 			if (!PlayingOn(a_machine) || !_game) {
 				return a_all;
@@ -218,7 +225,11 @@ namespace ag
 			std::shared_ptr<std::atomic<std::int32_t>> ready;  // NpcStartGallery: -1 not yet, 1 walking, 10+ not coming
 			std::shared_ptr<std::atomic<std::int32_t>> armed;  // NpcTakeUp: -1 not yet, 0 didn't, 1 ready, 2 ready (lent)
 			std::unique_ptr<sim::Game>             game;
-			std::unique_ptr<sim::GalleryShooter>   shooter;
+			std::unique_ptr<sim::GalleryShooter>   shooter;  // Bandit Roundup's
+			std::unique_ptr<sim::WhacPlayer>       whacker;  // Whac-a-Commie's
+			std::unique_ptr<sim::Thrower>          thrower;  // Atomic Rollers' and Hoop Shot's
+			RE::ObjectRefHandle                    handBall; // ...the ball in their hand
+			double                                 sinceThrow{ 9.0 };
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
 			std::vector<RE::NiAVObject*>           frozen;
@@ -277,6 +288,7 @@ namespace ag
 			double                                 countdown{ -1.0 };
 			double                                 invite{ 0.0 };
 			bool                                   withYou{ false };  // you're racing too (your game is the race)
+			bool                                   youIn{ false };    // ...or will be: waiting with your token in for a racer
 			std::unique_ptr<sim::Game>             game;     // (settlers only)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
@@ -287,6 +299,7 @@ namespace ag
 		void   TickRace(Race& a_r, double a_dt);
 		bool   StartRace();
 		bool   InviteRacer(Race& a_r);
+		void   GiveToken();
 		void   BeginRace(Race& a_r);
 		void   EndRace(Race& a_r, const char* a_why);
 		void   LetGo(Racer& a_q);
@@ -300,11 +313,16 @@ namespace ag
 			}
 			return nullptr;
 		}
-		RE::Actor* PickSettler(RE::TESObjectREFR* a_machine);
+		RE::Actor* PickSettler(RE::TESObjectREFR* a_machine, sim::GameId a_game);
 		std::vector<Race>  _races;
 		double             _nextRace{ 20.0 };
 		std::unordered_map<RE::TESFormID, double> _rest;  // a machine's rest after a settler's game there (seconds)
-		std::unordered_map<RE::TESFormID, double> _played;  // a settler who's just played: not asked again for this long
+		// a settler who's just played a game: not asked to that game again for this long (other games they may play)
+		std::unordered_map<std::uint64_t, double> _played;
+		static std::uint64_t Played(RE::TESFormID a_actor, sim::GameId a_game)
+		{
+			return (static_cast<std::uint64_t>(a_actor) << 8) | static_cast<std::uint64_t>(a_game);
+		}
 		std::vector<Held>  _letGo;  // (on their way when called off)
 		double             _nextShow{ 20.0 };
 		std::mt19937       _showRng{ std::random_device{}() };

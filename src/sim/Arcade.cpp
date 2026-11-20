@@ -716,6 +716,9 @@ namespace sim
 					a_out.line1 = std::format("HITS {} OF {}", _lanes[_you].hits, layout::Zapper().hitsToWin);
 				}
 				a_out.line2 = "SQUIRT YOUR TARGET: FIRST ROCKET UP WINS";
+				if (_winner >= 0 && _you >= 0) {
+					a_out.verdict = _winner == _you ? std::string("YOU WON!") : std::format("YOU LOST · {} WON", _lanes[_winner].name);
+				}
 				for (const auto& l : _lanes) {
 					if (!l.empty) {
 						a_out.race.emplace_back(l.name, l.shown);
@@ -1022,6 +1025,113 @@ namespace sim
 	{
 		const auto* z = dynamic_cast<const Zapper*>(&a_game);
 		return z ? z->Winner() : -1;
+	}
+
+	Thrower::Thrower(std::uint32_t a_seed, double a_skill, GameId a_game) :
+		_rng(a_seed), _skill(std::clamp(a_skill, 0.0, 1.0)), _game(a_game)
+	{}
+
+	Vec3 Thrower::Eye() const
+	{
+		if (_game == GameId::kHoopShot) {
+			return { 0.0, -175.0, 120.0 };
+		}
+		const auto& L = layout::Rollers();
+		return { 0.0, L.release.y - 40.0, L.release.z + 60.0 };
+	}
+
+	Input Thrower::Next(double a_dt)
+	{
+		Input  in;
+		in.eye = Eye();
+		std::normal_distribution<double> n(0.0, 1.0);
+		if (_held < 0.0) {
+			_wait -= a_dt;
+			if (_wait > 0.0) {
+				in.dir = (_game == GameId::kHoopShot ? layout::Hoop().rim : Vec3{ 0.0, layout::Rollers().release.y + 40.0, layout::Rollers().release.z }) - in.eye;
+				in.dir = in.dir.Normalized();
+				return in;
+			}
+			// a throw: where, and how hard
+			const double off = 1.0 - _skill;
+			if (_game == GameId::kHoopShot) {
+				const auto& L = layout::Hoop();
+				_at = L.rim + Vec3{ n(_rng) * 4.0 * off, 0.0, n(_rng) * 3.0 * off };
+				_charge = std::max(0.05, 0.38 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
+			} else {
+				const auto& L = layout::Rollers();
+				_at = Vec3{ n(_rng) * (2.0 + 10.0 * off), L.release.y + 40.0, L.release.z };
+				_charge = L.chargeSeconds * std::uniform_real_distribution<double>(0.3, 0.9)(_rng);
+			}
+			_held = 0.0;
+			in.pressed = in.held = true;
+		} else if (_held < _charge) {
+			_held += a_dt;
+			in.held = true;
+		} else {
+			in.released = true;
+			_held = -1.0;
+			_wait = _game == GameId::kHoopShot ? 2.2 : 3.0;
+		}
+		in.dir = (_at - in.eye).Normalized();
+		return in;
+	}
+
+	WhacPlayer::WhacPlayer(std::uint32_t a_seed, double a_skill) :
+		_rng(a_seed), _skill(std::clamp(a_skill, 0.0, 1.0))
+	{}
+
+	bool WhacPlayer::Update(Game& a_game, double a_dt)
+	{
+		const auto& L = layout::Whac();
+		std::vector<Piece> pieces;
+		a_game.Pieces(pieces);
+		const auto height = [&](int a_i) {
+			if (a_i < 0 || a_i >= static_cast<int>(pieces.size()) || a_i >= static_cast<int>(L.holes.size()) || pieces[a_i].hidden) {
+				return 0.0;
+			}
+			return (pieces[a_i].pos.z - L.holes[a_i].z - L.headDown) / (L.headUp - L.headDown);
+		};
+		std::uniform_real_distribution<double> u(0.0, 1.0);
+		if (_swing >= 0.0) {
+			_swing -= a_dt;
+			if (_swing < 0.0) {
+				// the mallet comes down: on the head if they're good enough and it's still up
+				if (u(_rng) < 0.5 + 0.4 * _skill) {
+					a_game.OnPieceHit(_target);
+				}
+				_target = -1;
+				_cool = 0.2;
+			}
+			return false;
+		}
+		if (_cool > 0.0) {
+			_cool -= a_dt;
+			return false;
+		}
+		if (_target >= 0 && height(_target) < 0.4) {
+			_target = -1;  // (gone back down before they got to it)
+		}
+		if (_target < 0) {
+			std::vector<int> up;
+			for (int i = 0; i < static_cast<int>(pieces.size()); ++i) {
+				if (height(i) > 0.6) {
+					up.push_back(i);
+				}
+			}
+			if (up.empty()) {
+				return false;
+			}
+			_target = up[std::uniform_int_distribution<std::size_t>(0, up.size() - 1)(_rng)];
+			_react = 0.45 - 0.25 * _skill + 0.1 * u(_rng);
+			return false;
+		}
+		_react -= a_dt;
+		if (_react > 0.0) {
+			return false;
+		}
+		_swing = L.swingSeconds + 0.12;  // (the swing's down this long after it starts)
+		return true;
 	}
 
 	GalleryShooter::GalleryShooter(std::uint32_t a_seed, double a_spread) :

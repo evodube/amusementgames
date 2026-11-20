@@ -232,7 +232,7 @@ def aim_package(form_id: int, editor_id: str, spot_keyword: int, target_keyword:
         + b(0)   # 05 Volley Fire?
         + b(0)   # 06 Crouch Reload?
         + b(1)   # 07 Do No Damage?
-        + b(1)   # 08 Hold When Blocked?
+        + b(0)   # 08 Hold When Blocked? (no: with the counter in front, read as cover, they crouched behind it)
         + b(0)   # 0f Allow Combat to Start?
         + b(1)   # 10 Aim Without Firing?
         + fl(0.0) + fl(0.0) + fl(25.0)   # 09 Volley Wait Min, 0a Max, 14 Power Attack Percent
@@ -251,13 +251,13 @@ def aim_package(form_id: int, editor_id: str, spot_keyword: int, target_keyword:
     return record(b"PACK", 0, form_id, body)
 
 
-def quest(form_id: int, editor_id: str, package: int, hold: int, priority: int = 100) -> bytes:
+def quest(form_id: int, editor_id: str, package: int, hold: int, hold_drawn: int, priority: int = 100) -> bytes:
     """AmusementGamesQuest: start game enabled, priority 100, collection alias 0 'Players' with the walk package.
     Scripts: AmusementGamesQuest on the quest (property Players), AmusementGamesGroupAlias on the alias (papyrus/).
     Laid out as Wasteland Wagers' WastelandWagersQuest (itself as Fallout4.esm's DialogueGlowingSeaAtom)."""
     def entry(name: str, props: list[bytes]) -> bytes:
         return wstring(name) + b"\x00" + struct.pack("<H", len(props)) + b"".join(props)
-    aliases = [(0, "Players", package), (1, "Shooters", hold)]
+    aliases = [(0, "Players", package), (1, "Shooters", hold), (2, "Holders", hold_drawn)]
     props = [wstring(n) + bytes([1, 1]) + struct.pack("<HhI", 0, i, form_id) for i, n, _ in aliases]
     vmad = (struct.pack("<HHH", 6, 2, 1) + entry("AmusementGamesQuest", props)
             + b"\x03" + struct.pack("<H", 0) + wstring("")
@@ -401,10 +401,14 @@ def build() -> bytes:
     hold = OWN | (FIRST_ID + 0x2C)
     target = OWN | (FIRST_ID + 0x2D)
     keywords.append(keyword(target, "AmusementGamesLinkTarget"))
+    # (and for a melee game, Whac-a-Commie: kept at the spot with the mallet drawn, weapon drawn 0x00800000, no
+    # interruptions)
+    hold_drawn = OWN | (FIRST_ID + 0x2E)
     packages = [travel_package(walk, "AmusementGamesWalkToSpot", link),
-                aim_package(hold, "AmusementGamesHoldAtSpot", link, target)]
+                aim_package(hold, "AmusementGamesHoldAtSpot", link, target),
+                travel_package(hold_drawn, "AmusementGamesHoldDrawnAtSpot", link, general=0x00802000, interrupts=0)]
     # (priority 101: above Wasteland Wagers' 100, so a roulette bettor called over isn't pulled back mid-walk)
-    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk, hold, priority=101)]
+    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk, hold, hold_drawn, priority=101)]
     # the category's picture: its first item, Whac-a-Commie, framed as its own workshop preview
     # (DLC04workshop_NukaCade_WhackACommie01) with its bounds
     art = [menu_art(OWN | (FIRST_ID + 1), "AmusementGamesWorkshopMenuArt", menu,
@@ -443,7 +447,7 @@ def build() -> bytes:
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x2E))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x2F))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
