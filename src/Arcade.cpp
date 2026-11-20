@@ -1386,6 +1386,12 @@ namespace ag
 					Papyrus::Call(a_s.gameId == sim::GameId::kHoopShot ? "NpcToss" : "NpcRoll", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()) },
 						[name, game, throwOn](std::int32_t a_r) {
 							*throwOn = true;
+							// (put back on her spot, or turned square: a teleport, seen as a blink)
+							if (a_r >= 100) {
+								log::info("{}: {} {} before a throw (a teleport: she'd wandered off)", sim::GameName(game), name,
+									a_r % 1000 >= 300 ? "put back on her spot and turned square" : a_r % 1000 >= 200 ? "turned square" : "put back on her spot");
+							}
+							a_r %= 100;
 							if (told.exchange(a_r) != a_r) {
 								log::info("{}: {}'s throws: {}", sim::GameName(game), name,
 									a_r == 4 ? (game == sim::GameId::kHoopShot ? "our basketball shot" : "our skee-ball roll") :

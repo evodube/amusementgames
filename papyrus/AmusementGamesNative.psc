@@ -451,27 +451,42 @@ Int Function NpcRoll(Int aiActor, Int aiSpot) Global
 	; back on their spot (the last throw's step carried them forward: each throw a little further in) and square to
 	; the machine (their spot faces it): turned away, the throw went off the side
 	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
-	If a && spot && a.GetDistance(spot) > 3.0
-		a.MoveTo(spot)
-	EndIf
-	If a && spot
-		Float off = spot.GetAngleZ() - a.GetAngleZ()
-		If off > 180.0
-			off -= 360.0
-		ElseIf off < -180.0
-			off += 360.0
-		EndIf
-		If off > 2.0 || off < -2.0
-			a.SetAngle(0.0, 0.0, spot.GetAngleZ())
-		EndIf
-	EndIf
+	Int put = PutBack(a, spot)
 	If a && a.PlayIdle(Game.GetFormFromFile(ThrowTake(0x000831, 0x000835, 0x000837), "AmusementGames.esl") as Idle)  ; (the roll, or its second or third take)
-		Return 4  ; (AmusementGamesSkeeballRoll: our own)
+		Return 4 + put  ; (AmusementGamesSkeeballRoll: our own)
 	EndIf
 	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F0, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000EC533, "Fallout4.esm") as Idle))
 		Return 1  ; (CharacterMTMineThrow, CharacterWeaponMineThrow)
 	EndIf
 	Return Toss(a, "mineThrowStart")
+EndFunction
+
+; a thrower put back on their spot and square to the machine before a throw - only if they've really wandered off it
+; (over 12 along the floor, or turned over 10 degrees): a MoveTo or SetAngle is a teleport, the actor blinking out and
+; back. At 3 (counting height) and 2 degrees, Atomic Rollers' settlers were teleported before many a roll. 100 if put
+; back, 200 if turned
+Int Function PutBack(Actor a, ObjectReference spot) Global
+	If !a || !spot
+		Return 0
+	EndIf
+	Int r = 0
+	Float dx = a.GetPositionX() - spot.GetPositionX()
+	Float dy = a.GetPositionY() - spot.GetPositionY()
+	If dx * dx + dy * dy > 144.0
+		a.MoveTo(spot)
+		r += 100
+	EndIf
+	Float off = spot.GetAngleZ() - a.GetAngleZ()
+	If off > 180.0
+		off -= 360.0
+	ElseIf off < -180.0
+		off += 360.0
+	EndIf
+	If off > 10.0 || off < -10.0
+		a.SetAngle(0.0, 0.0, spot.GetAngleZ())
+		r += 200
+	EndIf
+	Return r
 EndFunction
 
 ; Hoop Shot: the basketball thrown, a grenade's throw; or the smoke bomb toss
@@ -480,22 +495,9 @@ Int Function NpcToss(Int aiActor, Int aiSpot) Global
 	; back on their spot (the last throw's step carried them forward: each throw a little further in) and square to
 	; the machine (their spot faces it): turned away, the throw went off the side
 	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
-	If a && spot && a.GetDistance(spot) > 3.0
-		a.MoveTo(spot)
-	EndIf
-	If a && spot
-		Float off = spot.GetAngleZ() - a.GetAngleZ()
-		If off > 180.0
-			off -= 360.0
-		ElseIf off < -180.0
-			off += 360.0
-		EndIf
-		If off > 2.0 || off < -2.0
-			a.SetAngle(0.0, 0.0, spot.GetAngleZ())
-		EndIf
-	EndIf
+	Int put = PutBack(a, spot)
 	If a && a.PlayIdle(Game.GetFormFromFile(ThrowTake(0x000830, 0x000834, 0x000836), "AmusementGames.esl") as Idle)  ; (the shot, or its second or third take)
-		Return 4  ; (AmusementGamesBasketballShot: our own)
+		Return 4 + put  ; (AmusementGamesBasketballShot: our own)
 	EndIf
 	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F1, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000CF927, "Fallout4.esm") as Idle))
 		Return 1  ; (CharacterMTGrenadeThrow, CharacterWeaponGrenadeThrow)
