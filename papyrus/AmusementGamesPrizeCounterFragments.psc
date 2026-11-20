@@ -12,7 +12,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_02
 Function Fragment_Terminal_02(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x00A6C2, 10, 500)  ; Paddle Balls x10
+AmusementGamesNative.BuyPrize(0x007BC8, 1, 500)  ; Thirst Zapper
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -28,7 +28,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_04
 Function Fragment_Terminal_04(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x030076, 20, 2000)  ; Acid Concentrate x20
+AmusementGamesNative.BuyPrize(0x00A6C2, 10, 500)  ; Paddle Balls x10
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -36,7 +36,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_05
 Function Fragment_Terminal_05(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x007BC8, 1, 500)  ; Thirst Zapper
+AmusementGamesNative.BuyPrize(0x04C0E4, 20, 1000)  ; Water Ammo x20
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -44,7 +44,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_06
 Function Fragment_Terminal_06(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x04C0E4, 20, 1000)  ; Water Ammo x20
+AmusementGamesNative.BuyPrize(0x02BDC2, 20, 1000)  ; Nuka-Cola Ammo x20
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -52,7 +52,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_07
 Function Fragment_Terminal_07(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02BDC2, 20, 1000)  ; Nuka-Cola Ammo x20
+AmusementGamesNative.BuyPrize(0x00A6C9, 20, 1000)  ; Nuka-Cherry Ammo x20
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -60,7 +60,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_08
 Function Fragment_Terminal_08(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x00A6C9, 20, 1000)  ; Nuka-Cherry Ammo x20
+AmusementGamesNative.BuyPrize(0x00A6C6, 20, 1000)  ; Nuka-Quantum Ammo x20
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -68,7 +68,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_09
 Function Fragment_Terminal_09(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x00A6C6, 20, 1000)  ; Nuka-Quantum Ammo x20
+AmusementGamesNative.BuyPrize(0x030076, 20, 2000)  ; Acid Concentrate x20
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -132,7 +132,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_17
 Function Fragment_Terminal_17(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02EDA9, 1, 2500)  ; Ice-Cold Nuka-Cola Dark
+AmusementGamesNative.BuyPrize(0x02EDB0, 1, 2000)  ; Ice-Cold Nuka-Cola Victory
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -140,7 +140,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_18
 Function Fragment_Terminal_18(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02EDB0, 1, 2000)  ; Ice-Cold Nuka-Cola Victory
+AmusementGamesNative.BuyPrize(0x02EDAF, 1, 2000)  ; Ice-Cold Nuka-Cola Quartz
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -148,7 +148,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_19
 Function Fragment_Terminal_19(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02EDAF, 1, 2000)  ; Ice-Cold Nuka-Cola Quartz
+AmusementGamesNative.BuyPrize(0x02EDA9, 1, 2500)  ; Ice-Cold Nuka-Cola Dark
 ;END CODE
 EndFunction
 ;END FRAGMENT

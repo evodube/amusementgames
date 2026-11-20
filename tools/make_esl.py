@@ -51,12 +51,12 @@ Form IDs (src/Forms.h expects these):
                                                resting on Whac-a-Commie (its whacker01 node)
 
     xx000838  TERM AmusementGamesPrizeCounter  the Prize Counter: the base game's buildable Terminal (unpowered), a
-                                               menu of its sections; xx000839-83B TERM its sections (Prizes,
-                                               Souvenirs, Nuka-Cola), each prize shown buyable when you've its
+                                               menu of its sections; xx000839-83C TERM its sections (Weapons,
+                                               Ammo, Souvenirs, Drinks), each prize shown buyable when you've its
                                                tickets (GetItemCount on the player) and "not enough" when not; buying
                                                runs a fragment of AmusementGamesPrizeCounterFragments (papyrus/,
                                                written by --psc from PRIZES), which calls AmusementGamesNative.BuyPrize
-    xx00083C  COBJ workshop_co_AmusementGamesPrizeCounter -> xx000838
+    xx00083D  COBJ workshop_co_AmusementGamesPrizeCounter -> xx000838
 
 Tokens and tickets are Nuka-World's own items (DLC04_Nukacade_Token01 0001998A, DLC04_Nukacade_Ticket01 00019988),
 so the Nuka-Cade's machines and prize terminal take ours and ours take theirs.
@@ -97,8 +97,8 @@ INCOME_PER_SETTLER = 1.0                             # caps a machine earns a da
 TICKET = NUKA | 0x019988                             # DLC04_Nukacade_Ticket01
 PLAYER_REF = 0x00000014
 PRIZE_COUNTER = OWN | (FIRST_ID + 0x38)              # TERM: the top page (its sections)
-PRIZE_PAGE_FIRST = FIRST_ID + 0x39                   # TERM: a section each (0x839-0x83B)
-PRIZE_RECIPE = FIRST_ID + 0x3C                       # COBJ: built at the workbench
+PRIZE_PAGE_FIRST = FIRST_ID + 0x39                   # TERM: a section each (0x839-0x83C)
+PRIZE_RECIPE = FIRST_ID + 0x3D                       # COBJ: built at the workbench
 PRIZE_FRAGMENTS = "AmusementGamesPrizeCounterFragments"  # papyrus/: one function a prize (written by --psc)
 RUBBER, ALUMINUM = 0x0001FAB9, 0x0001FA91
 TERMINAL_COMPONENTS = [(RUBBER, 2), (COPPER, 2), (CIRCUITRY, 2), (ALUMINUM, 4)]  # as workshop_co_Terminal
@@ -108,32 +108,35 @@ NOT_ENOUGH = 100                                     # a prize's "not enough tic
 # own things (its prize counter's Paddle Ball and Acid Soaker, its souvenirs, its sodas ice-cold, its 7.62), at the
 # Nuka-Cade's own prices: an item's caps value x 50 (DLC04NukacadePriceMult), a bundle that times how many
 PRIZES = [
-    ("Prizes", [
+    ("Weapons", [
         ("Paddle Ball", 0x00A6C0, 1, 500),
-        ("Paddle Balls x10", 0x00A6C2, 10, 500),          # DLC04_Ammo_PaddleBall
-        ("Acid Soaker", 0x007BC6, 1, 6250),
-        ("Acid Concentrate x20", 0x030076, 20, 2000),    # DLC04_Ammo_AcidSoaker: the Acid Soaker's (a load)
         ("Thirst Zapper", 0x007BC8, 1, 500),
+        ("Acid Soaker", 0x007BC6, 1, 6250),
+    ]),
+    ("Ammo", [
+        ("Paddle Balls x10", 0x00A6C2, 10, 500),         # DLC04_Ammo_PaddleBall
         ("Water Ammo x20", 0x04C0E4, 20, 1000),          # DLC04_Ammo_ThirstZapper_Water (worth 0: priced as 1 cap)
         ("Nuka-Cola Ammo x20", 0x02BDC2, 20, 1000),      # DLC04_Ammo_ThirstZapper_NukaCola
         ("Nuka-Cherry Ammo x20", 0x00A6C9, 20, 1000),    # DLC04_Ammo_ThirstZapper_Cherry
         ("Nuka-Quantum Ammo x20", 0x00A6C6, 20, 1000),   # DLC04_Ammo_ThirstZapper_Quantum
-        ("7.62 Rounds x20", 0x037897, 20, 2000),           # DLC04_Ammo_HandmadeRound
+        ("Acid Concentrate x20", 0x030076, 20, 2000),    # DLC04_Ammo_AcidSoaker: the Acid Soaker's (a load)
+        ("7.62 Rounds x20", 0x037897, 20, 2000),         # DLC04_Ammo_HandmadeRound
     ]),
     ("Souvenirs", [
         ("Souvenir Teddy Bear", 0x02689C, 1, 150),
         ("Souvenir Sloth Toy", 0x02A185, 1, 150),
         ("Souvenir Magnet Cow", 0x0268A1, 1, 150),       # DLC04_SouvenirMagnet01
     ]),
-    ("Nuka-Cola", [
+    ("Drinks", [
         ("Ice-Cold Nuka-Cola Orange", 0x02EDAD, 1, 1000),
         ("Ice-Cold Nuka-Grape", 0x02EDAB, 1, 1000),
         ("Ice-Cold Nuka-Cola Wild", 0x02EDB1, 1, 1000),
-        ("Ice-Cold Nuka-Cola Dark", 0x02EDA9, 1, 2500),
         ("Ice-Cold Nuka-Cola Victory", 0x02EDB0, 1, 2000),
         ("Ice-Cold Nuka-Cola Quartz", 0x02EDAF, 1, 2000),
+        ("Ice-Cold Nuka-Cola Dark", 0x02EDA9, 1, 2500),
     ]),
 ]
+
 
 
 def subrecord(sig: bytes, data: bytes) -> bytes:
@@ -711,7 +714,7 @@ def build() -> bytes:
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x3D))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x3E))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
