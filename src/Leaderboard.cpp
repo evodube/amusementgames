@@ -32,6 +32,17 @@ namespace ag::Leaderboard
 			return name.empty() || std::ranges::any_of(kGeneric, [&](std::string_view g) { return lower(g) == name; });
 		}
 
+		constexpr int kRace = static_cast<int>(sim::GameId::kNukaZapperRace);
+
+		// whoever's named (not one of the generic names): their name, or null
+		const char* Named(RE::TESFormID a_actor)
+		{
+			auto* form = RE::TESForm::GetFormByID(a_actor);
+			auto* actor = form ? form->As<RE::Actor>() : nullptr;
+			const char* name = actor ? actor->GetDisplayFullName() : nullptr;
+			return name && !Generic(name) ? name : nullptr;
+		}
+
 		// a board onto the counter: each place's score into its global (0: empty, its line hidden), its player into
 		// its alias (AmusementGamesNative.TopAlias: 0 clears it)
 		void Publish(int a_game, const std::vector<Entry>& a_board)
@@ -50,13 +61,11 @@ namespace ag::Leaderboard
 	void Record(sim::GameId a_game, RE::TESFormID a_actor, int a_score)
 	{
 		const int game = static_cast<int>(a_game);
-		if (game < 0 || game >= kGames || a_actor == 0 || a_score <= 0) {
+		if (game < 0 || game >= kGames || game == kRace || a_actor == 0 || a_score <= 0) {
 			return;
 		}
-		auto* form = RE::TESForm::GetFormByID(a_actor);
-		auto* actor = form ? form->As<RE::Actor>() : nullptr;
-		const char* name = actor ? actor->GetDisplayFullName() : nullptr;
-		if (!actor || !name || Generic(name)) {
+		const char* name = Named(a_actor);
+		if (!name) {
 			return;
 		}
 		std::vector<Entry> board;
@@ -84,6 +93,40 @@ namespace ag::Leaderboard
 		}
 		log::info("high scores: {} ({:08X}) {} at {}", name, a_actor, a_score, sim::GameName(a_game));
 		Publish(game, board);
+	}
+
+	void RecordWin(RE::TESFormID a_actor)
+	{
+		const char* name = a_actor ? Named(a_actor) : nullptr;
+		if (!name) {
+			return;
+		}
+		std::vector<Entry> board;
+		int                wins = 0;
+		{
+			// (everyone who's won kept, not just the ten: someone further down can still climb on)
+			std::scoped_lock l(g_lock);
+			auto& b = g_boards[kRace];
+			auto  it = std::ranges::find_if(b, [&](const Entry& e) { return e.actor == a_actor; });
+			if (it != b.end()) {
+				wins = ++it->score;
+			} else {
+				b.push_back({ a_actor, 1 });
+				wins = 1;
+			}
+			std::ranges::stable_sort(b, std::greater<>{}, &Entry::score);
+			board.assign(b.begin(), b.begin() + std::min<std::size_t>(b.size(), kPlaces));
+		}
+		log::info("high scores: {} ({:08X}) has won {} Nuka-Zapper Race(s)", name, a_actor, wins);
+		Publish(kRace, board);
+	}
+
+	int Wins(RE::TESFormID a_actor)
+	{
+		std::scoped_lock l(g_lock);
+		const auto& b = g_boards[kRace];
+		const auto  it = std::ranges::find_if(b, [&](const Entry& e) { return e.actor == a_actor; });
+		return it != b.end() ? it->score : 0;
 	}
 
 	void Save(const F4SE::SerializationInterface* a_intfc)

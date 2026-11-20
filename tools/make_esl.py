@@ -64,7 +64,8 @@ Form IDs (src/Forms.h expects these):
     xx000846  TERM AmusementGamesPrizeCounterRedeem  Redeem Tickets: all you carry into the counter
     xx000847  TERM AmusementGamesPrizeCounterSpend   Spend Tickets: the sections
     xx000848+ GLOB AmusementGamesTop<Game><NN>  the high scores (848-879): each game's top 10 across every settlement, a
-                                               score each (game * 10 + place; 0 empty), the plugin's Leaderboard sets
+                                               score each (game * 10 + place; 0 empty; the zapper race's, races
+                                               won), the plugin's Leaderboard sets
                                                them; who's at each is AmusementGamesQuest's alias of the same name (6-55)
     xx00087A  TERM AmusementGamesPrizeCounterHighScores  View High Scores: the five games, and your Personal High Scores
     xx00087B+ TERM AmusementGamesPrizeCounterTop<Game>   a game's top 10 (87B-87F)
@@ -123,6 +124,7 @@ SPEND_PAGE = FIRST_ID + 0x47                         # TERM: Spend Tickets (the 
 BEST_FIRST = FIRST_ID + 0x40                         # GLOB: your best score at each game, sim::GameId order (0x840-0x844)
 BEST_GAMES = ["AtomicRollers", "HoopShot", "WhacACommie", "NukaZapperRace", "BanditRoundup"]
 BEST_NAMES = ["Atomic Rollers", "Hoop Shot", "Whac-a-Commie", "Nuka-Zapper Race", "Bandit Roundup"]
+BEST_UNITS = ["", "", "", " wins", ""]               # (the zapper race's are races won: every win scores the same)
 PLAYER_ALIAS, COUNTER_ALIAS = 4, 5                   # AmusementGamesQuest's: you (stores text) and a counter (uses it)
 TOP_PLACES = 10                                      # the high scores: each game's top 10, across every settlement
 TOP_FIRST = FIRST_ID + 0x48                          # GLOB: a score each, game * 10 + place (0x848-0x879; 0 empty)
@@ -636,23 +638,26 @@ def top_page(form_id: int, game: int) -> bytes:
     items = []
     for place in range(TOP_PLACES):
         name = top_name(game, place)
-        line = f"{place + 1:>2}. <Token.ValueInt={name}> - <Alias={name}>"
+        wins = BEST_UNITS[game] == " wins"
+        line = f"{place + 1:>2}. <Token.ValueInt={name}>{BEST_UNITS[game]} - <Alias={name}>"
         items.append(menu_item(line, 8, place + 1,
                                subrecord(b"UNAM", zstring(f"{RULE}\r\n\r\n   #{place + 1} at {BEST_NAMES[game]}: <Alias={name}>, "
-                                                          f"<Token.ValueInt={name}> points\r\n"))
+                                                          f"<Token.ValueInt={name}> {'races won' if wins else 'points'}\r\n"))
                                + score_condition(TOP_FIRST + game * TOP_PLACES + place, True)))
     first = TOP_FIRST + game * TOP_PLACES
-    items.append(menu_item("No scores yet.", 8, 20, subrecord(b"UNAM", zstring(f"{RULE}\r\n\r\n   Nobody's played "
+    items.append(menu_item("No scores yet.", 8, 20, subrecord(b"UNAM", zstring(f"{RULE}\r\n\r\n   Nobody's "
+                                                                             f"{'won' if BEST_UNITS[game] else 'played'} "
                                                                              f"{BEST_NAMES[game]} yet.\r\n"))
                            + score_condition(first, False)))
+    heading = f"{BEST_NAMES[game]}: Most Races Won" if BEST_UNITS[game] == " wins" else f"{BEST_NAMES[game]}: Top {TOP_PLACES}"
     return subterminal(form_id, f"AmusementGamesPrizeCounterTop{BEST_GAMES[game]}",
-                       f"{RULE}\r\n               {BEST_NAMES[game]}: Top {TOP_PLACES}\r\n{RULE}\r\n", items, [])
+                       f"{RULE}\r\n               {heading}\r\n{RULE}\r\n", items, [])
 
 
 def high_scores_page(form_id: int) -> bytes:
     """View High Scores: the five games, each its top 10; then your own best at each (as the Nuka-Cade's Personal High
     Scores)"""
-    scores = "".join(f"   {n + ':':<18}<Token.ValueInt=HighScore{g}>\r\n" for g, n in zip(BEST_GAMES, BEST_NAMES))
+    scores = "".join(f"   {n + ':':<18}<Token.ValueInt=HighScore{g}>{u}\r\n" for g, n, u in zip(BEST_GAMES, BEST_NAMES, BEST_UNITS))
     items = [menu_item(n, 4, i + 1, subrecord(b"TNAM", struct.pack("<I", OWN | (TOP_PAGE_FIRST + i))))
              for i, n in enumerate(BEST_NAMES)]
     items.append(menu_item("Personal High Scores", 8, 9,

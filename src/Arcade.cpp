@@ -402,13 +402,22 @@ namespace ag
 				}
 			}
 			if (_gameId == sim::GameId::kNukaZapperRace) {
+				// (its board's races won: the winner, you or a settler racing you)
+				const int  w = sim::ZapperWinner(*_game);
+				RE::TESFormID winner = 0;
 				for (const auto& r : _races) {
 					if (r.withYou && r.machineID == _machineID) {
 						for (const auto& q : r.racers) {
-							Leaderboard::Record(_gameId, q.actorID, sim::ZapperLaneScore(*_game, q.lane));
+							if (q.lane == w) {
+								winner = q.actorID;
+							}
 						}
 					}
 				}
+				if (!winner && w >= 0 && w == sim::layout::Zapper().playerLane) {
+					winner = player->GetFormID();
+				}
+				Leaderboard::RecordWin(winner);
 			}
 		}
 		if (machine) {
@@ -876,6 +885,10 @@ namespace ag
 		set(Forms::kTicketsCarriedID, Count(Forms::Ticket()));
 		for (int i = 0; i < static_cast<int>(_best.size()); ++i) {
 			set(Forms::kFirstBestID + static_cast<std::uint32_t>(i), _best[i]);
+		}
+		// (the zapper race's: your races won, every win scoring the same)
+		if (auto* player = RE::PlayerCharacter::GetSingleton()) {
+			set(Forms::kFirstBestID + static_cast<std::uint32_t>(sim::GameId::kNukaZapperRace), Leaderboard::Wins(player->GetFormID()));
 		}
 	}
 
@@ -2526,8 +2539,8 @@ namespace ag
 				const auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == w; });
 				_lastScores[a_r.machineID] = a_r.game->Score();
 				log::info("NUKA-ZAPPER RACE {:08X}: {} won (lane {})", a_r.machineID, it != a_r.racers.end() ? it->name : "?", w + 1);
-				for (const auto& q : a_r.racers) {
-					Leaderboard::Record(sim::GameId::kNukaZapperRace, q.actorID, sim::ZapperLaneScore(*a_r.game, q.lane));
+				if (it != a_r.racers.end()) {
+					Leaderboard::RecordWin(it->actorID);  // (its board's races won)
 				}
 				EndRace(a_r, nullptr);
 			}
