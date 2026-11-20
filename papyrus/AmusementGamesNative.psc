@@ -219,7 +219,11 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	m.SetPosition(m.GetPositionX(), m.GetPositionY(), a.GetPositionZ())
 	a.MoveTo(m)
 	If !w
-		Return 1  ; (a game played with the hands: Atomic Rollers, Hoop Shot)
+		; (a game played with the hands: Atomic Rollers, Hoop Shot) held in place while they play: each throw's idle
+		; had them walk a few steps toward the machine first (an activation idle closing in on what's in front of them,
+		; when they weren't near it already). Let go in NpcEnd
+		a.SetRestrained(True)
+		Return 1
 	EndIf
 	Int r = 1
 	Bool zapper = w == Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm")
@@ -349,6 +353,7 @@ Function NpcEnd(Int aiActor, Int aiWeapon, Int aiLent) Global
 	EndIf
 	; out of any idle still playing (a throw's, which left Hoop Shot settlers standing there after): ActionIdleStop
 	a.PlayIdleAction(Game.GetFormFromFile(0x00018BA8, "Fallout4.esm") as Action)
+	a.SetRestrained(False)  ; (held in place for a game played with the hands)
 	If !a.PlayIdle(Game.GetFormFromFile(0x00018DEA, "Fallout4.esm") as Idle)  ; (RaiderRifleSightedEnd: the rifle down)
 		a.PlayAnimation("rifleSightedEnd")
 	EndIf
