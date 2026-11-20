@@ -50,7 +50,7 @@ Form IDs (src/Forms.h expects these):
                                                bottle and star, 82A the zapper's target, 82B the Nuka-Cade's mallet
                                                resting on Whac-a-Commie (its whacker01 node)
 
-    xx000838  TERM AmusementGamesPrizeCounter  the Prize Counter: the base game's buildable Terminal (unpowered), a
+    xx000838  TERM AmusementGamesPrizeCounter  the Prize Counter: Nuka-World's own prize terminal (its console), a
                                                menu of its sections; xx000839-83C TERM its sections (Weapons,
                                                Ammo, Drinks, Souvenirs), each prize shown buyable when you've its
                                                tickets (GetItemCount on the player) and "not enough" when not; buying
@@ -507,7 +507,7 @@ def terminal_fragments(fragments: list[tuple[int, str]]) -> bytes:
 SUBTERMINAL_KEYWORDS = (0x000A56D7, 0x0006D5BB, 0x000C2022)  # FurnitureForce1stPerson, PlayerPathToFurniture, AnimFurnWallTerminal
 
 
-def terminal_frame(mesh: str, keywords: tuple, marker: bytes) -> bytes:
+def terminal_frame(mesh: str, keywords: tuple, marker: bytes, xmarker: str = "") -> bytes:
     return (subrecord(b"MODL", zstring(mesh))
             + subrecord(b"KSIZ", struct.pack("<I", len(keywords)))
             + subrecord(b"KWDA", b"".join(struct.pack("<I", k) for k in keywords))
@@ -516,6 +516,7 @@ def terminal_frame(mesh: str, keywords: tuple, marker: bytes) -> bytes:
             + subrecord(b"COCT", struct.pack("<I", 0))
             + subrecord(b"MNAM", bytes.fromhex("01000040"))
             + subrecord(b"WBDT", b"\x00")
+            + (subrecord(b"XMRK", zstring(xmarker)) if xmarker else b"")  # (where you stand at it, in the editor)
             + subrecord(b"SNAM", marker))
 
 
@@ -550,23 +551,25 @@ def prize_page(form_id: int, page: int) -> bytes:
 
 
 def prize_counter(form_id: int) -> bytes:
-    """the Prize Counter: the base game's buildable Terminal (WorkshopTerminal: its model, bounds, workshop preview,
-    furniture keywords and marker parameters) without its power (no WorkshopCanBePowered / WorkshopPowerConnection,
-    no workshop script): a menu of the sections"""
+    """the Prize Counter: Nuka-World's own prize terminal in the Nuka-Cade (DLC04NukacadeTerminal: the console, its
+    bounds, furniture keywords, marker and its parameters; none of its script or menus), with our menu of the sections.
+    Its workshop preview the base game's buildable Terminal's (workshop_Terminal): Nuka-World's has none, not being
+    buildable. Needs no power"""
     menu = b""
     for page, (title, items) in enumerate(PRIZES):
         menu += (subrecord(b"ITXT", zstring(title)) + subrecord(b"ANAM", b"\x04")
                  + subrecord(b"ITID", struct.pack("<H", page + 1))
                  + subrecord(b"TNAM", struct.pack("<I", OWN | (PRIZE_PAGE_FIRST + page))))
-    keywords = (0x0006D5BB, 0x000FCB12, 0x000A56D7, 0x000286E6, 0x00224A6B)  # PlayerPathToFurniture,
-    # AnimFurnDeskTerminalNoChair, FurnitureForce1stPerson, AnimFurnDeskTerminal, IsCircularTerminal
+    keywords = (0x000286E6, 0x0006D5BB, 0x000A56D7, 0x000FCB12)  # AnimFurnDeskTerminal, PlayerPathToFurniture,
+    # FurnitureForce1stPerson, AnimFurnDeskTerminalNoChair (DLC04NukacadeTerminal's)
     body = (subrecord(b"EDID", zstring("AmusementGamesPrizeCounter"))
-            + subrecord(b"OBND", struct.pack("<6h", -31, -29, -1, 23, 27, 89))
+            + subrecord(b"OBND", struct.pack("<6h", -20, -34, 0, 19, 16, 97))
             + subrecord(b"PTRN", struct.pack("<I", 0x0017B540))  # workshop_Terminal
             + subrecord(b"WNAM", zstring("Nuka-Cade Prize Counter"))
             + subrecord(b"FULL", zstring("Prize Counter"))
-            + terminal_frame("Furniture\\Terminals\\TerminalOnImprovisedWorkshop.nif", keywords,
-                             bytes.fromhex("068155c0000084c2000000000000000000000000ffffffff"))
+            + terminal_frame("Furniture\\Terminals\\TerminalConsoleOn.nif", keywords,
+                             bytes.fromhex("00000000000088c2000000000000000000000000ffffffff"),
+                             "Markers\\MarkerDeskTerminal01.nif")
             + subrecord(b"BSIZ", struct.pack("<I", 1))
             + subrecord(b"BTXT", zstring("NUKA-CADE PRIZE COUNTER\n\nTrade your Nuka-Cade tickets for prizes."))
             + subrecord(b"ISIZ", struct.pack("<I", len(PRIZES)))
