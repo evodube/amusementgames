@@ -164,9 +164,9 @@ Function BuyPrize(Int aiItem, Int aiCount, Int aiTickets) Global
 	Game.GetPlayer().AddItem(item, aiCount)
 EndFunction
 
-; the counter's high scores: a place on a board, its player (AmusementGamesQuest's alias Top<Game><NN>; 0 clears it)
+; the counter's high scores: a place on a board, its player (AmusementGamesTextQuest's alias Top<Game><NN>; 0 clears it)
 Function TopAlias(Int aiAlias, Int aiActor) Global
-	Quest q = Game.GetFormFromFile(0x80F, "AmusementGames.esl") as Quest
+	Quest q = Game.GetFormFromFile(0x8B2, "AmusementGames.esl") as Quest
 	ReferenceAlias place = None
 	If q
 		place = q.GetAlias(aiAlias) as ReferenceAlias

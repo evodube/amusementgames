@@ -1,7 +1,7 @@
 Scriptname AmusementGamesPrizeCounter extends ObjectReference
 {The Prize Counter's screen, as the Nuka-Cade's prize terminal's: its tokens (tickets redeemed and unspent, redeemed
 all told, the tickets on you, your best scores: globals of AmusementGames.esl) put on it, and you and it put in AmusementGamesQuest's
-aliases (Player stores your name, PrizeCounter uses it) for its welcome. Done as it loads, and again as you use it.}
+aliases (AmusementGamesTextQuest's: Player stores your name, PrizeCounter uses it) for its welcome. Done as it loads, and again as you use it.}
 
 Event OnInit()
 	Ready()
@@ -46,10 +46,10 @@ Function Ready()
 		EndWhile
 		g += 1
 	EndWhile
-	Quest q = Game.GetFormFromFile(0x80F, "AmusementGames.esl") as Quest
+	Quest q = Game.GetFormFromFile(0x8B2, "AmusementGames.esl") as Quest   ; (AmusementGamesTextQuest)
 	If q
-		ReferenceAlias you = q.GetAlias(4) as ReferenceAlias
-		ReferenceAlias counter = q.GetAlias(5) as ReferenceAlias
+		ReferenceAlias you = q.GetAlias(0) as ReferenceAlias
+		ReferenceAlias counter = q.GetAlias(1) as ReferenceAlias
 		If you && you.GetReference() != Game.GetPlayer()
 			you.ForceRefTo(Game.GetPlayer())
 		EndIf

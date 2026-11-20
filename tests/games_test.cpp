@@ -183,6 +183,31 @@ namespace
 			return in;
 		}, 200.0, &took);
 		Check(g->Over(), "atomic rollers: nine balls and it's over");
+
+		// a ball that scores nothing (no power: back down the lane) comes back, not one of the nine: nine of those a
+		// game at most, so eighteen throws and it's over
+		{
+			auto z = MakeGame(GameId::kAtomicRollers);
+			int  throws = 0;
+			bool down = false;
+			Play(*z, [&](Game& a_g, double) {
+				Input in = LookAt({ 0, L.release.y - 40, L.release.z + 60 }, { 0, L.release.y + 40, L.release.z });
+				if (!a_g.Ready()) {
+					return in;
+				}
+				if (!down) {
+					in.pressed = in.held = true;
+					down = true;
+				} else {
+					in.released = true;
+					down = false;
+					++throws;
+				}
+				return in;
+			}, 600.0);
+			std::printf("     rollers: no-power balls: %d throws, %d points\n", throws, z->Score());
+			Check(z->Over() && z->Score() == 0 && throws == 18, "atomic rollers: a ball that scores nothing comes back (nine a game)");
+		}
 		std::printf("     rollers: a game took %.1f s, scored %d, %d tickets\n", took, g->Score(), g->TicketsFor(g->Score()));
 	}
 

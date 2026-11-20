@@ -2,6 +2,7 @@
 
 #include "Income.h"
 #include "Leaderboard.h"
+#include "SettlerSkill.h"
 
 #include "Forms.h"
 #include "Hud.h"
@@ -1268,7 +1269,8 @@ namespace ag
 			// at it (the gun or mallet up): the game starts, its pieces put up
 			a_s.added = r == 2;
 			const auto seed = static_cast<std::uint32_t>(_showRng());
-			const double skill = std::uniform_real_distribution<double>(0.0, 1.0)(_showRng);  // how good they are
+			// how good they are: their talent, their practice here, the day's form, the setting
+			const double skill = SettlerSkill::Roll(a_s.actorID, a_s.gameId, _showRng);
 			a_s.skill = skill;
 			const double spread = 0.03 - 0.024 * skill;  // (a shot's spread at the gallery: 0.006 to 0.03)
 			switch (a_s.gameId) {
@@ -2377,7 +2379,7 @@ namespace ag
 			Remove(q.aimAt);
 			return false;
 		}
-		q.skill = std::uniform_real_distribution<double>(0.0, 1.0)(_showRng);
+		q.skill = SettlerSkill::Roll(q.actorID, sim::GameId::kNukaZapperRace, _showRng);  // (as at the other games)
 		q.ready = std::make_shared<std::atomic<std::int32_t>>(-1);
 		auto ready = q.ready;
 		Papyrus::Call("NpcStartGallery", { static_cast<std::int32_t>(q.actorID), Papyrus::Id(weapon), Papyrus::Id(marker.get()) },
@@ -2763,6 +2765,7 @@ namespace ag
 		auto& self = Get();
 		Income::Save(a_intfc);
 		Leaderboard::Save(a_intfc);
+		SettlerSkill::Save(a_intfc);
 		if (self._swingBoost != 0.0f && a_intfc->OpenRecord(kSwingType, 1)) {
 			a_intfc->WriteRecordData(&self._swingBoost, sizeof(self._swingBoost));
 		}
@@ -2814,6 +2817,7 @@ namespace ag
 		self._best.fill(0);
 		Income::Revert();
 		Leaderboard::Revert();
+		SettlerSkill::Revert();
 		self._heldFromSave.clear();
 		self._swingFromSave = 0.0f;
 		while (a_intfc->GetNextRecordInfo(type, version, length)) {
@@ -2843,6 +2847,10 @@ namespace ag
 				Leaderboard::Load(a_intfc, version, length);
 				continue;
 			}
+			if (type == SettlerSkill::kSaveType) {
+				SettlerSkill::Load(a_intfc, version, length);
+				continue;
+			}
 			if (type == Income::kSaveType) {
 				Income::Load(a_intfc, version, length);
 				continue;
@@ -2870,6 +2878,7 @@ namespace ag
 	{
 		Income::Revert();
 		Leaderboard::Revert();
+		SettlerSkill::Revert();
 		Get()._best.fill(0);
 	}
 }

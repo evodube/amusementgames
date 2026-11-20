@@ -5,7 +5,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 
 - **Atomic Rollers** (skee-ball): hold the left mouse button to charge, let go to roll; look where it goes. Nine
   balls over the hump and up the board, its ring walls funnelling them into the holes: 100 to 500 up the middle,
-  700 in the top corners, nothing in the gutter or over the top.
+  700 in the top corners, nothing in the gutter or over the top. A ball that scores nothing (the gutter, back down
+  the lane, stuck on the board) comes back and isn't one of the nine, up to nine a game.
 - **Hoop Shot**: hold to charge, let go to lob it at the hoop, as many baskets as you can in 45 seconds.
 - **Whac-a-Commie**: seven holes; swing the Commie Whacker at the commies popping up, for 30 seconds: a point is
   your mallet landing on a commie (its hit), not a click.
@@ -20,8 +21,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   You both shoot at the same targets, any of them: whoever hits one first has its points. You're the left shooter if
   you're left of the counter's middle when you hold it, the right if right (near the middle, either); the settler
   takes the other side. Both scores on the machine's boards (the left shooter's on the left one, the right's on the right) and on screen; the winner gets 10 more.
-- **Settings** in F4SE Menu Framework (Amusement Games > Settlers): settlers playing (on/off, how often, how often two
-  play each other at Bandit Roundup); kept in
+- **Settings** in F4SE Menu Framework (Amusement Games > Settlers, Income): settlers playing (on/off, how often, how
+  often two play each other at Bandit Roundup, their skill), the takings and ticket rates; kept in
   `Data\F4SE\Plugins\AmusementGames_user.ini`.
 - **Settlers play too**, one settler to each machine: Bandit Roundup (rifle to the shoulder; now and then two settlers
   play each other, one each side: how often in the settings), Whac-a-Commie (the
@@ -31,6 +32,10 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   seconds after the second is ready they race. No racing on your own: put your token in and you wait for a settler
   to be ready (10 seconds after, you're off), racing only the settlers who came; the HUD shows who's racing and their
   rockets, and at the end whether you won or lost (and who won). Activate it again while waiting to leave, token back.
+- **Settlers' skill**: each settler has a talent of their own (rolled the first time they play, theirs for good), gets
+  better the more they play a machine (about half the most practice gives after 10 games
+  there, nearly all by 30), and has good and bad days; the Settlers page's skill setting shifts everyone (-50 to +50).
+  Kept in your save.
 - **Takings**: each machine earns its settlement 1 cap and 2 Nuka-Cade tickets a day for every settler there, put in
   the workbench when you're back (up to 30 days' worth). Both rates are on the Income page of the mod's settings
   (F4SE Menu Framework), or `[Income] fCapsPerSettler` / `fTicketsPerSettler` in `AmusementGames_user.ini`.
@@ -75,7 +80,7 @@ counter in front of your lane and the rifle on the gallery's counter (not to be 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,
 bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own like Playable Pool's.
 
-**Status: 0.9.7.**
+**Status: 0.9.8.**
 
 ## Requirements
 

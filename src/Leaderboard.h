@@ -5,13 +5,13 @@
 // The Prize Counter's high scores: each game's top 10 across every settlement, each player's best only, by name (the
 // Nuka-Zapper Race's by races won: every win scores the same); the game's generic names (Settler, Provisioner,
 // Wastelander, Raider, Protectron...: Leaderboard.cpp's list) left off. Shown on the counter through
-// AmusementGames.esl's globals (a score each, 0x848 on: game * 10 + place) and AmusementGamesQuest's ref aliases (the
-// player at each, from 6 on, the same order), which AmusementGamesNative.TopAlias fills.
+// AmusementGames.esl's globals (a score each, 0x848 on: game * 10 + place) and AmusementGamesTextQuest's ref aliases
+// (the player at each, from 2 on, the same order), which AmusementGamesNative.TopAlias fills.
 namespace ag::Leaderboard
 {
 	inline constexpr int           kPlaces = 10;
 	inline constexpr std::uint32_t kFirstScoreID = 0x848;  // GLOB AmusementGamesTop<Game><NN>
-	inline constexpr int           kFirstAlias = 6;        // AmusementGamesQuest's alias Top<Game><NN>
+	inline constexpr int           kFirstAlias = 2;        // AmusementGamesTextQuest's alias Top<Game><NN>
 	inline constexpr std::uint32_t kFirstGoneID = 0x880;   // GLOB AmusementGamesTop<Game><NN>Gone: its player's no more
 	                                                       // (deleted: dead's fine), "..." where the name was
 
@@ -22,7 +22,8 @@ namespace ag::Leaderboard
 	void RecordWin(RE::TESFormID a_actor);
 	// someone's races won
 	int Wins(RE::TESFormID a_actor);
-	// the boards looked over (as you use a Prize Counter): anyone on them who's been deleted, "..." now
+	// the boards looked over (as you use a Prize Counter): anyone on them who's been deleted, "..." now; and the first
+	// time a session, every place's player put in its alias again (the quest's aliases from an older save, or none)
 	void Refresh();
 
 	void Save(const F4SE::SerializationInterface* a_intfc);
