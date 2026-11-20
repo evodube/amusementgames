@@ -24,29 +24,32 @@ def move(n,v):
 def snap(n): pb=a.pose.bones[n]; return (pb.location.copy(), pb.rotation_quaternion.copy())
 def put(n,s): pb=a.pose.bones[n]; pb.location=s[0]; pb.rotation_quaternion=s[1]; VL.update()
 LEG=["Leg_Thigh.","Leg_Calf.","Leg_Foot."]
+LAST={}
 def legik(s,target):
-    # the foot's ankle onto target (armature space), foot kept flat: thigh +a, calf -k, foot +(k-a) about X (world)
+    # the foot's ankle onto target (armature space), foot kept flat: thigh +a, calf -k, foot +(k-a) about X (world).
+    # Each frame starts from the last one's angles (LAST), so the leg moves on smoothly instead of jumping between
+    # nearby answers
     snaps={n+s:snap(n+s) for n in LEG}
-    def at(a,k):
+    arm=bpy.data.objects["Root:ARMATURE"]
+    def at(ta,tk):
         for n in snaps: put(n,snaps[n])
-        rot("Leg_Thigh."+s,X,a); rot("Leg_Calf."+s,X,-k); rot("Leg_Foot."+s,X,k-a)
-        p=bpy.data.objects["Root:ARMATURE"].pose.bones["Leg_Foot."+s].head
+        rot("Leg_Thigh."+s,X,ta); rot("Leg_Calf."+s,X,-tk); rot("Leg_Foot."+s,X,tk-ta)
+        p=arm.pose.bones["Leg_Foot."+s].head
         return (p.y-target.y)**2+(p.z-target.z)**2
-    best=(1e18,0,0)
-    for ga in range(-40,81,10):
-        for gk in range(0,131,10):
-            e=at(ga,gk)
-            if e<best[0]: best=(e,ga,gk)
-    step=5.0
-    _,ba,bk=best
-    while step>0.05:
+    ba,bk=LAST.get(s,(0.0,0.0))
+    best=at(ba,bk)
+    step=2.0
+    while step>0.005:
         moved=False
-        for da,dk in ((step,0),(-step,0),(0,step),(0,-step)):
+        for da,dk in ((step,0),(-step,0),(0,step),(0,-step),(step,step),(-step,-step),(step,2*step),(-step,-2*step)):
+            if bk+dk<0: continue
             e=at(ba+da,bk+dk)
-            if e<best[0]-1e-9:
-                best=(e,ba+da,bk+dk); ba,bk=ba+da,bk+dk; moved=True
+            if e<best-1e-12:
+                best=e; ba,bk=ba+da,bk+dk; moved=True
+                break
         if not moved: step/=2
     at(ba,bk)
+    LAST[s]=(ba,bk)
 def pose(p,FZ):
     reset()
     feet={s:a.pose.bones["Leg_Foot."+s].head.copy() for s in "LR"}
@@ -54,7 +57,7 @@ def pose(p,FZ):
     move("COM",Vector((0,dy,dz)))
     sp=p.get('spine',0); rot("Spine1",X,sp*.5); rot("Spine2",X,sp*.3); rot("Chest",X,sp*.2)
     stepL=p.get('stepL',0.0)
-    if abs(dz)>0.05 or abs(dy)>0.05 or abs(stepL)>0.05:
+    if True:
         for s in "LR":
             tgt=feet[s].copy()
             if s=="L":
@@ -79,6 +82,7 @@ def lk(keys,f):
             return {k:h00*ps[i].get(k,0)+h10*h*tan(i,k)+h01*ps[i+1].get(k,0)+h11*h*tan(i+1,k) for k in names}
     return keys[-1][1]
 def build(name,keys):
+    LAST.clear()
     a.animation_data.action=None
     reset(); FZ={s:a.pose.bones["Leg_Foot."+s].head.z for s in "LR"}
     act=bpy.data.actions.get(name)
@@ -120,7 +124,7 @@ KEYS = {'AGBasketballShot': [(0, {}),
                         'yawL': 15,
                         'yawR': 15}),
                       (20,
-                       {'com': -2,
+                       {'com': -3.0,
                         'foreL': 45,
                         'foreR': 40,
                         'handR': 35,
@@ -130,7 +134,7 @@ KEYS = {'AGBasketballShot': [(0, {}),
                         'yawL': 13,
                         'yawR': 8}),
                       (24,
-                       {'com': 2,
+                       {'com': -0.5,
                         'foreL': 10,
                         'foreR': 0,
                         'handL': -10,
@@ -141,7 +145,7 @@ KEYS = {'AGBasketballShot': [(0, {}),
                         'yawL': 25,
                         'yawR': 15}),
                       (33,
-                       {'com': 1,
+                       {'com': -0.3,
                         'foreL': 20,
                         'foreR': 0,
                         'handL': -20,
