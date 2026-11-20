@@ -1,5 +1,7 @@
 #pragma once
 
+#include <set>
+
 #include "sim/Arcade.h"
 
 #include <unordered_set>
@@ -102,6 +104,9 @@ namespace ag
 			return h.waiting < 0 ? 0 : std::min(a_all, h.waiting);
 		}
 		int Best(sim::GameId a_game) const { return a_game != sim::GameId::kCount ? _best[static_cast<int>(a_game)] : 0; }
+		// the Prize Counter's screen: the tickets on you and your best scores into its globals (the game's thread: as you activate
+		// it, before its screen's drawn, and after each game)
+		void RefreshCounter() const;
 
 		// something of the game's hit by you (on the game's thread): Whac-a-Commie's heads are whacked this way
 		void OnHit(RE::TESObjectREFR* a_target);
@@ -304,7 +309,9 @@ namespace ag
 			double                                 swingT{ -1.0 };  // ...the swing coming down this long (-1: none)
 			float                                  swingBest{ 1e9f };  // ...its mallet the nearest it's been to the head they're after
 			int                                    swingTarget{ -1 };
-			float                                  swingLowZ{ 1e9f };  // ...the mallet head's lowest yet, and there
+			float                                  swingHighZ{ -1e9f };  // ...the mallet head's highest yet (the wind-up)...
+			bool                                   swingJudged{ false };
+			float                                  swingLowZ{ 1e9f };  // ...its lowest since, and there
 			RE::NiPoint3                           swingLowAt{};
 			int                                    swingsLogged{ 0 };
 			RE::NiPoint3                           swingMiss;          // ...from the mallet then to that head  // ...the throw's animation on, the ball in their hand(s)
@@ -343,6 +350,9 @@ namespace ag
 		std::unordered_map<RE::TESFormID, std::pair<int, int>> _lastDuel;
 		// settlers still linked to a spot no game's using (let go late, or a walk that outlived its game): let go
 		void   SweepStragglers(double a_dt);
+		void   CallOffAtGamesInPlay();
+		std::set<std::pair<RE::TESFormID, RE::TESFormID>> _bystanders;  // (machine, actor): logged about it mid-game
+		int                                               _bystanderTick{ 0 };  // (the sweep's seconds: looked for every 5th)
 		double _sweep{ 1.0 };
 		std::unordered_map<RE::TESFormID, double> _swept;  // (let go lately: not again while Papyrus does it)
 

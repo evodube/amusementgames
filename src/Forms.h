@@ -11,6 +11,9 @@ namespace ag::Forms
 	inline constexpr std::uint32_t kWorkshopMenuID = 0x800;  // KYWD AmusementGamesWorkshopMenu: the Amusement Games workshop category
 	inline constexpr std::uint32_t kFirstMachineID = 0x810;  // ACTI the five machines, in sim::GameId order (0x810-0x814)
 	inline constexpr std::uint32_t kFirstPieceID = 0x820;    // STAT the pieces (0x820-0x82A)
+	inline constexpr std::uint32_t kPrizeCounterID = 0x838;  // TERM AmusementGamesPrizeCounter: tickets for prizes
+	inline constexpr std::uint32_t kTicketsCarriedID = 0x845;  // GLOB AmusementGamesTicketsCarried: the tickets on you
+	inline constexpr std::uint32_t kFirstBestID = 0x840;      // GLOB AmusementGamesBest*: your bests, sim::GameId order
 
 	// the pieces, by their ids in the .esl
 	enum Piece : std::uint32_t
@@ -27,7 +30,7 @@ namespace ag::Forms
 		kGalleryStar = 0x829,
 		kZapperTarget = 0x82A,
 		kCommieWhackerProp = 0x82B,  // the Nuka-Cade's mallet, resting on Whac-a-Commie
-		kIncomePerSettler = 0x80C    // GLOB: caps a machine earns its settlement a day, a settler
+		kIncomePerSettler = 0x80C    // GLOB: (unused since 0.9.7: the rates are in Settings, the Income page)
 	};
 
 	inline constexpr RE::TESFormID kFurnitureTables = 0x00118F59;  // WorkshopRecipeFilterFurniture02Tables

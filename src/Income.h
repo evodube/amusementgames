@@ -3,7 +3,7 @@
 namespace ag::Income
 {
 	// a machine of ours, near you: pays its settlement's workshop what it's earned since it last did (whole days; a
-	// day's takings: AmusementGamesIncomePerSettler caps for each settler there)
+	// day's takings for each settler there: Settings' incomeCaps caps and incomeTickets Nuka-Cade tickets)
 	void Check(RE::TESObjectREFR* a_machine);
 
 	void Save(const F4SE::SerializationInterface* a_intfc);

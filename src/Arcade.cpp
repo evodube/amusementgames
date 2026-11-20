@@ -1,6 +1,7 @@
 #include "Arcade.h"
 
 #include "Income.h"
+#include "Leaderboard.h"
 
 #include "Forms.h"
 #include "Hud.h"
@@ -55,6 +56,12 @@ namespace ag
 			RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent& a_event, RE::BSTEventSource<RE::TESActivateEvent>*) override
 			{
 				auto* player = RE::PlayerCharacter::GetSingleton();
+				// the Prize Counter: its screen's numbers set now, before it's drawn
+				if (a_event.objectActivated && a_event.actionRef && a_event.actionRef.get() == player &&
+					a_event.objectActivated->GetObjectReference() == Forms::Own(Forms::kPrizeCounterID)) {
+					Arcade::Get().RefreshCounter();
+					return RE::BSEventNotifyControl::kContinue;
+				}
 				if (a_event.objectActivated && a_event.actionRef && a_event.actionRef.get() == player &&
 					Forms::GameOf(a_event.objectActivated.get()) != sim::GameId::kCount) {
 					auto handle = a_event.objectActivated->GetHandle();
@@ -371,7 +378,8 @@ namespace ag
 		}
 		auto       machine = _machine.get();
 		const int  score = _game->Score();
-		const int  tickets = _game->TicketsFor(score);
+		// (the game's own rate, times the Income page's multiplier: 2x unless changed)
+		const int  tickets = static_cast<int>(std::lround(_game->TicketsFor(score) * Settings::Get().playTickets));
 		auto&      best = _best[static_cast<int>(_gameId)];
 		const bool newBest = score > best && score > 0;
 		if (newBest) {
@@ -381,6 +389,36 @@ namespace ag
 		auto* player = RE::PlayerCharacter::GetSingleton();
 		if (auto* ticket = Forms::Ticket(); player && ticket && tickets > 0) {
 			player->AddObjectToContainer(ticket, nullptr, tickets, nullptr, RE::ITEM_REMOVE_REASON::kNone);
+		}
+		RefreshCounter();  // (the Prize Counter's screen: these tickets, a new best)
+		// the high scores (played to the end): you, and whoever played you (your 1v1's rival, the settlers you raced)
+		if (!a_early && player) {
+			Leaderboard::Record(_gameId, player->GetFormID(), score);
+			if (sim::GalleryVersus(*_game)) {
+				for (const auto& sh : _shows) {
+					if (sh.vsYou && sh.phase != Show::Phase::kNone) {
+						Leaderboard::Record(_gameId, sh.actorID, sim::GalleryScore(*_game, 1));
+					}
+				}
+			}
+			if (_gameId == sim::GameId::kNukaZapperRace) {
+				// (its board's races won: the winner, you or a settler racing you)
+				const int  w = sim::ZapperWinner(*_game);
+				RE::TESFormID winner = 0;
+				for (const auto& r : _races) {
+					if (r.withYou && r.machineID == _machineID) {
+						for (const auto& q : r.racers) {
+							if (q.lane == w) {
+								winner = q.actorID;
+							}
+						}
+					}
+				}
+				if (!winner && w >= 0 && w == sim::layout::Zapper().playerLane) {
+					winner = player->GetFormID();
+				}
+				Leaderboard::RecordWin(winner);
+			}
 		}
 		if (machine) {
 			Sounds::Music(_gameId, machine.get(), false);
@@ -837,6 +875,24 @@ namespace ag
 		_controlsBlocked = a_block;
 	}
 
+	void Arcade::RefreshCounter() const
+	{
+		auto set = [](std::uint32_t a_id, int a_value) {
+			if (auto* f = Forms::Own(a_id); f && f->Is(RE::ENUM_FORM_ID::kGLOB)) {
+				static_cast<RE::TESGlobal*>(f)->value = static_cast<float>(a_value);
+			}
+		};
+		set(Forms::kTicketsCarriedID, Count(Forms::Ticket()));
+		for (int i = 0; i < static_cast<int>(_best.size()); ++i) {
+			set(Forms::kFirstBestID + static_cast<std::uint32_t>(i), _best[i]);
+		}
+		Leaderboard::Refresh();  // (anyone on the high scores who's been deleted: "...")
+		// (the zapper race's: your races won, every win scoring the same)
+		if (auto* player = RE::PlayerCharacter::GetSingleton()) {
+			set(Forms::kFirstBestID + static_cast<std::uint32_t>(sim::GameId::kNukaZapperRace), Leaderboard::Wins(player->GetFormID()));
+		}
+	}
+
 	int Arcade::Count(RE::TESBoundObject* a_item) const
 	{
 		auto* player = RE::PlayerCharacter::GetSingleton();
@@ -930,13 +986,14 @@ namespace ag
 			}
 			return a_s;
 		}
-		constexpr float     kWhacMalletReach = 30.0f;          // a settler's mallet head this near an up head's middle: a hit
+		constexpr float     kWhacMalletReach = 36.0f;          // a settler's mallet head this near an up head's middle: a hit
 		                                                       // (they swing straight ahead, still: the holes are 48 across)
 		constexpr float     kWhacHeadMiddle = 8.0f;            // ...its middle above where it's placed
 		constexpr double    kWhacSwingLong = 1.6;              // ...a swing followed this long (the Papyrus call's wait, the
 		                                                       // turn and the swing's wind-up before it comes down)
 		constexpr double    kWhacSwingDown = 0.6;              // ...by then it's come down
-		constexpr float     kWhacBottomReach = 45.0f;          // ...where it bottoms out, a head out this near: a hit
+		constexpr float     kWhacBottomReach = 52.0f;          // ...where it bottoms out, a head out this near: a hit
+		                                                       // (a hole and a half: the mallet seen to come down by it)
 		constexpr double    kWhacSettlerUp = 1.6;              // a settler's game's heads up this much longer
 		constexpr double    kZapperAimUnder = 59.0;            // a zapper racer's aim point, under their target's centre...
 		constexpr double    kZapperAimRight = -12.0;           // ...and to its right (their stream went in above and right)
@@ -1079,6 +1136,7 @@ namespace ag
 				_nextShow = StartShow() ? kShowNextTry : kShowRetry;
 			}
 		}
+		CallOffAtGamesInPlay();
 		for (std::size_t i = 0; i < _shows.size(); ++i) {
 			TickOne(_shows[i], a_dt);
 		}
@@ -1296,10 +1354,9 @@ namespace ag
 					}
 					a_s.swingT = -1.0;
 				};
-				if (a_s.whacker->Update(*a_s.game, a_dt)) {
-					if (a_s.swingT >= 0.0) {
-						missed();  // (the last swing not over yet: settled first)
-					}
+				// (no new swing till the last's come down and been followed through: started every 0.7 s or so, with heads
+				// up to swing at, each cut the one before off just before it landed)
+				if (a_s.swingT < 0.0 && a_s.whacker->Update(*a_s.game, a_dt)) {
 					auto spot = a_s.marker.get();
 					auto at = a_s.aimAt.get();
 					// (they face the middle of the holes, still, the whole game: turned to each head, and their spot moved
@@ -1308,6 +1365,8 @@ namespace ag
 					a_s.swingT = 0.0;
 					a_s.swingBest = 1e9f;
 					a_s.swingLowZ = 1e9f;
+					a_s.swingHighZ = -1e9f;
+					a_s.swingJudged = false;
 					a_s.swingTarget = a_s.whacker->Target();
 				}
 				// the swing's mallet coming down: a head it gets to is hit (a settler's melee hits on the heads never come
@@ -1344,40 +1403,45 @@ namespace ag
 								break;
 							}
 						}
-						// the bottom of the swing (the mallet head's come down and is going back up): a head still out
-						// of its hole near where it came down is hit - their mallet seen landing on it (its head's place
-						// in their hand is only reckoned, and they swing at the middle, still)
-						if (a_s.swingT >= 0.0) {
-							if (head.z < a_s.swingLowZ) {
-								a_s.swingLowZ = head.z;
-								a_s.swingLowAt = head;
-							} else if (a_s.swingT > 0.3 && head.z > a_s.swingLowZ + 3.0f) {
-								int   best = -1;
-								float bestD = 1e9f;
-								for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
-									auto  ref = a_s.pieces[i].get();
-									auto* h3 = ref ? ref->Get3D() : nullptr;
-									if (!h3 || pieces[i].hidden || sim::WhacHeight(*a_s.game, static_cast<int>(i)) <= 0.25) {
-										continue;
+						// the bottom of the swing: once the mallet's been raised and come down well below its height (20
+						// under its highest, not the dip of the wind-up), where it turns back up a head still out of its
+						// hole near it is hit - their mallet seen landing on it (its head's place in their hand is only
+						// reckoned, and they swing at the middle, still). Only ever a hit: the swing's followed on as ever
+						if (a_s.swingT >= 0.0 && !a_s.swingJudged) {
+							a_s.swingHighZ = std::max(a_s.swingHighZ, head.z);
+							if (head.z < a_s.swingHighZ - 20.0f) {
+								if (head.z < a_s.swingLowZ) {
+									a_s.swingLowZ = head.z;
+									a_s.swingLowAt = head;
+								} else if (head.z > a_s.swingLowZ + 3.0f) {
+									a_s.swingJudged = true;
+									int   best = -1;
+									float bestD = 1e9f;
+									for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
+										auto  ref = a_s.pieces[i].get();
+										auto* h3 = ref ? ref->Get3D() : nullptr;
+										if (!h3 || pieces[i].hidden || sim::WhacHeight(*a_s.game, static_cast<int>(i)) <= 0.25) {
+											continue;
+										}
+										const float d = (a_s.swingLowAt - (h3->world.translate + RE::NiPoint3{ 0.0f, 0.0f, kWhacHeadMiddle })).Length();
+										if (d < bestD) {
+											bestD = d;
+											best = static_cast<int>(i);
+										}
 									}
-									const float d = (a_s.swingLowAt - (h3->world.translate + RE::NiPoint3{ 0.0f, 0.0f, kWhacHeadMiddle })).Length();
-									if (d < bestD) {
-										bestD = d;
-										best = static_cast<int>(i);
+									const bool      hit = best >= 0 && bestD < kWhacBottomReach;
+									const sim::Vec3 at = ToLocal(f, a_s.swingLowAt);
+									if (a_s.swingsLogged++ < 15) {
+										log::info("WHAC-A-COMMIE: {}'s swing bottomed out at ({:.0f}, {:.0f}, {:.0f}) on the machine, {:.0f} from the nearest head out{}",
+											a_s.name, at.x, at.y, at.z, bestD, hit ? ": a hit" : best < 0 ? " (none out)" : "");
 									}
-								}
-								const bool hit = best >= 0 && bestD < kWhacBottomReach;
-								if (a_s.swingsLogged++ < 15) {
-									log::info("WHAC-A-COMMIE: {}'s swing came down {:.0f} from the nearest head out{}", a_s.name, bestD,
-										hit ? ": a hit" : best < 0 ? " (none out)" : ": a miss");
-								}
-								if (hit) {
-									a_s.game->OnPieceHit(best);
-									++a_s.hits;
-									a_s.swingT = -1.0;
-								} else {
-									a_s.swingBest = std::min(a_s.swingBest, bestD);
-									missed();
+									if (hit) {
+										a_s.game->OnPieceHit(best);
+										++a_s.hits;
+										a_s.swingT = -1.0;
+									} else {
+										a_s.swingT = std::max(a_s.swingT, kWhacSwingLong - 0.25);  // (over in a moment: the next)
+									}
 								}
 							}
 						}
@@ -1566,6 +1630,7 @@ namespace ag
 				_lastScores[a_s.machineID] = a_s.game->Score();
 				_played[Played(a_s.actorID, a_s.gameId)] = kShowTurnAbout;
 				log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
+				Leaderboard::Record(a_s.gameId, a_s.actorID, a_s.game->Score());
 				EndShow(a_s, nullptr);
 			}
 			return;
@@ -1706,10 +1771,13 @@ namespace ag
 			if (const Show* other = sim::GalleryVersus(*a_s.game) ? PartnerOf(a_s) : nullptr) {
 				_played[Played(other->actorID, sim::GameId::kBanditRoundup)] = kShowTurnAbout;
 				const int mine = sim::GalleryScore(*a_s.game, 0), theirs = sim::GalleryScore(*a_s.game, 1);
+				Leaderboard::Record(a_s.gameId, a_s.actorID, mine);
+				Leaderboard::Record(a_s.gameId, other->actorID, theirs);
 				log::info("{}: {} ({:08X}) {}, {} ({:08X}) {}: {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, mine, other->name,
 					other->actorID, theirs, mine == theirs ? std::string("a tie") : std::format("{} won", mine > theirs ? a_s.name : other->name));
 			} else {
 				log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
+				Leaderboard::Record(a_s.gameId, a_s.actorID, a_s.game->Score());
 			}
 			EndShow(a_s, nullptr);
 		}
@@ -2051,6 +2119,31 @@ namespace ag
 		}
 	}
 
+	// a game in play on a machine (yours, your 1v1, or settlers'): anyone else on their way to it or waiting at it is
+	// called off (a settler's not sent to a machine in play, but whatever brought one, they don't come up mid-game)
+	void Arcade::CallOffAtGamesInPlay()
+	{
+		for (auto& sh : _shows) {
+			if (sh.phase == Show::Phase::kNone || sh.phase == Show::Phase::kPlaying) {
+				continue;
+			}
+			const auto id = sh.machineID;
+			bool       inPlay = false;
+			if (_playing && _machineID == id) {
+				inPlay = !(sh.vsYou && _duel.on);  // (your rival's yours)
+			} else {
+				for (const auto& o : _shows) {
+					if (&o != &sh && o.machineID == id && o.phase == Show::Phase::kPlaying && o.game && o.actorID != sh.partner) {
+						inPlay = true;
+					}
+				}
+			}
+			if (inPlay) {
+				EndShow(sh, "a game's on there");
+			}
+		}
+	}
+
 	// a settler still linked to a game's spot when no game has them (one let go while walking that kept on, or stood
 	// there after): let go now, once a second at most
 	void Arcade::SweepStragglers(double a_dt)
@@ -2068,6 +2161,42 @@ namespace ag
 		auto* link = Forms::Own(0x80D) ? Forms::Own(0x80D)->As<RE::BGSKeyword>() : nullptr;  // AmusementGamesLinkSpot
 		if (!lists || !link) {
 			return;
+		}
+		// (who's about a Bandit Roundup in play and not in its game: looked for every 5 s, each logged once a game, to
+		// see who they are)
+		const bool lookAbout = ++_bystanderTick % 5 == 0;
+		std::vector<std::pair<RE::TESFormID, RE::NiPoint3>> inPlay;
+		std::vector<RE::TESFormID>                          playing;
+		if (_playing && _gameId == sim::GameId::kBanditRoundup) {
+			if (auto m = _machine.get()) {
+				inPlay.push_back({ _machineID, m->data.location });
+			}
+		}
+		for (const auto& sh : _shows) {
+			if (sh.phase != Show::Phase::kNone) {
+				playing.push_back(sh.actorID);
+			}
+			if (sh.gameId == sim::GameId::kBanditRoundup && sh.phase == Show::Phase::kPlaying && sh.game) {
+				if (auto m = sh.machine.get()) {
+					inPlay.push_back({ sh.machineID, m->data.location });
+				}
+			}
+		}
+		for (auto& ah : lists->highActorHandles) {
+			auto a = ah.get();
+			if (!lookAbout || !a || a->IsDead(false) || inPlay.empty() || std::ranges::find(playing, a->GetFormID()) != playing.end()) {
+				continue;
+			}
+			for (const auto& [mid, at] : inPlay) {
+				if ((a->data.location - at).Length() < 220.0f && _bystanders.insert({ mid, a->GetFormID() }).second) {
+					const char* n = a->GetDisplayFullName();
+					log::info("BANDIT ROUNDUP {:08X}: {} ({:08X}) about it mid-game, not in it ({}; {:.0f} away)", mid, n && *n ? n : "someone",
+						a->GetFormID(), a->GetLinkedRef(link) ? "one of ours, still linked" : "not called by us", (a->data.location - at).Length());
+				}
+			}
+		}
+		if (inPlay.empty()) {
+			_bystanders.clear();
 		}
 		for (auto& ah : lists->highActorHandles) {
 			auto a = ah.get();
@@ -2411,6 +2540,9 @@ namespace ag
 				const auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == w; });
 				_lastScores[a_r.machineID] = a_r.game->Score();
 				log::info("NUKA-ZAPPER RACE {:08X}: {} won (lane {})", a_r.machineID, it != a_r.racers.end() ? it->name : "?", w + 1);
+				if (it != a_r.racers.end()) {
+					Leaderboard::RecordWin(it->actorID);  // (its board's races won)
+				}
 				EndRace(a_r, nullptr);
 			}
 		}
@@ -2630,6 +2762,7 @@ namespace ag
 	{
 		auto& self = Get();
 		Income::Save(a_intfc);
+		Leaderboard::Save(a_intfc);
 		if (self._swingBoost != 0.0f && a_intfc->OpenRecord(kSwingType, 1)) {
 			a_intfc->WriteRecordData(&self._swingBoost, sizeof(self._swingBoost));
 		}
@@ -2680,6 +2813,7 @@ namespace ag
 		std::uint32_t type = 0, version = 0, length = 0;
 		self._best.fill(0);
 		Income::Revert();
+		Leaderboard::Revert();
 		self._heldFromSave.clear();
 		self._swingFromSave = 0.0f;
 		while (a_intfc->GetNextRecordInfo(type, version, length)) {
@@ -2703,6 +2837,10 @@ namespace ag
 						self._heldFromSave.push_back({ nullptr, *a, w ? *w : 0, added != 0 });
 					}
 				}
+				continue;
+			}
+			if (type == Leaderboard::kSaveType) {
+				Leaderboard::Load(a_intfc, version, length);
 				continue;
 			}
 			if (type == Income::kSaveType) {
@@ -2731,6 +2869,7 @@ namespace ag
 	void Arcade::Revert(const F4SE::SerializationInterface*)
 	{
 		Income::Revert();
+		Leaderboard::Revert();
 		Get()._best.fill(0);
 	}
 }

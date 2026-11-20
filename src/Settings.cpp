@@ -34,6 +34,9 @@ namespace ag
 		settlersGapShortest = std::clamp(ReadFloat(L"Settlers", L"fGapShortest", 45.0f), 5.0f, 1800.0f);
 		settlersGapLongest = std::clamp(ReadFloat(L"Settlers", L"fGapLongest", 120.0f), settlersGapShortest, 3600.0f);
 		settlersDuel = std::clamp(ReadFloat(L"Settlers", L"fDuelPercent", 35.0f), 0.0f, 100.0f);
+		incomeCaps = std::clamp(ReadFloat(L"Income", L"fCapsPerSettler", 1.0f), 0.0f, 100.0f);
+		incomeTickets = std::clamp(ReadFloat(L"Income", L"fTicketsPerSettler", 2.0f), 0.0f, 100.0f);
+		playTickets = std::clamp(ReadFloat(L"Income", L"fPlayTicketsMult", 2.0f), 0.5f, 5.0f);
 	}
 
 	void Settings::Save() const
@@ -42,6 +45,9 @@ namespace ag
 		WriteFloat(L"Settlers", L"fGapShortest", settlersGapShortest);
 		WriteFloat(L"Settlers", L"fGapLongest", settlersGapLongest);
 		WriteFloat(L"Settlers", L"fDuelPercent", settlersDuel);
+		WriteFloat(L"Income", L"fCapsPerSettler", incomeCaps);
+		WriteFloat(L"Income", L"fTicketsPerSettler", incomeTickets);
+		WriteFloat(L"Income", L"fPlayTicketsMult", playTickets);
 	}
 
 	namespace SettingsMenu
@@ -78,6 +84,26 @@ namespace ag
 				SliderFloat("Bandit Roundup: two settlers playing each other", &s.settlersDuel, 0.0f, 100.0f, "%.0f %% of games");
 				Saved(IsItemDeactivatedAfterEdit());
 			}
+
+			void __stdcall DrawIncome()
+			{
+				auto& s = Settings::Get();
+				TextWrapped("Each game machine earns its settlement caps and Nuka-Cade tickets every day, for each settler "
+				            "living there. They go into the settlement's workbench when you're next nearby (up to 30 days' "
+				            "worth at once).");
+				Spacing();
+				SetNextItemWidth(260.0f);
+				SliderFloat("Caps a day, per settler, per machine", &s.incomeCaps, 0.0f, 20.0f, "%.1f");
+				Saved(IsItemDeactivatedAfterEdit());
+				SetNextItemWidth(260.0f);
+				SliderFloat("Tickets a day, per settler, per machine", &s.incomeTickets, 0.0f, 20.0f, "%.1f");
+				Saved(IsItemDeactivatedAfterEdit());
+				Spacing();
+				TextWrapped("The tickets you win playing: each game's own rate (Nuka-World's) times this.");
+				SetNextItemWidth(260.0f);
+				SliderFloat("Tickets from playing", &s.playTickets, 0.5f, 5.0f, "%.1fx");
+				Saved(IsItemDeactivatedAfterEdit());
+			}
 		}
 
 		void Install()
@@ -90,6 +116,7 @@ namespace ag
 			installed = true;
 			F4SEMenuFramework::SetSection("Amusement Games");
 			F4SEMenuFramework::AddSectionItem("Settlers", &DrawSettlers);
+			F4SEMenuFramework::AddSectionItem("Income", &DrawIncome);
 			log::info("settings pages registered in F4SE Menu Framework");
 		}
 	}

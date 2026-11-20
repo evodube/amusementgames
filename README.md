@@ -31,17 +31,40 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   seconds after the second is ready they race. No racing on your own: put your token in and you wait for a settler
   to be ready (10 seconds after, you're off), racing only the settlers who came; the HUD shows who's racing and their
   rockets, and at the end whether you won or lost (and who won). Activate it again while waiting to leave, token back.
-- **Takings**: each machine earns its settlement 1 cap a day for every settler there, put in the workshop when you're
-  back (up to 30 days' worth). The rate is the global `AmusementGamesIncomePerSettler` (`set AmusementGamesIncomePerSettler to 2`).
+- **Takings**: each machine earns its settlement 1 cap and 2 Nuka-Cade tickets a day for every settler there, put in
+  the workbench when you're back (up to 30 days' worth). Both rates are on the Income page of the mod's settings
+  (F4SE Menu Framework), or `[Income] fCapsPerSettler` / `fTicketsPerSettler` in `AmusementGames_user.ini`.
+- **Tickets from playing**: each game's rate below, doubled by default; the multiplier is on the same Income page
+  (`fPlayTicketsMult`, 0.5x to 5x).
 - **Token Stand**: press F to buy 5 Nuka-Cade tokens (5 caps a token, 25 a press). Each game takes a token.
+- **Prize Counter**: the Nuka-Cade's own prize terminal (no power needed), working as the Nuka-Cade's does. Its first
+  screen welcomes you by name and shows your Current Tickets and Total Tickets Redeemed, then:
+  - **Redeem Tickets**: puts all the tickets you carry into the counter (one account, shared by every counter).
+  - **Spend Tickets**: Weapons, Ammo, Drinks, Souvenirs, paid from what you've redeemed; a prize you can't afford
+    yet says "(not enough)".
+  - **View High Scores**: each game's top 10 across all your settlements, you and your settlers alike (each one's
+    best score; generic names like Settler, Provisioner, Wastelander, Raider or Protectron left off, so it's people
+    with names of their own; anyone since deleted shows as "..." (the dead keep their names); the
+    Nuka-Zapper Race's is most races won, every win scoring the same), and your Personal High Scores.
+  Prices are the Nuka-Cade's own: an item's caps value x 50.
+  - Weapons: Paddle Ball 500, Thirst Zapper 500, Commie Whacker 1250, Acid Soaker 6250
+  - Ammo: Paddle Balls x10 500; Thirst Zapper ammo x20 (Water, Nuka-Cola, Nuka-Cherry, Nuka-Quantum) 1000 each;
+    Acid Concentrate x20 2000; 7.62 Rounds x20 2000
+  - Drinks (ice-cold Nuka-Cola): Orange, Grape, Wild 1000 each; Victory, Quartz 2000 each; Dark 2500
+  - Souvenirs: Teddy Bear, Sloth Toy, Magnet Cow, 150 each
+
+  The catalogue is `PRIZES` in `tools/make_esl.py`; after changing it, `python tools/make_esl.py --psc` rewrites the
+  terminal's fragment script (`papyrus/AmusementGamesPrizeCounterFragments.psc`).
 
 On screen while you play: just the clock (Atomic Rollers: the ball you're on; the zapper race: its countdown), and
 the power meter while you charge a throw; Atomic Rollers also shows each ball's points as they come and a green aim
 line up the lane to where you look (as fo4bowling's). At the end, the result. The machine's own scoreboard has the score.
 
 A point a hit (a basket, a whack, a target, a step up the zapper race; a race won is 10 more); Atomic Rollers' holes are
-worth what they say. Tickets come out at Nuka-World's own rates: a ticket every 100 at Atomic Rollers, every 2
-points at the rest. They're Nuka-Cade tickets, so the Nuka-Cade's prize terminal takes them too. The weapon's lent
+worth what they say. Tickets come out at Nuka-World's own rates, doubled (the Income page's multiplier): a ticket every 100 at Atomic Rollers,
+every 2 points at Hoop Shot and Whac-a-Commie, every 4 at the zapper race, and at Bandit Roundup by what you hit, as
+Nuka-World's gallery pays (the bunny half a ticket, the pig 3/4, the duck 1, the star 1 1/4, the bottle 1 1/2; a
+bullseye's more points, not more tickets). They're Nuka-Cade tickets, so the Nuka-Cade's prize terminal takes them too. The weapon's lent
 for the game (with ammo) if you haven't one, and you get back what you had out after. Each machine's own scoreboard
 shows the game on it and your best at that game, kept in your save. X leaves a game early, paid for the score so far.
 
@@ -52,7 +75,7 @@ counter in front of your lane and the rifle on the gallery's counter (not to be 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,
 bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own like Playable Pool's.
 
-**Status: 0.9.6.**
+**Status: 0.9.7.**
 
 ## Requirements
 

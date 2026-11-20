@@ -125,6 +125,67 @@ Function AddTo(Int aiRef, Int aiItem, Int aiCount) Global
 	EndIf
 EndFunction
 
+; the Prize Counter's (AmusementGamesPrizeCounterFragments), as the Nuka-Cade's prize terminal: tickets are redeemed
+; into it (one account, every counter: AmusementGamesTicketsCurrent) and prizes bought from what's redeemed
+
+; Redeem Tickets: all the Nuka-Cade tickets you carry, into the counter
+Function RedeemTickets() Global
+	Actor player = Game.GetPlayer()
+	Form ticket = Game.GetFormFromFile(0x019988, "DLCNukaWorld.esm")   ; (DLC04_Nukacade_Ticket01)
+	GlobalVariable current = CounterGlobal(0x83E)
+	GlobalVariable redeemed = CounterGlobal(0x83F)
+	GlobalVariable carried = CounterGlobal(0x845)
+	Int n = 0
+	If ticket
+		n = player.GetItemCount(ticket)
+	EndIf
+	If n < 1 || !current
+		Return
+	EndIf
+	player.RemoveItem(ticket, n, True)
+	current.Mod(n)
+	If redeemed
+		redeemed.Mod(n)
+	EndIf
+	If carried
+		carried.SetValue(0)
+	EndIf
+EndFunction
+
+; a prize bought: a Nuka-World item (its id in DLCNukaWorld.esm), how many, for how many tickets redeemed. The
+; counter only offers it when you've redeemed enough; checked again here (a double press)
+Function BuyPrize(Int aiItem, Int aiCount, Int aiTickets) Global
+	GlobalVariable current = CounterGlobal(0x83E)
+	Form item = Game.GetFormFromFile(aiItem, "DLCNukaWorld.esm")
+	If !current || !item || current.GetValueInt() < aiTickets
+		Return
+	EndIf
+	current.Mod(-aiTickets)
+	Game.GetPlayer().AddItem(item, aiCount)
+EndFunction
+
+; the counter's high scores: a place on a board, its player (AmusementGamesQuest's alias Top<Game><NN>; 0 clears it)
+Function TopAlias(Int aiAlias, Int aiActor) Global
+	Quest q = Game.GetFormFromFile(0x80F, "AmusementGames.esl") as Quest
+	ReferenceAlias place = None
+	If q
+		place = q.GetAlias(aiAlias) as ReferenceAlias
+	EndIf
+	If !place
+		Return
+	EndIf
+	ObjectReference who = Game.GetForm(aiActor) as ObjectReference
+	If who
+		place.ForceRefTo(who)
+	Else
+		place.Clear()
+	EndIf
+EndFunction
+
+GlobalVariable Function CounterGlobal(Int aiID) Global
+	Return Game.GetFormFromFile(aiID, "AmusementGames.esl") as GlobalVariable
+EndFunction
+
 ; ---------------------------------------------------------------- settlers at the games
 ; walked over by AmusementGamesQuest's package (as Wasteland Wagers walks its players), then the plugin takes it from
 ; there: NpcStartGallery, NpcWalk (again, if they stall), NpcTakeUp (there: the rifle up, held), NpcEnd
@@ -434,9 +495,8 @@ EndFunction
 ; Atomic Rollers: the ball rolled up the lane, a mine's throw (low and underhand); if that won't play without a mine
 ; in hand, Nuka-World's own smoke bomb toss (an idle of its own, nothing in hand needed). 1 the mine's, 3 the toss, 2
 ; neither (the event sent)
-; one of a throw's three takes, at random. (Testing: the third take only, every throw)
+; one of a throw's three takes, at random
 Int Function ThrowTake(Int aiFirst, Int aiSecond, Int aiThird) Global
-	Return aiThird
 	Int r = Utility.RandomInt(0, 2)
 	If r == 0
 		Return aiFirst

@@ -171,6 +171,7 @@ namespace sim::layout
 		double weight{ 1.0 };   // how often it comes up
 		double bullX{ 0.0 };    // its bullseye's centre (the round plate on it, from its model)...
 		double bullZ{ 10.0 };   // ...above its feet
+		int    vanilla{ 100 };  // what Nuka-World's own gallery scores it (its tickets: a ticket every 200 of these)
 	};
 
 	struct GalleryLayout
@@ -179,9 +180,11 @@ namespace sim::layout
 		double                   left{ -224.0 };
 		double                   right{ 232.0 };
 		std::vector<GalleryRow>  rows{ { 418.3, 180.2, 75.0, 6, true }, { 375.0, 111.2, -95.0, 6, true } };
-		// a point a hit, whatever it is; the bullseyes' centres from the models' bullseye plates (their :173 shapes)
-		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0, -0.7, 11.1 }, { 1, 15.0, 16.0, 3.0, -0.4, 11.0 }, { 1, 13.0, 11.0, 2.0, -1.1, 15.0 },
-			{ 1, 8.0, 22.0, 1.2, 0.0, 20.0 }, { 1, 12.0, 11.0, 0.6, -0.15, 14.15 } };
+		// a point a hit, whatever it is; the bullseyes' centres from the models' bullseye plates (their :173 shapes). The
+		// tickets go by Nuka-World's own values (DLC04_Nukacade_BanditRoundup's ScoreEvents, its targets told apart by
+		// their bounds: the bunny 100, the pig 150, the duck 200, the star 250, the bottle 300)
+		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0, -0.7, 11.1, 200 }, { 1, 15.0, 16.0, 3.0, -0.4, 11.0, 100 },
+			{ 1, 13.0, 11.0, 2.0, -1.1, 15.0, 150 }, { 1, 8.0, 22.0, 1.2, 0.0, 20.0, 300 }, { 1, 12.0, 11.0, 0.6, -0.15, 14.15, 250 } };
 		Vec3                     stand{ -15.0, -135.0, 0.0 };   // where a settler playing it stands: well back from the
 		                                                        // counter (its front at -47; near it, the game reads the
 		                                                        // counter as low cover and they crouch to aim over it;

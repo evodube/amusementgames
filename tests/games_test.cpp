@@ -401,6 +401,10 @@ namespace
         }, 60.0);
 		std::printf("     bandit roundup: %d points, %d tickets\n", s, g->TicketsFor(s));
 		Check(s > 20, "bandit roundup: aiming at the targets hits them");
+		// its tickets at Nuka-World's rate: what its gallery scores each target (100 to 300), a ticket every 200, so
+		// between half a ticket and one and a half a hit (a bullseye's 3 points no more)
+		Check(g->TicketsFor(s) * 2 >= s / 3 - 2 && g->TicketsFor(s) * 2 <= s * 3 + 2,
+			"bandit roundup: tickets at Nuka-World's rate (half a ticket to one and a half a hit)");
 
 		// a settler at it: a good shot scores, a poor one less
 		{
