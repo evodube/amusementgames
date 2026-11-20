@@ -82,7 +82,13 @@ namespace ag
 		int PropsShown(RE::TESFormID a_machine, int a_all) const
 		{
 			if (const auto* s = ShowOn(a_machine); s && s->phase == Show::Phase::kPlaying) {
-				return 0;  // (a settler's playing: the rifle's in their hands)
+				// (a settler's playing: the gun or mallet's in their hands; Atomic Rollers' pocket as the game has it)
+				if (!s->game) {
+					return 0;
+				}
+				sim::HudInfo h;
+				s->game->Hud(h);
+				return h.waiting < 0 ? 0 : std::min(a_all, h.waiting);
 			}
 			if (!PlayingOn(a_machine) || !_game) {
 				return a_all;
@@ -219,7 +225,11 @@ namespace ag
 			std::shared_ptr<std::atomic<std::int32_t>> ready;  // NpcStartGallery: -1 not yet, 1 walking, 10+ not coming
 			std::shared_ptr<std::atomic<std::int32_t>> armed;  // NpcTakeUp: -1 not yet, 0 didn't, 1 ready, 2 ready (lent)
 			std::unique_ptr<sim::Game>             game;
-			std::unique_ptr<sim::GalleryShooter>   shooter;
+			std::unique_ptr<sim::GalleryShooter>   shooter;  // Bandit Roundup's
+			std::unique_ptr<sim::WhacPlayer>       whacker;  // Whac-a-Commie's
+			std::unique_ptr<sim::Thrower>          thrower;  // Atomic Rollers' and Hoop Shot's
+			RE::ObjectRefHandle                    handBall; // ...the ball in their hand
+			double                                 sinceThrow{ 9.0 };
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
 			std::vector<RE::NiAVObject*>           frozen;

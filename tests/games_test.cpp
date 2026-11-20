@@ -292,6 +292,37 @@ namespace
 		}
 	}
 
+	void ThrowSettlers()
+	{
+		// settlers at Atomic Rollers and Hoop Shot: a whole game each, some points
+		for (GameId id : { GameId::kAtomicRollers, GameId::kHoopShot }) {
+			int got[2]{};
+			for (int k = 0; k < 2; ++k) {
+				auto    g = MakeGame(id);
+				Thrower t(3, k == 0 ? 0.9 : 0.2, id);
+				got[k] = Play(*g, [&](Game&, double) { return t.Next(1.0 / 60.0); }, 200.0);
+			}
+			std::printf("     %s settlers: a good one %d, a poor one %d\n", GameName(id), got[0], got[1]);
+			Check(got[0] > 0, id == GameId::kHoopShot ? "hoop shot: a settler plays it" : "atomic rollers: a settler plays it");
+		}
+	}
+
+	void WhacSettlers()
+	{
+		// a settler at Whac-a-Commie: a good one whacks more than a poor one
+		int got[2]{};
+		for (int k = 0; k < 2; ++k) {
+			auto       g = MakeGame(GameId::kWhacACommie);
+			WhacPlayer p(5, k == 0 ? 0.9 : 0.1);
+			got[k] = Play(*g, [&](Game& a_g, double) {
+				p.Update(a_g, 1.0 / 60.0);
+				return Input{};
+			}, 40.0);
+		}
+		std::printf("     whac-a-commie settlers: a good one %d, a poor one %d\n", got[0], got[1]);
+		Check(got[0] > 5 && got[0] > got[1] && got[1] > 0, "whac-a-commie: a settler plays it (a good one beats a poor one)");
+	}
+
 	void Gallery()
 	{
 		auto       g = MakeGame(GameId::kBanditRoundup);
@@ -368,6 +399,8 @@ int main()
 	Whac();
 	Zapper();
 	Gallery();
+	WhacSettlers();
+	ThrowSettlers();
 	Tickets();
 	std::printf(g_failed ? "%d FAILED\n" : "all passed\n", g_failed);
 	return g_failed ? 1 : 0;

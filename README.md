@@ -19,8 +19,9 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Settings** in F4SE Menu Framework (Amusement Games > Whac-a-Commie, Settlers): the Agility swing (on/off, how much,
   with your Agility and swing speed shown live) and settlers playing (on/off, how often); kept in
   `Data\F4SE\Plugins\AmusementGames_user.ini`.
-- **Settlers play too**: at Bandit Roundup, one settler to each gallery, rifle to the shoulder, their score on its
-  board as they shoot; at Nuka-Zapper Race, settlers gather at the lanes (up to five: every lane but yours), and 10
+- **Settlers play too**, one settler to each machine: Bandit Roundup (rifle to the shoulder), Whac-a-Commie (the
+  Commie Whacker in hand, one-handed swings), Atomic Rollers (the red ball in hand, rolled with a low underhand
+  throw) and Hoop Shot (the basketball in hand, a grenade's throw), their score on the machine's board as they go; at Nuka-Zapper Race, settlers gather at the lanes (up to five: every lane but yours), and 10
   seconds after the second is ready they race. No racing on your own: put your token in and you wait for a settler
   to be ready (10 seconds after, you're off), racing only the settlers who came; the HUD shows who's racing and their
   rockets, and at the end whether you won or lost (and who won). Activate it again while waiting to leave, token back.

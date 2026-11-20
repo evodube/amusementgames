@@ -1002,16 +1002,31 @@ namespace ag
 				return;
 			}
 			if (r == 0) {
-				EndShow(a_s, "couldn't take up the rifle");
+				EndShow(a_s, "couldn't take up the game");
 				return;
 			}
-			// rifle up: the game starts, its targets put up
+			// at it (the gun or mallet up): the game starts, its pieces put up
 			a_s.added = r == 2;
 			a_s.game = sim::MakeGame(a_s.gameId);
 			const auto seed = static_cast<std::uint32_t>(_showRng());
 			a_s.game->Start(seed);
-			const double spread = std::uniform_real_distribution<double>(0.006, 0.03)(_showRng);  // how good a shot
-			a_s.shooter = std::make_unique<sim::GalleryShooter>(seed ^ 0x5EED, spread);
+			const double skill = std::uniform_real_distribution<double>(0.0, 1.0)(_showRng);  // how good they are
+			const double spread = 0.03 - 0.024 * skill;  // (a shot's spread at the gallery: 0.006 to 0.03)
+			switch (a_s.gameId) {
+			case sim::GameId::kWhacACommie: a_s.whacker = std::make_unique<sim::WhacPlayer>(seed ^ 0x5EED, skill); break;
+			case sim::GameId::kAtomicRollers:
+			case sim::GameId::kHoopShot:
+				{
+					a_s.thrower = std::make_unique<sim::Thrower>(seed ^ 0x5EED, skill, a_s.gameId);
+					// the ball in their hand
+					const auto ids = Forms::PiecesOf(a_s.gameId);
+					if (auto* ball = ids.empty() ? nullptr : Forms::Bound(Forms::Own(ids[0]))) {
+						a_s.handBall = Spawn(ball, machine.get(), actor->data.location);
+					}
+				}
+				break;
+			default: a_s.shooter = std::make_unique<sim::GalleryShooter>(seed ^ 0x5EED, spread); break;
+			}
 			std::vector<sim::Piece> pieces;
 			a_s.game->Pieces(pieces);
 			const auto models = Forms::PiecesOf(a_s.gameId);
@@ -1022,11 +1037,66 @@ namespace ag
 			}
 			Sounds::Music(a_s.gameId, machine.get(), true);
 			a_s.phase = Show::Phase::kPlaying;
-			log::info("{}: {} ({:08X}) playing (spread {:.3f})", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, spread);
+			log::info("{}: {} ({:08X}) playing (skill {:.2f})", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, skill);
 			return;
 		}
 
-		// playing: the shooter aims and fires; the game plays it
+		// playing the other games: the mallet's swings, the balls' throws (each with its animation), the ball in their hand
+		if (!a_s.shooter) {
+			sim::Input in;
+			if (a_s.whacker) {
+				if (a_s.whacker->Update(*a_s.game, a_dt)) {
+					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID) });
+				}
+			} else if (a_s.thrower) {
+				in = a_s.thrower->Next(a_dt);
+				a_s.sinceThrow += a_dt;
+				if (in.released) {
+					Papyrus::Call(a_s.gameId == sim::GameId::kHoopShot ? "NpcToss" : "NpcRoll", { static_cast<std::int32_t>(a_s.actorID) });
+					a_s.sinceThrow = 0.0;
+				}
+			}
+			a_s.game->Update(a_dt, in);
+			for (const auto& snd : a_s.game->TakeSounds()) {
+				Sounds::Play(a_s.gameId, snd.cue, machine.get(), snd.gain);
+			}
+			PlacePieces(f, *a_s.game, a_s.gameId, machine.get(), a_s.pieces, a_s.pieceModel, a_s.frozen);
+			if (a_s.thrower) {
+				// the game's own ball waiting to be thrown (where your hand or the lane's start would be) out of sight:
+				// theirs is in their hand
+				const sim::Vec3 held = a_s.gameId == sim::GameId::kHoopShot ? a_s.thrower->Eye() : sim::layout::Rollers().release;
+				std::vector<sim::Piece> pieces;
+				a_s.game->Pieces(pieces);
+				for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
+					if ((pieces[i].pos - held).Length() < (a_s.gameId == sim::GameId::kHoopShot ? 60.0 : 12.0)) {
+						if (auto ref = a_s.pieces[i].get(); ref && ref->Get3D()) {
+							ref->Get3D()->SetAppCulled(true);
+						}
+					}
+				}
+				// ...in their right hand, but for a moment after a throw (it's left their hand)
+				if (auto ball = a_s.handBall.get()) {
+					auto* root = actor->Get3D();
+					auto* hand = root ? root->GetObjectByName("RArm_Hand") : nullptr;
+					const bool show = hand && a_s.sinceThrow > 1.0;
+					if (show) {
+						Freeze(ball.get(), a_s.frozen);
+						PlaceNode(ball.get(), hand->world.translate, f.rot, f.scale, false);
+					} else if (auto* b3 = ball->Get3D()) {
+						b3->SetAppCulled(true);
+					}
+				}
+			}
+			if (a_s.game->Over()) {
+				_lastScores[a_s.machineID] = a_s.game->Score();
+				_played[Played(a_s.actorID, a_s.gameId)] = kShowTurnAbout;
+				log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
+				EndShow(a_s, nullptr);
+			}
+			return;
+		}
+
+		// playing Bandit Roundup: the shooter aims and fires; the game plays it
 		sim::Input in = a_s.shooter->Next(*a_s.game, a_s.eye, a_dt);
 		// a shot only once they've turned onto where it's aimed (their real bullet goes where the rifle points: on a
 		// fast target their turn lags), or after a moment however they stand
@@ -1086,12 +1156,23 @@ namespace ag
 		auto* player = RE::PlayerCharacter::GetSingleton();
 		auto* lists = RE::ProcessLists::GetSingleton();
 		auto* kw = Forms::WorkshopItemKeyword();
-		auto* weapon = Forms::WeaponOf(sim::GameId::kBanditRoundup);
 		auto* markerForm = Forms::Bound(RE::TESForm::GetFormByID(Forms::kXMarkerHeading));
-		if (!player || !lists || !kw || !weapon || !markerForm) {
+		if (!player || !lists || !kw || !markerForm) {
 			return false;
 		}
-		for (auto& h : Scoreboards::Machines(sim::GameId::kBanditRoundup)) {
+		// (the games a settler plays on their own; the zapper race is TickRaces')
+		std::vector<std::pair<RE::ObjectRefHandle, sim::GameId>> machines;
+		for (const auto g : { sim::GameId::kBanditRoundup, sim::GameId::kWhacACommie, sim::GameId::kAtomicRollers, sim::GameId::kHoopShot }) {
+			for (auto& m : Scoreboards::Machines(g)) {
+				machines.emplace_back(m, g);
+			}
+		}
+		std::shuffle(machines.begin(), machines.end(), _showRng);
+		for (auto& [h, gameId] : machines) {
+			auto* weapon = Forms::WeaponOf(gameId);  // (none: Atomic Rollers, Hoop Shot)
+			if (gameId != sim::GameId::kAtomicRollers && gameId != sim::GameId::kHoopShot && !weapon) {
+				continue;
+			}
 			auto machine = h.get();
 			if (!machine || (_playing && _machineID == machine->GetFormID()) || ShowOn(machine->GetFormID()) ||
 				_rest.contains(machine->GetFormID())) {
@@ -1128,13 +1209,13 @@ namespace ag
 					std::ranges::any_of(_races, [&](const Race& a_r) {
 						return std::ranges::any_of(a_r.racers, [&](const Racer& a_q) { return a_q.actorID == a->GetFormID(); });
 					}) ||
-					_played.contains(Played(a->GetFormID(), sim::GameId::kBanditRoundup))) {
+					_played.contains(Played(a->GetFormID(), gameId))) {
 					continue;  // (couldn't come lately, at another machine, or had a go lately: someone else's turn)
 				}
 				settlers.push_back(a.get());
 			}
 			if (settlers.empty()) {
-				log::info("{}: no settler of its settlement free to ask ({} people not of it near: {})", sim::GameName(sim::GameId::kBanditRoundup),
+				log::info("{}: no settler of its settlement free to ask ({} people not of it near: {})", sim::GameName(gameId),
 					elsewhere, others.empty() ? "none" : others);
 				if (!_refused.empty()) {
 					log::info("{}: no settler free just now ({} asked couldn't come)", sim::GameName(sim::GameId::kBanditRoundup), _refused.size());
@@ -1144,14 +1225,16 @@ namespace ag
 			}
 			auto* who = settlers[std::uniform_int_distribution<std::size_t>(0, settlers.size() - 1)(_showRng)];
 			log::info("{}: {} settler(s) of its settlement about (and {} people not of it near: {}; {} further off)",
-				sim::GameName(sim::GameId::kBanditRoundup), settlers.size(), elsewhere, others.empty() ? "none" : others, farOff);
+				sim::GameName(gameId), settlers.size(), elsewhere, others.empty() ? "none" : others, farOff);
 			Frame f;
 			if (!FrameOf(machine.get(), f)) {
 				continue;
 			}
 			Show sh;
-			sh.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().stand));
-			sh.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().aimAt));
+			sh.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::SettlerStand(gameId)));
+			if (gameId == sim::GameId::kBanditRoundup) {
+				sh.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().aimAt));
+			}
 			auto marker = sh.marker.get();
 			if (!marker) {
 				Remove(sh.aimAt);
@@ -1165,8 +1248,8 @@ namespace ag
 			}
 			sh.machine = h;
 			sh.machineID = machine->GetFormID();
-			sh.gameId = sim::GameId::kBanditRoundup;
-			sh.eye = sim::layout::Gallery().stand + sim::Vec3{ 0.0, 0.0, kGalleryEyeHeight };
+			sh.gameId = gameId;
+			sh.eye = sim::layout::SettlerStand(gameId) + sim::Vec3{ 0.0, 0.0, kGalleryEyeHeight };
 			sh.weapon = weapon;
 			sh.ready = std::make_shared<std::atomic<std::int32_t>>(-1);
 			auto ready = sh.ready;
@@ -1203,6 +1286,7 @@ namespace ag
 		}
 		Remove(a_s.marker);
 		Remove(a_s.aimAt);
+		Remove(a_s.handBall);
 		// the machine rests a while before the next settler's game on it (after a game played; a few seconds after one
 		// that never got going, someone else asked)
 		const auto& set = Settings::Get();
