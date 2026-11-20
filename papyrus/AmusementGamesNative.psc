@@ -361,7 +361,7 @@ Int Function NpcSwing(Int aiActor, Int aiSpot, Int aiAt, Int aiWeapon) Global
 	If w && a.GetEquippedWeapon() != w && a.GetItemCount(w) > 0
 		a.EquipItem(w, True, True)  ; (the mallet, not a weapon of their own)
 	EndIf
-	; at the machine, facing it: back on their spot if a swing's carried them off it, turned to the holes
+	; at the machine, facing it: back on their spot if a swing's carried them off it, turned to the head they're after
 	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
 	ObjectReference at = Game.GetForm(aiAt) as ObjectReference
 	If spot && a.GetDistance(spot) > 20.0
@@ -369,7 +369,7 @@ Int Function NpcSwing(Int aiActor, Int aiSpot, Int aiAt, Int aiWeapon) Global
 	EndIf
 	If at
 		Float off = a.GetHeadingAngle(at)
-		If off > 5.0 || off < -5.0
+		If off > 2.0 || off < -2.0
 			a.SetAngle(0.0, 0.0, a.GetAngleZ() + off)
 		EndIf
 	EndIf

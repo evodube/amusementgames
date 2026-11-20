@@ -1156,6 +1156,11 @@ namespace ag
 				if (a_s.whacker->Update(*a_s.game, a_dt)) {
 					auto spot = a_s.marker.get();
 					auto at = a_s.aimAt.get();
+					// turned to the head they're after: what they face, moved onto its hole
+					const auto& holes = sim::layout::Whac().holes;
+					if (const int t = a_s.whacker->Target(); at && t >= 0 && t < static_cast<int>(holes.size())) {
+						at->data.location = ToWorld(f, holes[t]);
+					}
 					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()), Papyrus::Id(at.get()), Papyrus::Id(a_s.weapon) });
 				}
 			} else if (a_s.thrower) {
