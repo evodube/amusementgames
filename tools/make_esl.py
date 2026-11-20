@@ -113,6 +113,11 @@ PRIZES = [
         ("Paddle Balls x10", 0x00A6C2, 10, 500),          # DLC04_Ammo_PaddleBall
         ("Acid Soaker", 0x007BC6, 1, 6250),
         ("Acid Concentrate x20", 0x030076, 20, 2000),    # DLC04_Ammo_AcidSoaker: the Acid Soaker's (a load)
+        ("Thirst Zapper", 0x007BC8, 1, 500),
+        ("Water Ammo x20", 0x04C0E4, 20, 1000),          # DLC04_Ammo_ThirstZapper_Water (worth 0: priced as 1 cap)
+        ("Nuka-Cola Ammo x20", 0x02BDC2, 20, 1000),      # DLC04_Ammo_ThirstZapper_NukaCola
+        ("Nuka-Cherry Ammo x20", 0x00A6C9, 20, 1000),    # DLC04_Ammo_ThirstZapper_Cherry
+        ("Nuka-Quantum Ammo x20", 0x00A6C6, 20, 1000),   # DLC04_Ammo_ThirstZapper_Quantum
         ("7.62 Rounds x20", 0x037897, 20, 2000),           # DLC04_Ammo_HandmadeRound
     ]),
     ("Souvenirs", [
