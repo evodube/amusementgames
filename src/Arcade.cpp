@@ -34,6 +34,22 @@ namespace ag
 				static_cast<float>(a_m[2][0]), static_cast<float>(a_m[2][1]), static_cast<float>(a_m[2][2]), 0.0f);
 		}
 
+		// the Activate button, as the game reads it (whatever it's bound to): how long it's held, watched and never
+		// handled (the game's activation goes on as ever)
+		struct ActivateWatch final : RE::BSInputEventUser
+		{
+			bool ShouldHandleEvent(const RE::InputEvent* a_event) override
+			{
+				if (const auto* b = a_event ? a_event->As<RE::ButtonEvent>() : nullptr) {
+					static const RE::BSFixedString activate{ "Activate" };
+					if (b->QRawUserEvent() == activate) {
+						Arcade::Get().OnActivateButton(b->QPressed(), b->QHeldDownSecs());
+					}
+				}
+				return false;
+			}
+		};
+
 		struct ActivateSink final : RE::BSTEventSink<RE::TESActivateEvent>
 		{
 			RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent& a_event, RE::BSTEventSource<RE::TESActivateEvent>*) override
@@ -111,8 +127,20 @@ namespace ag
 
 	// ------------------------------------------------------------------------ listening
 
+	void Arcade::OnActivateButton(bool a_down, float a_held)
+	{
+		static bool told = false;
+		if (!told) {
+			told = true;
+			log::info("the Activate button's coming through (a hold at Bandit Roundup: a 1v1)");
+		}
+		_activateDown = a_down;
+		_activateHeld = static_cast<double>(a_held);
+	}
+
 	void Arcade::Listen()
 	{
+		static auto*        watch = new ActivateWatch();
 		static ActivateSink activate;
 		static HitSink      hits;
 		static MenuSink     menus;
@@ -125,6 +153,11 @@ namespace ag
 			source->RegisterSink(&activate);
 		} else {
 			log::warn("no activate event source: the machines can't be played");
+		}
+		if (auto* controls = RE::MenuControls::GetSingleton()) {
+			controls->RegisterHandler(watch);  // (the Activate button watched: Bandit Roundup tapped or held)
+		} else {
+			log::warn("no menu controls: Bandit Roundup can't tell a hold from a tap (always alone)");
 		}
 		if (auto* ui = RE::UI::GetSingleton()) {
 			ui->RegisterSink<RE::MenuOpenCloseEvent>(&menus);
@@ -146,18 +179,6 @@ namespace ag
 			_leavePressed = true;
 		}
 		_leaveWas = leave;
-		// the Activate key: how long it's held (a machine activated with it tapped or held)
-		const int  actVk = _activateVk.load();
-		const bool act = focus && actVk != 0 && (::GetAsyncKeyState(actVk) & 0x8000) != 0;
-		const auto nowT = std::chrono::steady_clock::now();
-		if (act && !_activateWas) {
-			_activateDownAt = nowT;
-		}
-		if (act || _activateWas) {
-			_activateHeld = std::chrono::duration<double>(nowT - _activateDownAt).count();
-		}
-		_activateDown = act;
-		_activateWas = act;
 		if (_tickPending.exchange(true)) {
 			return;
 		}
@@ -454,19 +475,6 @@ namespace ag
 		const auto   now = std::chrono::steady_clock::now();
 		const double dt = std::clamp(std::chrono::duration<double>(now - _last).count(), 0.0, 0.1);
 		_last = now;
-		// the Activate key as bound (looked up again now and then: rebound in the settings)
-		_activateVkAge += dt;
-		if (_activateVkAge > 2.0) {
-			_activateVkAge = 0.0;
-			int vk = 0;
-			if (auto* map = RE::ControlMap::GetSingleton()) {
-				const auto key = map->GetMappedKey("Activate", RE::INPUT_DEVICE::kKeyboard);
-				if (key != RE::ControlMap::kInvalid && key != 0) {
-					vk = static_cast<int>(::MapVirtualKeyW(key, MAPVK_VSC_TO_VK_EX));
-				}
-			}
-			_activateVk = vk;
-		}
 		ResolvePending(dt);
 		if (!menus::AnyBlocking()) {
 			Scoreboards::Tick(dt);
@@ -1818,6 +1826,8 @@ namespace ag
 		if (!machine || _playing || _duel.on) {
 			return;
 		}
+		log::info("BANDIT ROUNDUP: activated, the button {} ({:.2f}s): {}", down ? "still down" : "let go", held,
+			held >= kHoldToDuel ? "held, a 1v1" : "tapped, alone");
 		if (held >= kHoldToDuel) {
 			StartDuel(machine.get());
 			return;

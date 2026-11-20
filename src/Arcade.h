@@ -109,6 +109,8 @@ namespace ag
 
 		// a machine activated by you (on the game's thread)
 		void OnActivated(RE::TESObjectREFR* a_machine);
+		// the Activate button down or up, and how long it's been held (the game's input)
+		void OnActivateButton(bool a_down, float a_held);
 
 		// after a load: settlers held at a machine when the game was saved let go (their AI back on, the lent rifle
 		// taken back)
@@ -155,14 +157,10 @@ namespace ag
 		std::atomic<bool> _lmb{ false };
 		std::atomic<bool> _leavePressed{ false };     // the leave key went down
 		bool              _leaveWas{ false };
-		// the Activate key (as bound, keyboard): a machine tapped or held. Bandit Roundup tapped you play alone, held
-		// (kHoldToDuel) a settler's called to take you on
-		std::atomic<int>    _activateVk{ 0 };
+		// the Activate button (the game's own button events): a machine tapped or held. Bandit Roundup tapped you play
+		// alone, held (kHoldToDuel) a settler's called to take you on
 		std::atomic<bool>   _activateDown{ false };
 		std::atomic<double> _activateHeld{ 0.0 };     // ...down this long (now, or the last press)
-		std::chrono::steady_clock::time_point _activateDownAt{};
-		bool                _activateWas{ false };
-		double              _activateVkAge{ 99.0 };
 		struct PendingActivation
 		{
 			RE::ObjectRefHandle machine;
