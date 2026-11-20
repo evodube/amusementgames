@@ -10,15 +10,66 @@ namespace ag::Leaderboard
 		constexpr int kGames = static_cast<int>(sim::GameId::kCount);
 
 		// names that aren't anyone's own (the game's generic ones: settlers, wanderers, jobs, factions, hired help,
-		// default robots): these never go on a board. Matched ignoring case and full stops ("Mr. Handy" is "Mr Handy")
-		constexpr std::array<std::string_view, 53> kGeneric{
+		// default robots, and their ranks and kinds): these never go on a board. A whole name only, ignoring case and full
+		// stops ("Mr. Handy" is "Mr Handy"): a name after a rank ("Scribe Haylen", "Supervisor White") still goes on
+		constexpr std::string_view kGeneric[]{
+			// settlers, wanderers, jobs, factions, hired help
 			"Settler", "Provisioner", "Wastelander", "Wasteland Traveler", "Drifter", "Resident", "Neighbor", "Farmer",
 			"Fisherman", "Harborman", "Hunter", "Moonshiner", "Scavenger", "Merchant", "Trader", "Caravan Guard",
 			"Caravan Worker", "Guard", "Minuteman", "Railroad Agent", "Brotherhood Knight", "Brotherhood Scribe",
 			"Child of Atom", "Gunner", "Raider", "Disciple", "Operator", "Pack Member", "Mercenary", "Hired Gun", "Bodyguard",
-			"Synth Refugee", "Rebel Synth", "Escaping Synth", "Ghoul", "Prisoner", "Junkie", "Courier", "Soldier", "Mr Handy",
-			"Mr Gutsy", "Protectron", "Assaultron", "Sentry Bot", "Robobrain", "Eyebot", "Robot", "Automatron", "Junkbot",
-			"Scrapbot", "Swarmbot", "Tankbot", "Servitron"
+			"Synth Refugee", "Rebel Synth", "Escaping Synth", "Ghoul", "Prisoner", "Junkie", "Courier", "Soldier",
+			// default robots
+			"Mr Handy", "Mr Gutsy", "Protectron", "Assaultron", "Sentry Bot", "Robobrain", "Eyebot", "Robot", "Automatron",
+			"Junkbot", "Scrapbot", "Swarmbot", "Tankbot", "Servitron",
+			// ranks and kinds: raiders, Gunners, the Brotherhood, Nuka-World's gangs, Children of Atom, synths and the
+			// Institute, super mutants, trappers, mercs, jobs and places
+			"Raider Psycho", "Raider Scavver", "Raider Scum", "Raider Survivalist", "Raider Veteran", "Raider Waster",
+			"Raider Man", "Raider Woman", "Berserk Raider", "Sinner's Raider", "Gunner Conscript", "Gunner Private",
+			"Gunner Corporal", "Gunner Sergeant", "Gunner Lieutenant", "Gunner Captain", "Gunner Major", "Gunner Colonel",
+			"Gunner Commander", "Gunner Brigadier", "Gunner Mercenary", "Brotherhood Aspirant", "Brotherhood Initiate",
+			"Brotherhood Soldier Initiate", "Brotherhood Knight-Sergeant", "Brotherhood Knight-Captain",
+			"Brotherhood Knight-Commander", "Brotherhood Lancer", "Brotherhood Lancer-Initiate", "Brotherhood Lancer-Knight",
+			"Brotherhood Lancer-Sergeant", "Brotherhood Lancer-Captain", "Brotherhood Paladin",
+			"Brotherhood Paladin-Commander", "Brotherhood Star Paladin", "Brotherhood Scribe Initiate",
+			"Brotherhood Senior Scribe", "Head Knight", "Rogue Knight", "Initiate", "Disciple Scavver", "Disciple Waster",
+			"Disciple Survivalist", "Disciple Veteran", "Disciple Pillager", "Disciple Tormentor", "Disciple Butcher",
+			"Operator Scavver", "Operator Waster", "Operator Survivalist", "Operator Veteran", "Operator Pillager",
+			"Operator Tormentor", "Operator Butcher", "Pack Scavver", "Pack Waster", "Pack Survivalist", "Pack Veteran",
+			"Pack Pillager", "Pack Tormentor", "Pack Butcher", "Pack Captive", "Child of Atom Cultist",
+			"Child of Atom Preacher", "Child of Atom Reborn", "Child of Atom Zealot", "Synth", "Gen 2 Synth", "Synth Leader",
+			"Synth Trooper", "Synth Patroller", "Synth Seeker", "Synth Stormer", "Synth Strider", "Synth Assaulter",
+			"Synth Eradicator", "Institute Scientist", "Institute Worker", "Institute Courser", "Institute Division Head",
+			"Super Mutant", "Super Mutant Brute", "Super Mutant Butcher", "Super Mutant Enforcer", "Super Mutant Master",
+			"Super Mutant Overlord", "Super Mutant Primus", "Super Mutant Skirmisher", "Super Mutant Warlord",
+			"Super Mutant Suicider", "SuperMutant Skirmisher", "Trapper", "Grim Trapper", "Stalking Trapper",
+			"Ruthless Trapper", "Relentless Trapper", "Scrounging Trapper", "Triggerman", "Rust Devil", "Combatant",
+			"Railroad Heavy", "Pilot", "Missionary", "Preacher", "Compound Guard", "Diamond City Security", "Vault Security",
+			"Vault-Tec Security", "Vault 81 Resident", "Tunnel Worker", "Chem Lab Worker", "Caravan Prisoner", "Concierge",
+			"Midshipman", "Sentry", "Virtual Settler",
+			// robot families: Mr. Handy, Gutsy, Protectron, Sentry Bot, Assaultron, Automatron's, Nuka-World's, Gunners'
+			"Mr Handy Greeter", "Nurse Handy", "Assistant Manager Handy", "Mr Frothy", "Mr Frothy Chef", "Mr Frothy Waiter",
+			"Mr. Handy Annihilator", "Mr. Handy Destroyer", "Mr. Handy Dominator", "Mr. Handy War Machine",
+			"Mr. Handy Wrecker", "Guard Gutsy", "Lieutenant Gutsy", "Major Gutsy", "Colonel Gutsy", "Brotherhood Mr Gutsy",
+			"Cadet Astro-Gutsy", "Lieutenant Astro-Gutsy", "Captain Astro-Gutsy", "Commander Astro-Gutsy", "Police Protectron",
+			"Utility Protectron", "Doom Protectron", "Protectron Sheriff", "Protectron Steward", "Protectron Watcher",
+			"Protectron Guardian", "Protectron Golem", "Protectron Basilisk", "Protectron Scourge", "Protectron Devil",
+			"Annihilator Sentry Bot", "Annihilator Sentry Bot Mk.II", "Siege Breaker Sentry Bot", "Sentry Bot Butcher",
+			"Sentry Bot Carnage", "Sentry Bot Lament", "Sentry Bot Reaper", "Sentry Bot Ripper", "Space Sentry",
+			"Space Sentry Annihilator", "Space Sentry Breaker", "Space Sentry Obliterator", "Assaultron Dominator",
+			"Assaultron Invader", "Assaultron Demon", "Assaultron Devil", "Assaultron Gorgon", "Assaultron Hag",
+			"Assaultron Succubus", "Unstable Assaultron", "Integrated Junkbot", "Integrated Scrapbot", "Integrated Swarmbot",
+			"Integrated Tankbot", "Integrated Robobrain", "Servomech Junkbot", "Servomech Scrapbot", "Servomech Swarmbot",
+			"Servomech Tankbot", "Servomech Robobrain", "Servomech Eyebot", "Quantum Junkbot", "Quantum Scrapbot",
+			"Quantum Swarmbot", "Quantum Tankbot", "Quantum Robobrain", "Cybermech Junkbot", "Cybermech Scrapbot",
+			"Cybermech Swarmbot", "Cybermech Tankbot", "Cybermech Robobrain", "Cybermech Eyebot", "Galactron",
+			"Galactron Defender", "Galactron Guardian", "Galactron Sentinel", "Galactron Technician", "Galactron Usher",
+			"Galactron Watcher", "Nukatron", "Nukatron Defender", "Nukatron Guardian", "Nukatron Sentinel", "Nukatron Watcher",
+			"Novatron", "Novatron Dominator", "Novatron Eliminator", "Novatron Initiator", "Novatron Invader", "Cannery Robot",
+			"TrashBot", "TurretBot", "Gunner Annihilator Sentry Bot", "Gunner Annihilator Sentry Bot Mk.II",
+			"Gunner Assaultron", "Gunner Assaultron Dominator", "Gunner Assaultron Invader", "Gunner Colonel Gutsy",
+			"Gunner Lt. Gutsy", "Gunner Major Gutsy", "Gunner Mr Handy", "Gunner Mr. Gutsy", "Gunner Protectron",
+			"Gunner Protectron Chef", "Gunner Sentry Bot", "Gunner Siege Breaker Sentry Bot", "Combat Sentry Prototype MKIV"
 		};
 
 		struct Entry
