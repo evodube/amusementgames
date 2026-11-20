@@ -26,6 +26,26 @@ Function Ready()
 	AddTextReplacementData("HighScoreWhacACommie", Glob(0x842))
 	AddTextReplacementData("HighScoreNukaZapperRace", Glob(0x843))
 	AddTextReplacementData("HighScoreBanditRoundup", Glob(0x844))
+	; (the high scores: Top<Game><NN>, a score each, 0x848 on, ten a game in AmusementGames' order)
+	String[] games = new String[5]
+	games[0] = "AtomicRollers"
+	games[1] = "HoopShot"
+	games[2] = "WhacACommie"
+	games[3] = "NukaZapperRace"
+	games[4] = "BanditRoundup"
+	Int g = 0
+	While g < 5
+		Int place = 1
+		While place <= 10
+			String nn = place as String
+			If place < 10
+				nn = "0" + place
+			EndIf
+			AddTextReplacementData("Top" + games[g] + nn, Glob(0x848 + g * 10 + place - 1))
+			place += 1
+		EndWhile
+		g += 1
+	EndWhile
 	Quest q = Game.GetFormFromFile(0x80F, "AmusementGames.esl") as Quest
 	If q
 		ReferenceAlias you = q.GetAlias(4) as ReferenceAlias

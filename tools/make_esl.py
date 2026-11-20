@@ -63,6 +63,11 @@ Form IDs (src/Forms.h expects these):
     xx000845  GLOB AmusementGamesTicketsCarried   the tickets on you (the plugin sets it as you use a counter)
     xx000846  TERM AmusementGamesPrizeCounterRedeem  Redeem Tickets: all you carry into the counter
     xx000847  TERM AmusementGamesPrizeCounterSpend   Spend Tickets: the sections
+    xx000848+ GLOB AmusementGamesTop<Game><NN>  the high scores (848-879): each game's top 10 across every settlement, a
+                                               score each (game * 10 + place; 0 empty), the plugin's Leaderboard sets
+                                               them; who's at each is AmusementGamesQuest's alias of the same name (6-55)
+    xx00087A  TERM AmusementGamesPrizeCounterHighScores  View High Scores: the five games, and your Personal High Scores
+    xx00087B+ TERM AmusementGamesPrizeCounterTop<Game>   a game's top 10 (87B-87F)
     xx000840+ GLOB AmusementGamesBest*         your best score at each game (840-844, sim::GameId order; the plugin)
               (AmusementGamesQuest's ref aliases 4 Player, 5 PrizeCounter: the counter's welcome, <Alias=Player>)
 
@@ -119,6 +124,11 @@ BEST_FIRST = FIRST_ID + 0x40                         # GLOB: your best score at 
 BEST_GAMES = ["AtomicRollers", "HoopShot", "WhacACommie", "NukaZapperRace", "BanditRoundup"]
 BEST_NAMES = ["Atomic Rollers", "Hoop Shot", "Whac-a-Commie", "Nuka-Zapper Race", "Bandit Roundup"]
 PLAYER_ALIAS, COUNTER_ALIAS = 4, 5                   # AmusementGamesQuest's: you (stores text) and a counter (uses it)
+TOP_PLACES = 10                                      # the high scores: each game's top 10, across every settlement
+TOP_FIRST = FIRST_ID + 0x48                          # GLOB: a score each, game * 10 + place (0x848-0x879; 0 empty)
+TOP_ALIAS_FIRST = 6                                  # AmusementGamesQuest's ref aliases: who's at each, the same order
+HIGH_SCORES_PAGE = FIRST_ID + 0x7A                   # TERM: View High Scores (the five games)
+TOP_PAGE_FIRST = FIRST_ID + 0x7B                     # TERM: a game's top 10 (0x87B-0x87F)
 RULE = "=================================================="  # (as wide as the Nuka-Cade's screens)
 
 # the catalogue: (section, [(what the terminal says, DLCNukaWorld.esm id, how many, tickets)]). Only Nuka-World's
@@ -386,6 +396,15 @@ def settler_lever_gun(form_id: int, editor_id: str) -> bytes:
     return record(b"WEAP", 0, form_id, out)
 
 
+def top_name(game: int, place: int) -> str:
+    """a place on a game's board: its alias's name, and its score's token (Top<Game><NN>)"""
+    return f"Top{BEST_GAMES[game]}{place + 1:02d}"
+
+
+def top_alias(game: int, place: int) -> int:
+    return TOP_ALIAS_FIRST + game * TOP_PLACES + place
+
+
 def quest(form_id: int, editor_id: str, package: int, hold: int, hold_drawn: int, hold_zapper: int, priority: int = 100) -> bytes:
     """AmusementGamesQuest: start game enabled, priority 100, collection alias 0 'Players' with the walk package.
     Scripts: AmusementGamesQuest on the quest (property Players), AmusementGamesGroupAlias on the alias (papyrus/).
@@ -415,7 +434,7 @@ def quest(form_id: int, editor_id: str, package: int, hold: int, hold_drawn: int
         + subrecord(b"VMAD", vmad)
         + subrecord(b"DNAM", struct.pack("<HBBfI", 0x0011, priority, 0, 0.0, 0))
         + subrecord(b"NEXT", b"")
-        + subrecord(b"ANAM", struct.pack("<I", COUNTER_ALIAS + 1))
+        + subrecord(b"ANAM", struct.pack("<I", TOP_ALIAS_FIRST + len(BEST_GAMES) * TOP_PLACES))
         + b"".join(collection(i, n, p) for i, n, p in aliases)
         # the Prize Counter's: you, whose name it stores (stores text, optional), and the counter you're at, which uses
         # it (uses stored text, optional), as DLCNukaWorld.esm's DLC04NukaCade has its Player and NukacadeTerminal:
@@ -424,6 +443,12 @@ def quest(form_id: int, editor_id: str, package: int, hold: int, hold_drawn: int
         + subrecord(b"FNAM", struct.pack("<I", 0x00000102)) + subrecord(b"ALED", b"")
         + subrecord(b"ALST", struct.pack("<I", COUNTER_ALIAS)) + subrecord(b"ALID", zstring("PrizeCounter"))
         + subrecord(b"FNAM", struct.pack("<I", 0x00004002)) + subrecord(b"ALED", b"")
+        # the high scores' players (Top<Game><NN>: AmusementGamesNative.TopAlias fills them as the plugin's boards
+        # change): their names on the counter, as Nuka-World's ItemA01... put its prizes' names on its pages. Optional,
+        # allow reuse in quest (one player on several boards), allow dead, allow disabled, stores text, allow reserved
+        + b"".join(subrecord(b"ALST", struct.pack("<I", top_alias(g, p))) + subrecord(b"ALID", zstring(top_name(g, p)))
+                   + subrecord(b"FNAM", struct.pack("<I", 0x0000039A)) + subrecord(b"ALED", b"")
+                   for g in range(len(BEST_GAMES)) for p in range(TOP_PLACES))
     )
     return record(b"QUST", 0, form_id, body)
 
@@ -600,6 +625,42 @@ def redeem_page(form_id: int) -> bytes:
                        [(1, "Fragment_Terminal_Redeem")])
 
 
+def score_condition(global_id: int, filled: bool) -> bytes:
+    """GetGlobalValue (74) of a place's score > 0 (someone's there) or == 0"""
+    return subrecord(b"CTDA", struct.pack("<B3xfHxxIIIIi", 0x40 if filled else 0x00, 0.0, 74, OWN | global_id, 0, 0, 0, -1))
+
+
+def top_page(form_id: int, game: int) -> bytes:
+    """a game's top 10, across every settlement: a line a place (display text, shown when someone's there: its score's
+    global over 0), as Nuka-World lists its prizes ('<Token.ValueInt=...> Tickets - <Alias=...>')"""
+    items = []
+    for place in range(TOP_PLACES):
+        name = top_name(game, place)
+        line = f"{place + 1:>2}. <Token.ValueInt={name}> - <Alias={name}>"
+        items.append(menu_item(line, 8, place + 1,
+                               subrecord(b"UNAM", zstring(f"{RULE}\r\n\r\n   #{place + 1} at {BEST_NAMES[game]}: <Alias={name}>, "
+                                                          f"<Token.ValueInt={name}> points\r\n"))
+                               + score_condition(TOP_FIRST + game * TOP_PLACES + place, True)))
+    first = TOP_FIRST + game * TOP_PLACES
+    items.append(menu_item("No scores yet.", 8, 20, subrecord(b"UNAM", zstring(f"{RULE}\r\n\r\n   Nobody's played "
+                                                                             f"{BEST_NAMES[game]} yet.\r\n"))
+                           + score_condition(first, False)))
+    return subterminal(form_id, f"AmusementGamesPrizeCounterTop{BEST_GAMES[game]}",
+                       f"{RULE}\r\n               {BEST_NAMES[game]}: Top {TOP_PLACES}\r\n{RULE}\r\n", items, [])
+
+
+def high_scores_page(form_id: int) -> bytes:
+    """View High Scores: the five games, each its top 10; then your own best at each (as the Nuka-Cade's Personal High
+    Scores)"""
+    scores = "".join(f"   {n + ':':<18}<Token.ValueInt=HighScore{g}>\r\n" for g, n in zip(BEST_GAMES, BEST_NAMES))
+    items = [menu_item(n, 4, i + 1, subrecord(b"TNAM", struct.pack("<I", OWN | (TOP_PAGE_FIRST + i))))
+             for i, n in enumerate(BEST_NAMES)]
+    items.append(menu_item("Personal High Scores", 8, 9,
+                           subrecord(b"UNAM", zstring(f"{RULE}\r\n               Personal High Scores\r\n{RULE}\r\n\r\n{scores}"))))
+    return subterminal(form_id, "AmusementGamesPrizeCounterHighScores",
+                       f"{RULE}\r\n                    High Scores\r\n{RULE}\r\n", items, [])
+
+
 def spend_page(form_id: int) -> bytes:
     """Spend Tickets, as Nuka-World's DLC04NukacadeSubTerminalTicketSpendMain: the sections"""
     items = [menu_item(title, 4, page + 1, subrecord(b"TNAM", struct.pack("<I", OWN | (PRIZE_PAGE_FIRST + page))))
@@ -616,11 +677,9 @@ def prize_counter(form_id: int) -> bytes:
     buildable. Needs no power. Its screen as the Nuka-Cade's (its header, welcome and high scores, copied): your
     tickets, redeemed and best scores are tokens the script puts on it (AddTextReplacementData, as Nuka-World's), from
     globals the plugin keeps current"""
-    scores = "".join(f"   {n + ':':<18}<Token.ValueInt=HighScore{g}>\r\n" for g, n in zip(BEST_GAMES, BEST_NAMES))
     menu = [menu_item("Redeem Tickets", 4, 1, subrecord(b"TNAM", struct.pack("<I", OWN | REDEEM_PAGE))),
             menu_item("Spend Tickets", 4, 2, subrecord(b"TNAM", struct.pack("<I", OWN | SPEND_PAGE))),
-            menu_item("View High Scores", 8, 3,
-                      subrecord(b"UNAM", zstring(f"{RULE}\r\n               Personal High Scores\r\n{RULE}\r\n\r\n{scores}")))]
+            menu_item("View High Scores", 4, 3, subrecord(b"TNAM", struct.pack("<I", OWN | HIGH_SCORES_PAGE)))]
     keywords = (0x000286E6, 0x0006D5BB, 0x000A56D7, 0x000FCB12)  # AnimFurnDeskTerminal, PlayerPathToFurniture,
     # FurnitureForce1stPerson, AnimFurnDeskTerminalNoChair (DLC04NukacadeTerminal's)
     body = (subrecord(b"EDID", zstring("AmusementGamesPrizeCounter"))
@@ -753,6 +812,8 @@ def build() -> bytes:
              global_float(OWN | TICKETS_REDEEMED, "AmusementGamesTicketsRedeemed", 0.0),
              global_float(OWN | TICKETS_CARRIED, "AmusementGamesTicketsCarried", 0.0)]
     globs += [global_float(OWN | (BEST_FIRST + i), f"AmusementGamesBest{g}", 0.0) for i, g in enumerate(BEST_GAMES)]
+    globs += [global_float(OWN | (TOP_FIRST + g * TOP_PLACES + p), f"AmusementGames{top_name(g, p)}", 0.0)
+              for g in range(len(BEST_GAMES)) for p in range(TOP_PLACES)]
 
     # ---- the machines and their pieces
     for off, name, title, mesh, bounds, preview in GAMES:
@@ -786,8 +847,10 @@ def build() -> bytes:
     weapons = [settler_lever_gun(SETTLER_LEVER_GUN, "AmusementGamesSettlerLeverGun")]
 
     # ---- the Prize Counter: tickets in, Nuka-World's prizes out (its sections, then the page you open)
-    terminals = ([prize_counter(PRIZE_COUNTER), redeem_page(OWN | REDEEM_PAGE), spend_page(OWN | SPEND_PAGE)]
-                 + [prize_page(OWN | (PRIZE_PAGE_FIRST + i), i) for i in range(len(PRIZES))])
+    terminals = ([prize_counter(PRIZE_COUNTER), redeem_page(OWN | REDEEM_PAGE), spend_page(OWN | SPEND_PAGE),
+                  high_scores_page(OWN | HIGH_SCORES_PAGE)]
+                 + [prize_page(OWN | (PRIZE_PAGE_FIRST + i), i) for i in range(len(PRIZES))]
+                 + [top_page(OWN | (TOP_PAGE_FIRST + g), g) for g in range(len(BEST_GAMES))])
     recipes.append(workshop_recipe(OWN | PRIZE_RECIPE, "workshop_co_AmusementGamesPrizeCounter", PRIZE_COUNTER,
                                    TERMINAL_COMPONENTS, menu, METAL_SOUNDS))
 
@@ -796,7 +859,7 @@ def build() -> bytes:
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x48))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x80))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))

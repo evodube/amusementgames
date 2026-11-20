@@ -42,7 +42,9 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   - **Redeem Tickets**: puts all the tickets you carry into the counter (one account, shared by every counter).
   - **Spend Tickets**: Weapons, Ammo, Drinks, Souvenirs, paid from what you've redeemed; a prize you can't afford
     yet says "(not enough)".
-  - **View High Scores**: your best at each of the five games.
+  - **View High Scores**: each game's top 10 across all your settlements, you and your settlers alike (each one's
+    best score; Settler, Trader, Provisioner and Scavenger left off, so it's people with names of their own), and
+    your Personal High Scores.
   Prices are the Nuka-Cade's own: an item's caps value x 50.
   - Weapons: Paddle Ball 500, Thirst Zapper 500, Commie Whacker 1250, Acid Soaker 6250
   - Ammo: Paddle Balls x10 500; Thirst Zapper ammo x20 (Water, Nuka-Cola, Nuka-Cherry, Nuka-Quantum) 1000 each;

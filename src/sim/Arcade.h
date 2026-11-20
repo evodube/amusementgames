@@ -179,6 +179,8 @@ namespace sim
 	std::vector<std::pair<int, bool>> TakeZapperShotsHit(Game& a_game);
 	// ...the lane that won (-1: not yet)
 	int ZapperWinner(const Game& a_game);
+	// a lane's score at the zapper race: its hits, and the win's bonus if it won (as your score's counted)
+	int ZapperLaneScore(const Game& a_game, int a_lane);
 
 	// a settler playing Whac-a-Commie: picks a head that's up, reacts (the better, the quicker), swings, and lands it
 	// (or not: the better, the likelier) once the swing comes down. Update: true when a swing starts (its animation)

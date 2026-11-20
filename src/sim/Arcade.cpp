@@ -806,6 +806,15 @@ namespace sim
 				return out;
 			}
 			int              Winner() const { return _winner; }
+			// a lane's score as yours would be: a point a hit, the win's bonus if it won
+			int LaneScore(int a_lane) const
+			{
+				if (a_lane < 0 || a_lane >= static_cast<int>(_lanes.size())) {
+					return 0;
+				}
+				const auto& L = layout::Zapper();
+				return _lanes[a_lane].hits * L.pointsPerHit + (a_lane == _winner ? L.winPoints : 0);
+			}
 
 		private:
 			void Hit(int a_lane)
@@ -1162,6 +1171,12 @@ namespace sim
 	{
 		const auto* z = dynamic_cast<const Zapper*>(&a_game);
 		return z ? z->Winner() : -1;
+	}
+
+	int ZapperLaneScore(const Game& a_game, int a_lane)
+	{
+		const auto* z = dynamic_cast<const Zapper*>(&a_game);
+		return z ? z->LaneScore(a_lane) : 0;
 	}
 
 	Thrower::Thrower(std::uint32_t a_seed, double a_skill, GameId a_game) :

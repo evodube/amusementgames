@@ -1,6 +1,7 @@
 #include "Arcade.h"
 
 #include "Income.h"
+#include "Leaderboard.h"
 
 #include "Forms.h"
 #include "Hud.h"
@@ -390,6 +391,26 @@ namespace ag
 			player->AddObjectToContainer(ticket, nullptr, tickets, nullptr, RE::ITEM_REMOVE_REASON::kNone);
 		}
 		RefreshCounter();  // (the Prize Counter's screen: these tickets, a new best)
+		// the high scores (played to the end): you, and whoever played you (your 1v1's rival, the settlers you raced)
+		if (!a_early && player) {
+			Leaderboard::Record(_gameId, player->GetFormID(), score);
+			if (sim::GalleryVersus(*_game)) {
+				for (const auto& sh : _shows) {
+					if (sh.vsYou && sh.phase != Show::Phase::kNone) {
+						Leaderboard::Record(_gameId, sh.actorID, sim::GalleryScore(*_game, 1));
+					}
+				}
+			}
+			if (_gameId == sim::GameId::kNukaZapperRace) {
+				for (const auto& r : _races) {
+					if (r.withYou && r.machineID == _machineID) {
+						for (const auto& q : r.racers) {
+							Leaderboard::Record(_gameId, q.actorID, sim::ZapperLaneScore(*_game, q.lane));
+						}
+					}
+				}
+			}
+		}
 		if (machine) {
 			Sounds::Music(_gameId, machine.get(), false);
 			Sounds::Tickets(machine.get());
@@ -1595,6 +1616,7 @@ namespace ag
 				_lastScores[a_s.machineID] = a_s.game->Score();
 				_played[Played(a_s.actorID, a_s.gameId)] = kShowTurnAbout;
 				log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
+				Leaderboard::Record(a_s.gameId, a_s.actorID, a_s.game->Score());
 				EndShow(a_s, nullptr);
 			}
 			return;
@@ -1735,10 +1757,13 @@ namespace ag
 			if (const Show* other = sim::GalleryVersus(*a_s.game) ? PartnerOf(a_s) : nullptr) {
 				_played[Played(other->actorID, sim::GameId::kBanditRoundup)] = kShowTurnAbout;
 				const int mine = sim::GalleryScore(*a_s.game, 0), theirs = sim::GalleryScore(*a_s.game, 1);
+				Leaderboard::Record(a_s.gameId, a_s.actorID, mine);
+				Leaderboard::Record(a_s.gameId, other->actorID, theirs);
 				log::info("{}: {} ({:08X}) {}, {} ({:08X}) {}: {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, mine, other->name,
 					other->actorID, theirs, mine == theirs ? std::string("a tie") : std::format("{} won", mine > theirs ? a_s.name : other->name));
 			} else {
 				log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
+				Leaderboard::Record(a_s.gameId, a_s.actorID, a_s.game->Score());
 			}
 			EndShow(a_s, nullptr);
 		}
@@ -2501,6 +2526,9 @@ namespace ag
 				const auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == w; });
 				_lastScores[a_r.machineID] = a_r.game->Score();
 				log::info("NUKA-ZAPPER RACE {:08X}: {} won (lane {})", a_r.machineID, it != a_r.racers.end() ? it->name : "?", w + 1);
+				for (const auto& q : a_r.racers) {
+					Leaderboard::Record(sim::GameId::kNukaZapperRace, q.actorID, sim::ZapperLaneScore(*a_r.game, q.lane));
+				}
 				EndRace(a_r, nullptr);
 			}
 		}
@@ -2720,6 +2748,7 @@ namespace ag
 	{
 		auto& self = Get();
 		Income::Save(a_intfc);
+		Leaderboard::Save(a_intfc);
 		if (self._swingBoost != 0.0f && a_intfc->OpenRecord(kSwingType, 1)) {
 			a_intfc->WriteRecordData(&self._swingBoost, sizeof(self._swingBoost));
 		}
@@ -2770,6 +2799,7 @@ namespace ag
 		std::uint32_t type = 0, version = 0, length = 0;
 		self._best.fill(0);
 		Income::Revert();
+		Leaderboard::Revert();
 		self._heldFromSave.clear();
 		self._swingFromSave = 0.0f;
 		while (a_intfc->GetNextRecordInfo(type, version, length)) {
@@ -2793,6 +2823,10 @@ namespace ag
 						self._heldFromSave.push_back({ nullptr, *a, w ? *w : 0, added != 0 });
 					}
 				}
+				continue;
+			}
+			if (type == Leaderboard::kSaveType) {
+				Leaderboard::Load(a_intfc, version, length);
 				continue;
 			}
 			if (type == Income::kSaveType) {
@@ -2821,6 +2855,7 @@ namespace ag
 	void Arcade::Revert(const F4SE::SerializationInterface*)
 	{
 		Income::Revert();
+		Leaderboard::Revert();
 		Get()._best.fill(0);
 	}
 }
