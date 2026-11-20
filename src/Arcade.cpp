@@ -873,6 +873,7 @@ namespace ag
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
 		constexpr double    kSteadyBeforeShot = 2.5;           // the rifle drawn this long before a shot
+		constexpr double    kZapperAimUnder = 45.0;            // a zapper racer's aim point, under their target's centre
 	}
 
 	std::vector<Arcade::Worn> Arcade::WornBy(RE::Actor* a_actor)
@@ -1621,7 +1622,9 @@ namespace ag
 		}
 		const auto& ln = L.lanes[lane];
 		q.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::Vec3{ ln.gun.x, L.standY, 0.0 }));
-		q.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, ln.target));
+		// what they aim at: their lane's target, put this far under its centre - aimed at the centre itself, their
+		// stream went over it, into the Nuka-Cola bottle above (an NPC aims at a point this much over what it's given)
+		q.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, ln.target - sim::Vec3{ 0.0, 0.0, kZapperAimUnder }));
 		auto marker = q.marker.get();
 		if (!marker) {
 			Remove(q.aimAt);
