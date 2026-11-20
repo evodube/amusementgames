@@ -1296,10 +1296,9 @@ namespace ag
 					}
 					a_s.swingT = -1.0;
 				};
-				if (a_s.whacker->Update(*a_s.game, a_dt)) {
-					if (a_s.swingT >= 0.0) {
-						missed();  // (the last swing not over yet: settled first)
-					}
+				// (no new swing till the last's come down and been followed through: started every 0.7 s or so, with heads
+				// up to swing at, each cut the one before off just before it landed)
+				if (a_s.swingT < 0.0 && a_s.whacker->Update(*a_s.game, a_dt)) {
 					auto spot = a_s.marker.get();
 					auto at = a_s.aimAt.get();
 					// (they face the middle of the holes, still, the whole game: turned to each head, and their spot moved
@@ -1308,6 +1307,8 @@ namespace ag
 					a_s.swingT = 0.0;
 					a_s.swingBest = 1e9f;
 					a_s.swingLowZ = 1e9f;
+					a_s.swingHighZ = -1e9f;
+					a_s.swingJudged = false;
 					a_s.swingTarget = a_s.whacker->Target();
 				}
 				// the swing's mallet coming down: a head it gets to is hit (a settler's melee hits on the heads never come
@@ -1344,40 +1345,45 @@ namespace ag
 								break;
 							}
 						}
-						// the bottom of the swing (the mallet head's come down and is going back up): a head still out
-						// of its hole near where it came down is hit - their mallet seen landing on it (its head's place
-						// in their hand is only reckoned, and they swing at the middle, still)
-						if (a_s.swingT >= 0.0) {
-							if (head.z < a_s.swingLowZ) {
-								a_s.swingLowZ = head.z;
-								a_s.swingLowAt = head;
-							} else if (a_s.swingT > 0.3 && head.z > a_s.swingLowZ + 3.0f) {
-								int   best = -1;
-								float bestD = 1e9f;
-								for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
-									auto  ref = a_s.pieces[i].get();
-									auto* h3 = ref ? ref->Get3D() : nullptr;
-									if (!h3 || pieces[i].hidden || sim::WhacHeight(*a_s.game, static_cast<int>(i)) <= 0.25) {
-										continue;
+						// the bottom of the swing: once the mallet's been raised and come down well below its height (20
+						// under its highest, not the dip of the wind-up), where it turns back up a head still out of its
+						// hole near it is hit - their mallet seen landing on it (its head's place in their hand is only
+						// reckoned, and they swing at the middle, still). Only ever a hit: the swing's followed on as ever
+						if (a_s.swingT >= 0.0 && !a_s.swingJudged) {
+							a_s.swingHighZ = std::max(a_s.swingHighZ, head.z);
+							if (head.z < a_s.swingHighZ - 20.0f) {
+								if (head.z < a_s.swingLowZ) {
+									a_s.swingLowZ = head.z;
+									a_s.swingLowAt = head;
+								} else if (head.z > a_s.swingLowZ + 3.0f) {
+									a_s.swingJudged = true;
+									int   best = -1;
+									float bestD = 1e9f;
+									for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
+										auto  ref = a_s.pieces[i].get();
+										auto* h3 = ref ? ref->Get3D() : nullptr;
+										if (!h3 || pieces[i].hidden || sim::WhacHeight(*a_s.game, static_cast<int>(i)) <= 0.25) {
+											continue;
+										}
+										const float d = (a_s.swingLowAt - (h3->world.translate + RE::NiPoint3{ 0.0f, 0.0f, kWhacHeadMiddle })).Length();
+										if (d < bestD) {
+											bestD = d;
+											best = static_cast<int>(i);
+										}
 									}
-									const float d = (a_s.swingLowAt - (h3->world.translate + RE::NiPoint3{ 0.0f, 0.0f, kWhacHeadMiddle })).Length();
-									if (d < bestD) {
-										bestD = d;
-										best = static_cast<int>(i);
+									const bool      hit = best >= 0 && bestD < kWhacBottomReach;
+									const sim::Vec3 at = ToLocal(f, a_s.swingLowAt);
+									if (a_s.swingsLogged++ < 15) {
+										log::info("WHAC-A-COMMIE: {}'s swing bottomed out at ({:.0f}, {:.0f}, {:.0f}) on the machine, {:.0f} from the nearest head out{}",
+											a_s.name, at.x, at.y, at.z, bestD, hit ? ": a hit" : best < 0 ? " (none out)" : "");
 									}
-								}
-								const bool hit = best >= 0 && bestD < kWhacBottomReach;
-								if (a_s.swingsLogged++ < 15) {
-									log::info("WHAC-A-COMMIE: {}'s swing came down {:.0f} from the nearest head out{}", a_s.name, bestD,
-										hit ? ": a hit" : best < 0 ? " (none out)" : ": a miss");
-								}
-								if (hit) {
-									a_s.game->OnPieceHit(best);
-									++a_s.hits;
-									a_s.swingT = -1.0;
-								} else {
-									a_s.swingBest = std::min(a_s.swingBest, bestD);
-									missed();
+									if (hit) {
+										a_s.game->OnPieceHit(best);
+										++a_s.hits;
+										a_s.swingT = -1.0;
+									} else {
+										a_s.swingT = std::max(a_s.swingT, kWhacSwingLong - 0.25);  // (over in a moment: the next)
+									}
 								}
 							}
 						}
