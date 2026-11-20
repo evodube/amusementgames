@@ -349,6 +349,7 @@ namespace ag
 		void   SweepStragglers(double a_dt);
 		void   CallOffAtGamesInPlay();
 		std::set<std::pair<RE::TESFormID, RE::TESFormID>> _bystanders;  // (machine, actor): logged about it mid-game
+		int                                               _bystanderTick{ 0 };  // (the sweep's seconds: looked for every 5th)
 		double _sweep{ 1.0 };
 		std::unordered_map<RE::TESFormID, double> _swept;  // (let go lately: not again while Papyrus does it)
 

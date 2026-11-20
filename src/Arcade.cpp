@@ -2102,7 +2102,9 @@ namespace ag
 		if (!lists || !link) {
 			return;
 		}
-		// (who's about a Bandit Roundup in play and not in its game: logged once each a game, to see who they are)
+		// (who's about a Bandit Roundup in play and not in its game: looked for every 5 s, each logged once a game, to
+		// see who they are)
+		const bool lookAbout = ++_bystanderTick % 5 == 0;
 		std::vector<std::pair<RE::TESFormID, RE::NiPoint3>> inPlay;
 		std::vector<RE::TESFormID>                          playing;
 		if (_playing && _gameId == sim::GameId::kBanditRoundup) {
@@ -2122,7 +2124,7 @@ namespace ag
 		}
 		for (auto& ah : lists->highActorHandles) {
 			auto a = ah.get();
-			if (!a || a->IsDead(false) || inPlay.empty() || std::ranges::find(playing, a->GetFormID()) != playing.end()) {
+			if (!lookAbout || !a || a->IsDead(false) || inPlay.empty() || std::ranges::find(playing, a->GetFormID()) != playing.end()) {
 				continue;
 			}
 			for (const auto& [mid, at] : inPlay) {
