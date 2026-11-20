@@ -202,7 +202,8 @@ namespace sim::layout
 		case GameId::kAtomicRollers: return { -22.0, -183.0, 0.0 };  // (its front at -162, the ball's release at -148: our roll's
 		                                                             // right palm lets go 22 right, 35 ahead, 45 up of her feet)
 		case GameId::kHoopShot: return { 0.0, -160.0, 0.0 };       // (its front at -127)
-		case GameId::kWhacACommie: return { 0.0, -68.0, 0.0 };     // (its front at -40: the mallet reaches the holes)
+		case GameId::kWhacACommie: return { 0.0, -105.0, 0.0 };    // (its front at -40, the holes -20 to 20: a standing swing's
+		                                                           // mallet comes down about a metre ahead; from -68 it hit the back)
 		default: return { -15.0, -105.0, 0.0 };                    // Bandit Roundup (GalleryLayout::stand)
 		}
 	}

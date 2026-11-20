@@ -170,6 +170,7 @@ namespace sim
 	public:
 		WhacPlayer(std::uint32_t a_seed, double a_skill);
 		bool Update(Game& a_game, double a_dt);
+		int  Target() const { return _target; }  // the hole they're swinging at (-1: none)
 
 	private:
 		std::mt19937 _rng;

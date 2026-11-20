@@ -25,6 +25,6 @@ namespace ag::menus
 
 	[[nodiscard]] bool Open(Id a_id) noexcept;
 
-	// the pause, Pip-Boy, loading, main menu, console or workshop menu
+	// the pause, Pip-Boy, loading, main menu, console or workshop menu, or the Steam overlay
 	[[nodiscard]] bool AnyBlocking() noexcept;
 }
