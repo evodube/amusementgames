@@ -13,7 +13,7 @@ a.animation_data.action=bpy.data.actions['PoseA_Idle1']; sc.frame_set(1); VL.upd
 base={pb.name:(pb.location.copy(),pb.rotation_quaternion.copy(),pb.rotation_mode) for pb in a.pose.bones}; X=Vector((1,0,0)); Z=Vector((0,0,1))
 def reset():
     for pb in a.pose.bones:
-        l,q,m=base[pb.name]; pb.location=l; pb.rotation_quaternion=q
+        l,q,m=base[pb.name]; pb.location=l; pb.rotation_quaternion=q; pb.scale=(1,1,1)
     VL.update()
 def rot(n,ax,d):
     if abs(d)<1e-6: return
@@ -61,8 +61,8 @@ def build(name,keys):
     act=bpy.data.actions.new(name); a.animation_data.action=act
     for f,fr in enumerate(frames):
         for pb in a.pose.bones:
-            pb.location=fr[pb.name][0]; pb.rotation_quaternion=fr[pb.name][1]
-            pb.keyframe_insert("rotation_quaternion",frame=f+1); pb.keyframe_insert("location",frame=f+1)
+            pb.location=fr[pb.name][0]; pb.rotation_quaternion=fr[pb.name][1]; pb.scale=(1,1,1)
+            pb.keyframe_insert("rotation_quaternion",frame=f+1); pb.keyframe_insert("location",frame=f+1); pb.keyframe_insert("scale",frame=f+1)
     sc.frame_start=1; sc.frame_end=n+1
     return FZ
 
