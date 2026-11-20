@@ -17,6 +17,7 @@ namespace ag
 		float settlersGapShortest{ 45.0f };  // seconds between their games...
 		float settlersGapLongest{ 120.0f };  // ...to this
 		float settlersDuel{ 35.0f };         // % of Bandit Roundup games two settlers play each other
+		float settlersSkill{ 0.0f };         // added to every settler's skill at the games: -50 to +50 (hundredths)
 
 		// a machine's takings, paid into its settlement's workshop: a day, for each settler there
 		float incomeCaps{ 1.0f };

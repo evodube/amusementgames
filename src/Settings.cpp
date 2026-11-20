@@ -34,6 +34,7 @@ namespace ag
 		settlersGapShortest = std::clamp(ReadFloat(L"Settlers", L"fGapShortest", 45.0f), 5.0f, 1800.0f);
 		settlersGapLongest = std::clamp(ReadFloat(L"Settlers", L"fGapLongest", 120.0f), settlersGapShortest, 3600.0f);
 		settlersDuel = std::clamp(ReadFloat(L"Settlers", L"fDuelPercent", 35.0f), 0.0f, 100.0f);
+		settlersSkill = std::clamp(ReadFloat(L"Settlers", L"fSkill", 0.0f), -50.0f, 50.0f);
 		incomeCaps = std::clamp(ReadFloat(L"Income", L"fCapsPerSettler", 1.0f), 0.0f, 100.0f);
 		incomeTickets = std::clamp(ReadFloat(L"Income", L"fTicketsPerSettler", 2.0f), 0.0f, 100.0f);
 		playTickets = std::clamp(ReadFloat(L"Income", L"fPlayTicketsMult", 2.0f), 0.5f, 5.0f);
@@ -45,6 +46,7 @@ namespace ag
 		WriteFloat(L"Settlers", L"fGapShortest", settlersGapShortest);
 		WriteFloat(L"Settlers", L"fGapLongest", settlersGapLongest);
 		WriteFloat(L"Settlers", L"fDuelPercent", settlersDuel);
+		WriteFloat(L"Settlers", L"fSkill", settlersSkill);
 		WriteFloat(L"Income", L"fCapsPerSettler", incomeCaps);
 		WriteFloat(L"Income", L"fTicketsPerSettler", incomeTickets);
 		WriteFloat(L"Income", L"fPlayTicketsMult", playTickets);
@@ -82,6 +84,12 @@ namespace ag
 				Saved(IsItemDeactivatedAfterEdit());
 				SetNextItemWidth(260.0f);
 				SliderFloat("Bandit Roundup: two settlers playing each other", &s.settlersDuel, 0.0f, 100.0f, "%.0f %% of games");
+				Saved(IsItemDeactivatedAfterEdit());
+				Spacing();
+				TextWrapped("Each settler has a talent of their own, gets better the more they play a machine, and plays to "
+				            "their stats (Perception for aiming, Agility for quick hands). This shifts everyone's skill.");
+				SetNextItemWidth(260.0f);
+				SliderFloat("Settlers' skill", &s.settlersSkill, -50.0f, 50.0f, "%+.0f");
 				Saved(IsItemDeactivatedAfterEdit());
 			}
 
