@@ -19,6 +19,7 @@ namespace ag::SettlerSkill
 		{
 			float                               talent{ 0.5f };
 			std::array<std::uint16_t, kGames>   played{};
+			std::array<std::int32_t, kGames>    best{};  // their best score at each (the reactions: a new best cheered)
 		};
 
 		std::mutex                                 g_lock;
@@ -54,6 +55,19 @@ namespace ag::SettlerSkill
 		return skill;
 	}
 
+	int Scored(RE::TESFormID a_id, sim::GameId a_game, int a_score)
+	{
+		const int game = static_cast<int>(a_game);
+		if (game < 0 || game >= kGames || !a_id) {
+			return 0;
+		}
+		std::scoped_lock l(g_lock);
+		auto&     r = g_settlers[a_id];
+		const int before = r.best[game];
+		r.best[game] = std::max(before, a_score);
+		return before;
+	}
+
 	void Save(const F4SE::SerializationInterface* a_intfc)
 	{
 		std::scoped_lock l(g_lock);
@@ -66,10 +80,11 @@ namespace ag::SettlerSkill
 			a_intfc->WriteRecordData(&id, sizeof(id));
 			a_intfc->WriteRecordData(&r.talent, sizeof(r.talent));
 			a_intfc->WriteRecordData(r.played.data(), sizeof(r.played));
+			a_intfc->WriteRecordData(r.best.data(), sizeof(r.best));
 		}
 	}
 
-	void Load(const F4SE::SerializationInterface* a_intfc, std::uint32_t, std::uint32_t)
+	void Load(const F4SE::SerializationInterface* a_intfc, std::uint32_t a_version, std::uint32_t)
 	{
 		std::scoped_lock l(g_lock);
 		g_settlers.clear();
@@ -81,7 +96,8 @@ namespace ag::SettlerSkill
 			RE::TESFormID id = 0;
 			Record        r;
 			if (!a_intfc->ReadRecordData(&id, sizeof(id)) || !a_intfc->ReadRecordData(&r.talent, sizeof(r.talent)) ||
-				!a_intfc->ReadRecordData(r.played.data(), sizeof(r.played))) {
+				!a_intfc->ReadRecordData(r.played.data(), sizeof(r.played)) ||
+				(a_version >= 2 && !a_intfc->ReadRecordData(r.best.data(), sizeof(r.best)))) {
 				return;
 			}
 			if (const auto now = a_intfc->ResolveFormID(id)) {

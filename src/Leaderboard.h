@@ -16,8 +16,9 @@ namespace ag::Leaderboard
 	                                                       // (deleted: dead's fine), "..." where the name was
 
 	// a game played to its end by someone (an actor's ref id), scoring this (on the game's thread; not the zapper
-	// race's: its board's wins)
-	void Record(sim::GameId a_game, RE::TESFormID a_actor, int a_score);
+	// race's: its board's wins): the place it's put them on the board (0 the top), or -1 (not on it, or no better than
+	// their best already there)
+	int Record(sim::GameId a_game, RE::TESFormID a_actor, int a_score);
 	// a Nuka-Zapper Race won by someone: a win more on its board
 	void RecordWin(RE::TESFormID a_actor);
 	// someone's races won
