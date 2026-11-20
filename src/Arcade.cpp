@@ -990,7 +990,9 @@ namespace ag
 			auto armed = a_s.armed;
 			auto aimAt = a_s.aimAt.get();
 			Papyrus::Call("NpcTakeUp", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(a_s.weapon), Papyrus::Id(marker.get()),
-										   Papyrus::Id(aimAt.get()), Papyrus::Id(a_s.weapon ? a_s.weapon->weaponData.ammo : nullptr) },
+										   // (the aim package only at the gallery: Whac-a-Commie's marker is just what they face)
+										   a_s.gameId == sim::GameId::kBanditRoundup ? Papyrus::Id(aimAt.get()) : 0,
+										   Papyrus::Id(a_s.weapon ? a_s.weapon->weaponData.ammo : nullptr) },
 				[armed](std::int32_t a_r) { *armed = a_r; });
 			log::info("{}: {} ({:08X}) at the counter after {:.0f}s", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.walked);
 			return;
@@ -1046,7 +1048,9 @@ namespace ag
 			sim::Input in;
 			if (a_s.whacker) {
 				if (a_s.whacker->Update(*a_s.game, a_dt)) {
-					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID) });
+					auto spot = a_s.marker.get();
+					auto at = a_s.aimAt.get();
+					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()), Papyrus::Id(at.get()) });
 				}
 			} else if (a_s.thrower) {
 				in = a_s.thrower->Next(a_dt);
@@ -1234,6 +1238,8 @@ namespace ag
 			sh.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::SettlerStand(gameId)));
 			if (gameId == sim::GameId::kBanditRoundup) {
 				sh.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, sim::layout::Gallery().aimAt));
+			} else if (gameId == sim::GameId::kWhacACommie) {
+				sh.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, sim::Vec3{ 0.0, 0.0, 67.0 }));  // (the middle of the holes: what they face)
 			}
 			auto marker = sh.marker.get();
 			if (!marker) {
