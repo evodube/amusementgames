@@ -213,6 +213,10 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	If !a || !m || a.IsDead() || a.IsInCombat()
 		Return 0
 	EndIf
+	; onto the spot, at the height of the ground they're standing on: the spot's own height is the machine's, and where
+	; the ground's a little higher there, MoveTo put them a few centimetres into it till the game pushed them back up
+	; (after a few seconds: their first shots, sunk)
+	m.SetPosition(m.GetPositionX(), m.GetPositionY(), a.GetPositionZ())
 	a.MoveTo(m)
 	AmusementGamesQuest q = TheQuest()
 	Keyword k = LinkSpot()
