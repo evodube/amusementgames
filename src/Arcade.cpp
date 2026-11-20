@@ -508,7 +508,8 @@ namespace ag
 	}
 
 	void Arcade::PlacePieces(const Frame& a_f, const sim::Game& a_game, sim::GameId a_id, RE::TESObjectREFR* a_machine,
-		std::vector<RE::ObjectRefHandle>& a_pieces, std::vector<int>& a_models, std::vector<RE::NiAVObject*>& a_frozen)
+		std::vector<RE::ObjectRefHandle>& a_pieces, std::vector<int>& a_models, std::vector<RE::NiAVObject*>& a_frozen,
+		const std::vector<bool>* a_keepHidden)
 	{
 		std::vector<sim::Piece> pieces;
 		a_game.Pieces(pieces);
@@ -532,7 +533,8 @@ namespace ag
 			}
 			Freeze(ref.get(), a_frozen);
 			const RE::NiMatrix3 rot = FromRows(pieces[i].rot) * a_f.rot;
-			PlaceNode(ref.get(), ToWorld(a_f, pieces[i].pos), rot, static_cast<float>(pieces[i].scale) * a_f.scale, pieces[i].hidden);
+			const bool hide = pieces[i].hidden || (a_keepHidden && i < a_keepHidden->size() && (*a_keepHidden)[i]);
+			PlaceNode(ref.get(), ToWorld(a_f, pieces[i].pos), rot, static_cast<float>(pieces[i].scale) * a_f.scale, hide);
 		}
 	}
 
@@ -1284,22 +1286,23 @@ namespace ag
 			for (const auto& snd : a_s.game->TakeSounds()) {
 				Sounds::Play(a_s.gameId, snd.cue, machine.get(), snd.gain);
 			}
-			PlacePieces(f, *a_s.game, a_s.gameId, machine.get(), a_s.pieces, a_s.pieceModel, a_s.frozen);
+			// the game's own ball waiting to be thrown: Hoop Shot's (its last piece, by your eye) never shown; Atomic
+			// Rollers' on the lane's start till they take it up for a throw. Thrown balls leave from her hands and show at once.
+			// (kept hidden as it's placed: shown and hidden again each frame, the renderer caught it shown now and then,
+			// and the ball on the lane flickered while she held hers)
+			std::vector<bool> waiting;
 			if (a_s.thrower) {
-				// the game's own ball waiting to be thrown: Hoop Shot's (its last piece, by your eye) never shown; Atomic
-				// Rollers' on the lane's start till they take it up for a throw. Thrown balls leave from her hands and show at once
 				const sim::Vec3 held = sim::layout::Rollers().release;
 				std::vector<sim::Piece> pieces;
 				a_s.game->Pieces(pieces);
-				for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
-					const bool waiting = a_s.gameId == sim::GameId::kHoopShot ? i + 1 == pieces.size() :
-					                                                            a_s.holding && (pieces[i].pos - held).Length() < 12.0;
-					if (waiting) {
-						if (auto ref = a_s.pieces[i].get(); ref && ref->Get3D()) {
-							ref->Get3D()->SetAppCulled(true);
-						}
-					}
+				waiting.resize(pieces.size());
+				for (std::size_t i = 0; i < pieces.size(); ++i) {
+					waiting[i] = a_s.gameId == sim::GameId::kHoopShot ? i + 1 == pieces.size() :
+					                                                    a_s.holding && (pieces[i].pos - held).Length() < 12.0;
 				}
+			}
+			PlacePieces(f, *a_s.game, a_s.gameId, machine.get(), a_s.pieces, a_s.pieceModel, a_s.frozen, &waiting);
+			if (a_s.thrower) {
 				// ...theirs in their hand(s) while the throw's on: Hoop Shot's out in front of the right palm (on the ball's back),
 				// Atomic Rollers' cupped in the right palm (out from the palm by its radius, not through the hand)
 				if (auto ball = a_s.handBall.get()) {
