@@ -426,8 +426,12 @@ EndFunction
 ; neither (the event sent)
 Int Function NpcRoll(Int aiActor, Int aiSpot) Global
 	Actor a = Game.GetForm(aiActor) as Actor
-	; square to the machine first (their spot faces it): turned away, the throw went off the side
+	; back on their spot (the last throw's step carried them forward: each throw a little further in) and square to
+	; the machine (their spot faces it): turned away, the throw went off the side
 	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
+	If a && spot && a.GetDistance(spot) > 3.0
+		a.MoveTo(spot)
+	EndIf
 	If a && spot
 		Float off = spot.GetAngleZ() - a.GetAngleZ()
 		If off > 180.0
@@ -451,8 +455,12 @@ EndFunction
 ; Hoop Shot: the basketball thrown, a grenade's throw; or the smoke bomb toss
 Int Function NpcToss(Int aiActor, Int aiSpot) Global
 	Actor a = Game.GetForm(aiActor) as Actor
-	; square to the machine first (their spot faces it): turned away, the throw went off the side
+	; back on their spot (the last throw's step carried them forward: each throw a little further in) and square to
+	; the machine (their spot faces it): turned away, the throw went off the side
 	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
+	If a && spot && a.GetDistance(spot) > 3.0
+		a.MoveTo(spot)
+	EndIf
 	If a && spot
 		Float off = spot.GetAngleZ() - a.GetAngleZ()
 		If off > 180.0
