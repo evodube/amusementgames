@@ -24,21 +24,42 @@ def move(n,v):
 def snap(n): pb=a.pose.bones[n]; return (pb.location.copy(), pb.rotation_quaternion.copy())
 def put(n,s): pb=a.pose.bones[n]; pb.location=s[0]; pb.rotation_quaternion=s[1]; VL.update()
 LEG=["Leg_Thigh.","Leg_Calf.","Leg_Foot."]
-def legs(s,FZ):
+def legik(s,target):
+    # the foot's ankle onto target (armature space), foot kept flat: thigh +a, calf -k, foot +(k-a) about X (world)
     snaps={n+s:snap(n+s) for n in LEG}
-    lo,hi=0.0,80.0
-    for _ in range(18):
-        ang=(lo+hi)/2
+    def at(a,k):
         for n in snaps: put(n,snaps[n])
-        rot("Leg_Thigh."+s,X,ang); rot("Leg_Calf."+s,X,-2*ang); rot("Leg_Foot."+s,X,ang)
-        if a.pose.bones["Leg_Foot."+s].head.z>FZ[s]: hi=ang
-        else: lo=ang
+        rot("Leg_Thigh."+s,X,a); rot("Leg_Calf."+s,X,-k); rot("Leg_Foot."+s,X,k-a)
+        p=bpy.data.objects["Root:ARMATURE"].pose.bones["Leg_Foot."+s].head
+        return (p.y-target.y)**2+(p.z-target.z)**2
+    best=(1e18,0,0)
+    for ga in range(-40,81,10):
+        for gk in range(0,131,10):
+            e=at(ga,gk)
+            if e<best[0]: best=(e,ga,gk)
+    step=5.0
+    _,ba,bk=best
+    while step>0.05:
+        moved=False
+        for da,dk in ((step,0),(-step,0),(0,step),(0,-step)):
+            e=at(ba+da,bk+dk)
+            if e<best[0]-1e-9:
+                best=(e,ba+da,bk+dk); ba,bk=ba+da,bk+dk; moved=True
+        if not moved: step/=2
+    at(ba,bk)
 def pose(p,FZ):
-    reset(); dz=p.get('com',0.0)
-    move("COM",Vector((0,0,dz)))
+    reset()
+    feet={s:a.pose.bones["Leg_Foot."+s].head.copy() for s in "LR"}
+    dz=p.get('com',0.0); dy=p.get('comy',0.0)
+    move("COM",Vector((0,dy,dz)))
     sp=p.get('spine',0); rot("Spine1",X,sp*.5); rot("Spine2",X,sp*.3); rot("Chest",X,sp*.2)
-    if dz<-0.05:
-        legs("L",FZ); legs("R",FZ)
+    stepL=p.get('stepL',0.0)
+    if abs(dz)>0.05 or abs(dy)>0.05 or abs(stepL)>0.05:
+        for s in "LR":
+            tgt=feet[s].copy()
+            if s=="L":
+                tgt.y+=stepL; tgt.z+=p.get('liftL',0.0)
+            legik(s,tgt)
     for s,sg in (("R",1),("L",-1)):
         rot("Arm_UpperArm."+s,X,p.get('up'+s,0)); rot("Arm_UpperArm."+s,Z,sg*p.get('yaw'+s,0))
         rot("Arm_ForeArm1."+s,X,p.get('fore'+s,0)); rot("Arm_Hand."+s,X,p.get('hand'+s,0))
@@ -132,11 +153,57 @@ KEYS = {'AGBasketballShot': [(0, {}),
                         'yawR': 12}),
                       (50, {})],
  'AGSkeeballRoll': [(0, {}),
-                    (10, {'com': -4, 'foreL': 20, 'foreR': 10, 'spine': -12, 'upL': 15, 'upR': -50}),
-                    (19, {'com': -18, 'foreL': 35, 'foreR': 5, 'handR': -5, 'spine': -34, 'upL': 30, 'upR': 25}),
-                    (22, {'com': -20, 'foreL': 35, 'foreR': 5, 'handR': -15, 'spine': -38, 'upL': 30, 'upR': 60}),
-                    (30, {'com': -14, 'foreL': 30, 'foreR': 10, 'handR': -20, 'spine': -28, 'upL': 25, 'upR': 85}),
-                    (48, {})]}
+                    (8,
+                     {'com': -4,
+                      'foreL': 40,
+                      'foreR': 55,
+                      'liftL': 4,
+                      'spine': -8,
+                      'stepL': 4,
+                      'upL': 20,
+                      'upR': 25,
+                      'yawR': 5}),
+                    (14,
+                     {'com': -14,
+                      'comy': 4,
+                      'foreL': 35,
+                      'foreR': 5,
+                      'handR': 5,
+                      'spine': -24,
+                      'stepL': 16,
+                      'upL': 30,
+                      'upR': -35}),
+                    (22,
+                     {'com': -22,
+                      'comy': 8,
+                      'foreL': 35,
+                      'foreR': 5,
+                      'handR': -15,
+                      'spine': -36,
+                      'stepL': 16,
+                      'upL': 30,
+                      'upR': 60}),
+                    (30,
+                     {'com': -16,
+                      'comy': 7,
+                      'foreL': 30,
+                      'foreR': 8,
+                      'handR': -10,
+                      'spine': -28,
+                      'stepL': 16,
+                      'upL': 25,
+                      'upR': 95}),
+                    (38,
+                     {'com': -12,
+                      'comy': 5,
+                      'foreL': 30,
+                      'foreR': 15,
+                      'spine': -22,
+                      'stepL': 16,
+                      'upL': 20,
+                      'upR': 90}),
+                    (46, {'com': -4, 'comy': 2, 'foreR': 20, 'liftL': 3, 'spine': -8, 'stepL': 8, 'upR': 20}),
+                    (54, {})]}
 
 for _name, _keys in KEYS.items():
     build(_name, _keys)
