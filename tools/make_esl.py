@@ -562,8 +562,9 @@ def terminal_fragments(fragments: list[tuple[int, str]]) -> bytes:
 SUBTERMINAL_KEYWORDS = (0x000A56D7, 0x0006D5BB, 0x000C2022)  # FurnitureForce1stPerson, PlayerPathToFurniture, AnimFurnWallTerminal
 
 
-def terminal_frame(mesh: str, keywords: tuple, marker: bytes, xmarker: str = "") -> bytes:
+def terminal_frame(mesh: str, keywords: tuple, marker: bytes, xmarker: str = "", swap: int = 0) -> bytes:
     return (subrecord(b"MODL", zstring(mesh))
+            + (subrecord(b"MODS", struct.pack("<I", swap)) if swap else b"")  # (its material swap)
             + subrecord(b"KSIZ", struct.pack("<I", len(keywords)))
             + subrecord(b"KWDA", b"".join(struct.pack("<I", k) for k in keywords))
             + subrecord(b"PNAM", struct.pack("<I", 0x00334CCC))
@@ -711,7 +712,8 @@ def prize_counter(form_id: int) -> bytes:
             + subrecord(b"FULL", zstring("Prize Counter"))
             + terminal_frame("Furniture\\Terminals\\TerminalConsoleOn.nif", keywords,
                              bytes.fromhex("00000000000088c2000000000000000000000000ffffffff"),
-                             "Markers\\MarkerDeskTerminal01.nif")
+                             "Markers\\MarkerDeskTerminal01.nif",
+                             NUKA | 0x024AFA)  # ConsoleSwapRed01: the Nuka-Cade's red, as its own terminal there has it
             + subrecord(b"BSIZ", struct.pack("<I", 1))
             + subrecord(b"BTXT", zstring("Welcome to the Nuka-Cade, <Alias=Player>\r\n\r\n"
                                          "Exchange your tickets for fun and exciting prizes!\r\n\r\n"
