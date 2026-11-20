@@ -398,6 +398,7 @@ namespace ag
 			Scoreboards::Tick(dt);
 			TickShow(dt);
 			TickRaces(dt);
+			TickRedress(dt);
 		} else if (menus::Open(menus::kWorkshop) && !menus::Open(menus::kPause) && !menus::Open(menus::kPipboy) &&
 				   !menus::Open(menus::kLoading) && !menus::Open(menus::kMain) && !menus::Open(menus::kConsole)) {
 			Scoreboards::Tick(dt);  // (build mode: a machine moved gets its board and things back up where it's put)
@@ -847,9 +848,92 @@ namespace ag
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
 	}
 
+	std::vector<Arcade::Worn> Arcade::WornBy(RE::Actor* a_actor)
+	{
+		std::vector<Worn> out;
+		auto*             list = a_actor ? a_actor->inventoryList : nullptr;
+		if (!list) {
+			return out;
+		}
+		RE::BSAutoReadLock lock{ list->rwLock };
+		for (auto& item : list->data) {
+			if (!item.object || !item.object->Is(RE::ENUM_FORM_ID::kARMO)) {
+				continue;
+			}
+			std::uint32_t id = 0;
+			for (auto* stack = item.stackData.get(); stack; stack = stack->nextStack.get(), ++id) {
+				if (stack->IsEquipped()) {
+					Worn w;
+					w.object = item.object;
+					w.stackID = id;
+					if (auto* extra = stack->extra.get()) {
+						if (auto* inst = extra->GetByType<RE::ExtraInstanceData>()) {
+							w.instance = inst->data;
+						}
+					}
+					out.push_back(std::move(w));
+				}
+			}
+		}
+		return out;
+	}
+
+	void Arcade::Snapshot(RE::Actor* a_actor)
+	{
+		if (a_actor && !_worn.contains(a_actor->GetFormID())) {
+			_worn[a_actor->GetFormID()] = WornBy(a_actor);
+		}
+	}
+
+	// what they wore put back on: anything of it not on them now
+	void Arcade::TickRedress(double a_dt)
+	{
+		std::scoped_lock lock(_redressMutex);
+		for (auto it = _redress.begin(); it != _redress.end();) {
+			it->in -= a_dt;
+			if (it->in > 0.0) {
+				++it;
+				continue;
+			}
+			auto* actor = RE::TESForm::GetFormByID<RE::Actor>(it->actor);
+			auto* equip = RE::ActorEquipManager::GetSingleton();
+			if (actor && equip && !actor->IsDead(false)) {
+				const auto now = WornBy(actor);
+				int        put = 0;
+				for (const auto& w : it->worn) {
+					const bool on = std::ranges::any_of(now, [&](const Worn& n) { return n.object == w.object; });
+					if (!on && actor->GetInventoryObjectCount(w.object) > 0) {
+						equip->EquipObject(actor, RE::BGSObjectInstance(w.object, w.instance.get()), w.stackID, 1, nullptr, false, false, false, true, false);
+						++put;
+					}
+				}
+				if (put > 0) {
+					log::info("{:08X}: {} piece(s) of what they wore put back on", it->actor, put);
+				}
+			}
+			if (--it->times > 0) {
+				it->in = 1.0;
+				++it;
+			} else {
+				it = _redress.erase(it);
+			}
+		}
+	}
+
 	void Arcade::Release(RE::TESFormID a_actor, RE::TESFormID a_weapon, bool a_added)
 	{
-		Papyrus::Call("NpcEnd", { static_cast<std::int32_t>(a_actor), static_cast<std::int32_t>(a_weapon), a_added ? 1 : 0 });
+		std::vector<Worn> worn;
+		if (auto found = _worn.find(a_actor); found != _worn.end()) {
+			worn = std::move(found->second);
+			_worn.erase(found);
+		}
+		Papyrus::Call("NpcEnd", { static_cast<std::int32_t>(a_actor), static_cast<std::int32_t>(a_weapon), a_added ? 1 : 0 },
+			[this, a_actor, worn = std::move(worn)](std::int32_t) mutable {
+				if (!worn.empty()) {
+					std::scoped_lock lock(_redressMutex);
+					_redress.push_back({ a_actor, std::move(worn) });
+				}
+			});
 	}
 
 	void Arcade::ReleaseHeld()
@@ -1005,6 +1089,7 @@ namespace ag
 				}
 			}
 			a_s.phase = Show::Phase::kArming;
+			Snapshot(actor);  // (what they wear: put back on after)
 			a_s.armed = std::make_shared<std::atomic<std::int32_t>>(-1);
 			auto armed = a_s.armed;
 			auto aimAt = a_s.aimAt.get();
@@ -1071,15 +1156,17 @@ namespace ag
 				if (a_s.whacker->Update(*a_s.game, a_dt)) {
 					auto spot = a_s.marker.get();
 					auto at = a_s.aimAt.get();
-					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()), Papyrus::Id(at.get()) });
+					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()), Papyrus::Id(at.get()), Papyrus::Id(a_s.weapon) });
 				}
 			} else if (a_s.thrower) {
 				in = a_s.thrower->Next(a_dt);
 				a_s.sinceThrow += a_dt;
 				if (in.released) {
 					a_s.sinceThrow = 0.0;
+					a_s.holding = false;
 				}
 				if (a_s.thrower->TakeCue()) {
+					a_s.holding = true;
 					static std::atomic<int> told{ -1 };  // (how the throws go: logged once each way)
 					const std::string       name = a_s.name;
 					const auto              game = a_s.gameId;
@@ -1100,38 +1187,73 @@ namespace ag
 			}
 			PlacePieces(f, *a_s.game, a_s.gameId, machine.get(), a_s.pieces, a_s.pieceModel, a_s.frozen);
 			if (a_s.thrower) {
-				// the game's own ball waiting to be thrown (where your hand or the lane's start would be) out of sight:
-				// theirs is in their hand
-				// (Hoop Shot's is its last piece, the one by your eye; its thrown balls leave from her hands and show at once)
+				// the game's own ball waiting to be thrown: Hoop Shot's (its last piece, by your eye) never shown; Atomic
+				// Rollers' on the lane's start till they take it up for a throw. Thrown balls leave from her hands and show at once
 				const sim::Vec3 held = sim::layout::Rollers().release;
 				std::vector<sim::Piece> pieces;
 				a_s.game->Pieces(pieces);
 				for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
-					if (a_s.gameId == sim::GameId::kHoopShot ? i + 1 == pieces.size() : (pieces[i].pos - held).Length() < 12.0) {
+					const bool waiting = a_s.gameId == sim::GameId::kHoopShot ? i + 1 == pieces.size() :
+					                                                            a_s.holding && (pieces[i].pos - held).Length() < 12.0;
+					if (waiting) {
 						if (auto ref = a_s.pieces[i].get(); ref && ref->Get3D()) {
 							ref->Get3D()->SetAppCulled(true);
 						}
 					}
 				}
-				// ...in their right hand, but for a moment after a throw (it's left their hand)
+				// ...theirs in their hand(s) while the throw's on: Hoop Shot's between the palms once both are on it,
+				// Atomic Rollers' cupped in the right palm (out from the palm by its radius, not through the hand)
 				if (auto ball = a_s.handBall.get()) {
 					auto* root = actor->Get3D();
-					auto* hand = root ? root->GetObjectByName("RArm_Hand") : nullptr;
-					auto* knuckle = root ? root->GetObjectByName("RArm_Finger31") : nullptr;  // (the middle finger's base)
-					const bool show = hand && a_s.sinceThrow > 1.0;
+					auto  palmOf = [&](const char* a_hand, const char* a_knuckle, RE::NiPoint3& a_out) {
+						auto* h = root ? root->GetObjectByName(a_hand) : nullptr;
+						auto* k = root ? root->GetObjectByName(a_knuckle) : nullptr;
+						if (!h || !k) {
+							return false;
+						}
+						a_out = h->world.translate + (k->world.translate - h->world.translate) * 0.75f;
+						return true;
+					};
+					RE::NiPoint3 at;
+					bool         show = false;
+					if (a_s.holding && a_s.gameId == sim::GameId::kHoopShot) {
+						RE::NiPoint3 r, l;
+						if (palmOf("RArm_Hand", "RArm_Finger31", r) && palmOf("LArm_Hand", "LArm_Finger31", l) && (r - l).Length() < 36.0f) {
+							at = (r + l) * 0.5f;
+							show = true;
+						}
+					} else if (a_s.holding) {
+						auto* h = root ? root->GetObjectByName("RArm_Hand") : nullptr;
+						auto* mid = root ? root->GetObjectByName("RArm_Finger31") : nullptr;
+						auto* index = root ? root->GetObjectByName("RArm_Finger21") : nullptr;
+						auto* pinky = root ? root->GetObjectByName("RArm_Finger51") : nullptr;
+						auto* thumb = root ? root->GetObjectByName("RArm_Finger13") : nullptr;
+						if (h && mid && index && pinky) {
+							const RE::NiPoint3 wrist = h->world.translate;
+							const RE::NiPoint3 along = mid->world.translate - wrist;
+							const RE::NiPoint3 across = index->world.translate - pinky->world.translate;
+							RE::NiPoint3       n{ along.y * across.z - along.z * across.y, along.z * across.x - along.x * across.z,
+                                along.x * across.y - along.y * across.x };
+							const float len = n.Length();
+							if (len > 0.001f) {
+								n = n * (1.0f / len);
+								// (the palm's side: the thumb's tip is on it)
+								if (thumb) {
+									const RE::NiPoint3 t = thumb->world.translate - wrist;
+									if (t.x * n.x + t.y * n.y + t.z * n.z < 0.0f) {
+										n = n * -1.0f;
+									}
+								}
+								float radius = 4.5f;
+								if (auto* b3 = ball->Get3D(); b3 && b3->worldBound.fRadius > 0.5f) {
+									radius = b3->worldBound.fRadius;
+								}
+								at = wrist + along * 0.7f + n * (radius * 0.9f);
+								show = true;
+							}
+						}
+					}
 					if (show) {
-						// in the palm: most of the way from the wrist (the hand's node) to the knuckles
-						RE::NiPoint3 at = hand->world.translate;
-						if (knuckle) {
-							at = at + (knuckle->world.translate - at) * 0.85f;
-						}
-						// (Hoop Shot's set shot holds it in both: between the palms)
-						auto* handL = a_s.gameId == sim::GameId::kHoopShot && root ? root->GetObjectByName("LArm_Hand") : nullptr;
-						auto* knuckleL = handL ? root->GetObjectByName("LArm_Finger31") : nullptr;
-						if (handL && knuckleL) {
-							const RE::NiPoint3 atL = handL->world.translate + (knuckleL->world.translate - handL->world.translate) * 0.85f;
-							at = (at + atL) * 0.5f;
-						}
 						Freeze(ball.get(), a_s.frozen);
 						PlaceNode(ball.get(), at, f.rot, f.scale, false);
 					} else if (auto* b3 = ball->Get3D()) {
@@ -1549,6 +1671,7 @@ namespace ag
 					continue;
 				}
 				q.state = 1;
+				Snapshot(actor);  // (what they wear: put back on after)
 				q.armed = std::make_shared<std::atomic<std::int32_t>>(-1);
 				auto armed = q.armed;
 				auto aimAt = q.aimAt.get();

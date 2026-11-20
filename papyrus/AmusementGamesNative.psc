@@ -218,32 +218,22 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	; (after a few seconds: their first shots, sunk)
 	m.SetPosition(m.GetPositionX(), m.GetPositionY(), a.GetPositionZ())
 	a.MoveTo(m)
-	AmusementGamesQuest q = TheQuest()
-	Keyword k = LinkSpot()
-	If q && k && aiAimAt != 0
-		Keyword ak = Game.GetFormFromFile(0x82D, "AmusementGames.esl") as Keyword
-		Int akId = 0
-		If ak
-			akId = ak.GetFormID()
-		EndIf
-		; (the spot held, aiming at the targets, no other idles or chatter)
-		q.Hold(aiActor, aiMarker, k.GetFormID(), aiAimAt, akId, w && w == Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm"))
-	EndIf
 	If !w
 		Return 1  ; (a game played with the hands: Atomic Rollers, Hoop Shot)
 	EndIf
-	If q && k && aiAimAt == 0
-		q.HoldDrawn(aiActor, aiMarker, k.GetFormID())  ; (a melee weapon: kept drawn between swings)
-	EndIf
 	Int r = 1
 	If a.GetItemCount(w) == 0
-		; built whole (PlaceAtMe makes a modular gun with its parts, the Thirst Zapper's with what it fires: one added
-		; as a bare record has nothing to fire, and firing it crashed the game), then into their hands
-		ObjectReference g = a.PlaceAtMe(w, 1, False, True)
-		If g
-			a.AddItem(g, 1, True)
-		Else
-			a.AddItem(w, 1, True)
+		; the same gun you're handed at the machine (added as you get it, the rifles with their iron sights; PlaceAtMe
+		; built one of the gun's other variants). (Weapon.Fire on it crashed the game; nothing calls that now)
+		a.AddItem(w, 1, True)
+		ObjectMod sights = None
+		If w == Game.GetFormFromFile(0x02C8B0, "DLCCoast.esm")
+			sights = Game.GetFormFromFile(0x042E6F, "DLCCoast.esm") as ObjectMod   ; (DLC03_mod_LeverGun_Scope_SightsIron)
+		ElseIf w == Game.GetFormFromFile(0x04F46A, "Fallout4.esm")
+			sights = Game.GetFormFromFile(0x148418, "Fallout4.esm") as ObjectMod   ; (mod_HuntingRifle_Scope_SightsIron)
+		EndIf
+		If sights
+			a.AttachModToInventoryItem(w, sights)
 		EndIf
 		r = 2
 	EndIf
@@ -253,7 +243,24 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	If am && a.GetItemCount(am) < 10
 		a.AddItem(am, 50, True)
 	EndIf
-	a.EquipItem(w, False, True)
+	; equipped so it stays (abPreventRemoval): left to the AI, they took up whatever gun of their own they rated best
+	a.EquipItem(w, True, True)
+	; then their package (it picks the weapon in hand: before, it picked one of their own)
+	AmusementGamesQuest q = TheQuest()
+	Keyword k = LinkSpot()
+	If q && k
+		If aiAimAt != 0
+			Keyword ak = Game.GetFormFromFile(0x82D, "AmusementGames.esl") as Keyword
+			Int akId = 0
+			If ak
+				akId = ak.GetFormID()
+			EndIf
+			; (the spot held, aiming at the targets, no other idles or chatter)
+			q.Hold(aiActor, aiMarker, k.GetFormID(), aiAimAt, akId, w == Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm"))
+		Else
+			q.HoldDrawn(aiActor, aiMarker, k.GetFormID())  ; (a melee weapon: kept drawn between swings)
+		EndIf
+	EndIf
 	a.DrawWeapon()
 	; (no raising it ourselves: their hold package aims it, and a sighted idle on top of that put them in a low crouch,
 	; as behind cover, for the first few shots)
@@ -277,6 +284,9 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	If !a || !w
 		Return 0
 	EndIf
+	If a.GetEquippedWeapon() != w && a.GetItemCount(w) > 0
+		a.EquipItem(w, True, True)  ; (swapped for one of their own: the game's again)
+	EndIf
 	If !a.IsWeaponDrawn()
 		a.DrawWeapon()
 		Utility.Wait(0.6)
@@ -296,6 +306,8 @@ Function NpcEnd(Int aiActor, Int aiWeapon, Int aiLent) Global
 	If !a
 		Return
 	EndIf
+	; out of any idle still playing (a throw's, which left Hoop Shot settlers standing there after): ActionIdleStop
+	a.PlayIdleAction(Game.GetFormFromFile(0x00018BA8, "Fallout4.esm") as Action)
 	If !a.PlayIdle(Game.GetFormFromFile(0x00018DEA, "Fallout4.esm") as Idle)  ; (RaiderRifleSightedEnd: the rifle down)
 		a.PlayAnimation("rifleSightedEnd")
 	EndIf
@@ -340,10 +352,14 @@ Int Function Act(Actor a, Int aiIdle, Int aiIdle2, String asEvent) Global
 EndFunction
 
 ; Whac-a-Commie: a one-handed swing of the Commie Whacker (drawn again first if it's been put away)
-Int Function NpcSwing(Int aiActor, Int aiSpot, Int aiAt) Global
+Int Function NpcSwing(Int aiActor, Int aiSpot, Int aiAt, Int aiWeapon) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	If !a
 		Return 0
+	EndIf
+	Weapon w = Game.GetForm(aiWeapon) as Weapon
+	If w && a.GetEquippedWeapon() != w && a.GetItemCount(w) > 0
+		a.EquipItem(w, True, True)  ; (the mallet, not a weapon of their own)
 	EndIf
 	; at the machine, facing it: back on their spot if a swing's carried them off it, turned to the holes
 	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
