@@ -462,7 +462,7 @@ Int Function NpcRoll(Int aiActor, Int aiSpot) Global
 EndFunction
 
 ; a thrower put back on their spot and square to the machine before a throw - only if they've really wandered off it
-; (over 12 along the floor, or turned over 10 degrees): a MoveTo or SetAngle is a teleport, the actor blinking out and
+; (over 40 along the floor, or turned over 10 degrees): a MoveTo or SetAngle is a teleport, the actor blinking out and
 ; back. At 3 (counting height) and 2 degrees, Atomic Rollers' settlers were teleported before many a roll. 100 if put
 ; back, 200 if turned
 Int Function PutBack(Actor a, ObjectReference spot) Global
@@ -472,7 +472,9 @@ Int Function PutBack(Actor a, ObjectReference spot) Global
 	Int r = 0
 	Float dx = a.GetPositionX() - spot.GetPositionX()
 	Float dy = a.GetPositionY() - spot.GetPositionY()
-	If dx * dx + dy * dy > 144.0
+	; (only if quite lost: a MoveTo onto the spot was undone by the game nudging them back off it - Atomic Rollers'
+	; settlers were teleported before their first throws, every game. Held in place while they play, they don't drift)
+	If dx * dx + dy * dy > 1600.0
 		a.MoveTo(spot)
 		r += 100
 	EndIf

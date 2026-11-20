@@ -1377,6 +1377,12 @@ namespace ag
 					a_s.handShown = false;
 					a_s.throwFrames = 0;
 					a_s.pickupLog = a_s.pickups++ < 3 ? 0 : -1;
+					if (a_s.pickups <= 3) {
+						const sim::Vec3 at = ToLocal(f, actor->data.location);
+						const sim::Vec3 spot = sim::layout::SettlerStand(a_s.gameId);
+						log::info("{}: {} stands at ({:.1f}, {:.1f}) on the machine, her spot ({:.1f}, {:.1f}): {:.1f} off", sim::GameName(a_s.gameId),
+							a_s.name, at.x, at.y, spot.x, spot.y, std::hypot(at.x - spot.x, at.y - spot.y));
+					}
 					*a_s.throwOn = false;
 					auto throwOn = a_s.throwOn;
 					static std::atomic<int> told{ -1 };  // (how the throws go: logged once each way)
