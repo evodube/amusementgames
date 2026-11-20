@@ -2,6 +2,8 @@
 
 #include "sim/Arcade.h"
 
+#include <unordered_set>
+
 // The arcade in the game: the machines you activate, the game you're playing (sim::Game) and what it shows, the
 // tokens it takes and the tickets it pays, your best scores, and what the HUD draws.
 //
@@ -314,6 +316,10 @@ namespace ag
 			return nullptr;
 		}
 		RE::Actor* PickSettler(RE::TESObjectREFR* a_machine, sim::GameId a_game);
+		// a settler's gun can fire: what it fires (its current ammo) known, a pocketful given once; none: no shot (firing a
+		// gun with nothing to fire crashes the game)
+		bool CanFire(RE::Actor* a_actor, const std::string& a_name);
+		std::unordered_set<RE::TESFormID> _loaded;
 		std::vector<Race>  _races;
 		double             _nextRace{ 20.0 };
 		std::unordered_map<RE::TESFormID, double> _rest;  // a machine's rest after a settler's game there (seconds)

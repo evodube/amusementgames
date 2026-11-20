@@ -1147,7 +1147,7 @@ namespace ag
 				aimAt->data.location.z = w.z;
 			}
 		}
-		if (in.pressed && a_s.weapon) {
+		if (in.pressed && a_s.weapon && CanFire(actor, a_s.name)) {
 			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
 			const std::string       name = a_s.name;
 			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(a_s.weapon), Papyrus::Id(a_s.weapon->weaponData.ammo) },
@@ -1596,6 +1596,25 @@ namespace ag
 		}
 	}
 
+	bool Arcade::CanFire(RE::Actor* a_actor, const std::string& a_name)
+	{
+		if (!a_actor) {
+			return false;
+		}
+		auto* ammo = a_actor->GetCurrentAmmo(RE::BGSEquipIndex{ 0 });
+		if (!ammo) {
+			static std::unordered_set<RE::TESFormID> told;
+			if (told.insert(a_actor->GetFormID()).second) {
+				log::warn("{}'s gun has nothing to fire just now (no ammo for it): no shot from it till it has", a_name);
+			}
+			return false;
+		}
+		if (_loaded.insert(a_actor->GetFormID() ^ ammo->GetFormID()).second) {
+			Papyrus::Call("AddTo", { static_cast<std::int32_t>(a_actor->GetFormID()), static_cast<std::int32_t>(ammo->GetFormID()), 50 });
+		}
+		return true;
+	}
+
 	void Arcade::RaceShots(Race& a_r, sim::Game& a_game, double a_dt)
 	{
 		auto* weapon = Forms::WeaponOf(sim::GameId::kNukaZapperRace);
@@ -1606,6 +1625,10 @@ namespace ag
 			auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == lane && a_q.state == 2; });
 			if (it == a_r.racers.end() || it->sinceShot < 0.35 || !weapon) {
 				continue;  // (a squirt's animation still going: the next one shown)
+			}
+			auto  ref = it->actor.get();
+			if (!CanFire(ref ? ref->As<RE::Actor>() : nullptr, it->name)) {
+				continue;
 			}
 			it->sinceShot = 0.0;
 			static std::atomic<int> told{ -1 };  // (how the squirts go: logged once each way)

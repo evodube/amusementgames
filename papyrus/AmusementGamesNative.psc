@@ -237,7 +237,14 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	EndIf
 	Int r = 1
 	If a.GetItemCount(w) == 0
-		a.AddItem(w, 1, True)
+		; built whole (PlaceAtMe makes a modular gun with its parts, the Thirst Zapper's with what it fires: one added
+		; as a bare record has nothing to fire, and firing it crashed the game), then into their hands
+		ObjectReference g = a.PlaceAtMe(w, 1, False, True)
+		If g
+			a.AddItem(g, 1, True)
+		Else
+			a.AddItem(w, 1, True)
+		EndIf
 		r = 2
 	EndIf
 	; its own ammo in their pockets, so it fires what it's made to (the Thirst Zapper's water, not a bullet): a few
@@ -279,8 +286,7 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
 		Return 1
 	EndIf
-	a.PlayAnimation("attackStart")
-	w.Fire(a)  ; (its own projectile: the Thirst Zapper's water)
+	a.PlayAnimation("attackStart")  ; (no Weapon.Fire: from a settler whose gun has nothing to fire, it crashed the game)
 	Return 2
 EndFunction
 
