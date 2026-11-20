@@ -1343,8 +1343,25 @@ namespace ag
 		// package takes over and raise it again, and the first shots of that went into the ground
 		if (actor->GetWeaponMagicDrawn()) {
 			a_s.steady += a_dt;
-		} else {
+			a_s.drawAsked = 0.0;
+			a_s.everDrawn = true;
+		} else if (a_s.everDrawn) {  // (not before their package has first raised it: that's its job)
+			// never put away while they play: if it is, straight out again
+			if (a_s.steady > 0.0) {
+				log::info("BANDIT ROUNDUP: {} put the rifle away mid-game: drawn again", a_s.name);
+			}
 			a_s.steady = 0.0;
+			a_s.drawAsked -= a_dt;
+			if (a_s.drawAsked <= 0.0) {
+				a_s.drawAsked = 1.0;
+				Papyrus::Call("NpcDraw", { static_cast<std::int32_t>(a_s.actorID) });
+			}
+		} else {
+			a_s.drawAsked -= a_dt;  // (their package not raising it at all in 4 s: drawn for them)
+			if (a_s.drawAsked <= -4.0) {
+				a_s.drawAsked = 0.0;
+				Papyrus::Call("NpcDraw", { static_cast<std::int32_t>(a_s.actorID) });
+			}
 		}
 		if (in.pressed && a_s.steady < kSteadyBeforeShot) {
 			in.pressed = false;
@@ -1865,6 +1882,14 @@ namespace ag
 			auto  r = q.actor.get();
 			auto* a = r ? r->As<RE::Actor>() : nullptr;
 			q.steady = a && a->GetWeaponMagicDrawn() ? q.steady + a_dt : 0.0;  // (as at the gallery: drawn a while first)
+			q.everDrawn = q.everDrawn || (a && a->GetWeaponMagicDrawn());
+			if (a && q.state == 2 && q.everDrawn && !a->GetWeaponMagicDrawn()) {
+				q.drawAsked -= a_dt;  // (never put away while they race: out again)
+				if (q.drawAsked <= 0.0) {
+					q.drawAsked = 1.0;
+					Papyrus::Call("NpcDraw", { static_cast<std::int32_t>(q.actorID) });
+				}
+			}
 		}
 		for (int lane : sim::TakeZapperShots(a_game)) {
 			auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == lane && a_q.state == 2; });

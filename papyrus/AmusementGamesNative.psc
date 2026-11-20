@@ -297,6 +297,14 @@ EndFunction
 ; ...a shot (they're aiming already: their hold package aims at the targets; drawn and raised again if they've put it
 ; away): the rifle's own shot animation, which fires it, as at an enemy; fired from them without it only if that won't play. 1: the shot animation, 2: fired without
 ; it, 0: no one to fire it
+; a settler's gun found put away mid-game: out again at once (it's never put away while they play)
+Function NpcDraw(Int aiActor) Global
+	Actor a = Game.GetForm(aiActor) as Actor
+	If a && !a.IsWeaponDrawn()
+		a.DrawWeapon()
+	EndIf
+EndFunction
+
 Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon

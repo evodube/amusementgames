@@ -224,6 +224,8 @@ namespace ag
 			double                                 walked{ 0.0 };   // seconds on the way
 			double                                 onTarget{ 0.0 }; // a shot held back this long, turning onto the target
 			double                                 steady{ 0.0 };   // their weapon drawn this long
+			double                                 drawAsked{ 0.0 };  // ...put away: till it's asked out again
+			bool                                   everDrawn{ false };
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been
 			int                                    resends{ 0 };    // ...walks sent again with no step closer between
@@ -283,6 +285,8 @@ namespace ag
 			double                                 skill{ 0.5 };
 			double                                 sinceShot{ 9.0 };
 			double                                 steady{ 0.0 };   // ...their gun drawn this long
+			double                                 drawAsked{ 0.0 };
+			bool                                   everDrawn{ false };
 			bool                                   added{ false };
 			std::shared_ptr<std::atomic<std::int32_t>> ready;
 			std::shared_ptr<std::atomic<std::int32_t>> armed;
