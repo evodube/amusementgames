@@ -327,19 +327,9 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 		Utility.Wait(0.6)
 	EndIf
 	; (no Weapon.Fire: from a settler whose gun has nothing to fire, it crashed the game)
-	If w != Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm")
-		; a rifle: fired by its own fire event in their aim, as their AI fires it at an enemy. RaiderFireSingle, an idle,
-		; broke off their aim package for it (the rifle lowered and raised again) and played from a stance that sank them
-		; into the floor
-		If a.PlayAnimation("weaponFire")
-			Return 3
-		EndIf
-		If a.PlayAnimation("attackStart")
-			Return 2
-		EndIf
-	EndIf
+	; a shot, the same way for every gun: the zapper race's way (the shot idle), Bandit Roundup's rifle too
 	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
-		Return 1  ; (the Thirst Zapper's squirt: as it was)
+		Return 1
 	EndIf
 	a.PlayAnimation("attackStart")
 	Return 2
@@ -410,7 +400,7 @@ Int Function NpcSwing(Int aiActor, Int aiSpot, Int aiAt, Int aiWeapon) Global
 	; at the machine, facing it: back on their spot if a swing's carried them off it, turned to the head they're after
 	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
 	ObjectReference at = Game.GetForm(aiAt) as ObjectReference
-	If spot && a.GetDistance(spot) > 4.0
+	If spot && a.GetDistance(spot) > 20.0
 		a.MoveTo(spot)
 	EndIf
 	If at

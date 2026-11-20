@@ -46,12 +46,13 @@ counter in front of your lane and the rifle on the gallery's counter (not to be 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,
 bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own like Playable Pool's.
 
-**Status: 0.7.6.**
+**Status: 0.7.7.**
 
 ## Requirements
 
 - Fallout 4 1.10.163 ("Old Gen"; also built for Next-Gen and Anniversary).
-- The Nuka-World DLC (`DLCNukaWorld.esm` is a master).
+- The Nuka-World and Far Harbor DLCs (`DLCNukaWorld.esm` and `DLCCoast.esm` are masters: Far Harbor for Bandit
+  Roundup's lever-action rifle).
 - F4SE and Address Library for F4SE Plugins.
 - [F4SE Menu Framework](https://www.nexusmods.com/fallout4/mods/105090) for the HUD (without it, results come as
   corner messages).
