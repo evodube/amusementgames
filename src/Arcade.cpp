@@ -1433,13 +1433,7 @@ namespace ag
 				a_s.drawAsked = 1.0;
 				Papyrus::Call("NpcDraw", { static_cast<std::int32_t>(a_s.actorID) });
 			}
-		} else {
-			a_s.drawAsked -= a_dt;  // (their package not raising it at all in 4 s: drawn for them)
-			if (a_s.drawAsked <= -4.0) {
-				a_s.drawAsked = 0.0;
-				Papyrus::Call("NpcDraw", { static_cast<std::int32_t>(a_s.actorID) });
-			}
-		}
+		}  // (as at the zapper race: their package draws it first)
 		if (in.pressed && a_s.steady < kSteadyBeforeShot) {
 			in.pressed = false;
 			a_s.shooter->Again();

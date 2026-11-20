@@ -51,7 +51,8 @@ bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own 
 ## Requirements
 
 - Fallout 4 1.10.163 ("Old Gen"; also built for Next-Gen and Anniversary).
-- The Nuka-World DLC (`DLCNukaWorld.esm` is a master).
+- The Nuka-World and Far Harbor DLCs (`DLCNukaWorld.esm` and `DLCCoast.esm` are masters: Far Harbor for Bandit
+  Roundup's lever-action rifle).
 - F4SE and Address Library for F4SE Plugins.
 - [F4SE Menu Framework](https://www.nexusmods.com/fallout4/mods/105090) for the HUD (without it, results come as
   corner messages).
