@@ -137,6 +137,15 @@ Function BuyPrize(Int aiItem, Int aiCount, Int aiTickets) Global
 	EndIf
 	player.RemoveItem(ticket, aiTickets, True)
 	player.AddItem(item, aiCount)
+	; (the counter's screen: your tickets now, and redeemed all told)
+	GlobalVariable held = Game.GetFormFromFile(0x83E, "AmusementGames.esl") as GlobalVariable
+	GlobalVariable redeemed = Game.GetFormFromFile(0x83F, "AmusementGames.esl") as GlobalVariable
+	If held
+		held.SetValue(player.GetItemCount(ticket))
+	EndIf
+	If redeemed
+		redeemed.Mod(aiTickets)
+	EndIf
 EndFunction
 
 ; ---------------------------------------------------------------- settlers at the games

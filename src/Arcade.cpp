@@ -55,6 +55,12 @@ namespace ag
 			RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent& a_event, RE::BSTEventSource<RE::TESActivateEvent>*) override
 			{
 				auto* player = RE::PlayerCharacter::GetSingleton();
+				// the Prize Counter: its screen's numbers set now, before it's drawn
+				if (a_event.objectActivated && a_event.actionRef && a_event.actionRef.get() == player &&
+					a_event.objectActivated->GetObjectReference() == Forms::Own(Forms::kPrizeCounterID)) {
+					Arcade::Get().RefreshCounter();
+					return RE::BSEventNotifyControl::kContinue;
+				}
 				if (a_event.objectActivated && a_event.actionRef && a_event.actionRef.get() == player &&
 					Forms::GameOf(a_event.objectActivated.get()) != sim::GameId::kCount) {
 					auto handle = a_event.objectActivated->GetHandle();
@@ -383,6 +389,7 @@ namespace ag
 		if (auto* ticket = Forms::Ticket(); player && ticket && tickets > 0) {
 			player->AddObjectToContainer(ticket, nullptr, tickets, nullptr, RE::ITEM_REMOVE_REASON::kNone);
 		}
+		RefreshCounter();  // (the Prize Counter's screen: these tickets, a new best)
 		if (machine) {
 			Sounds::Music(_gameId, machine.get(), false);
 			Sounds::Tickets(machine.get());
@@ -836,6 +843,19 @@ namespace ag
 		manager->EnableUserEvent(_inputLayer->layerID, flags, !a_block, RE::UserEvents::SENDER_ID::kGameplay);
 		fightingHeld = a_block && holdFighting;
 		_controlsBlocked = a_block;
+	}
+
+	void Arcade::RefreshCounter() const
+	{
+		auto set = [](std::uint32_t a_id, int a_value) {
+			if (auto* f = Forms::Own(a_id); f && f->Is(RE::ENUM_FORM_ID::kGLOB)) {
+				static_cast<RE::TESGlobal*>(f)->value = static_cast<float>(a_value);
+			}
+		};
+		set(Forms::kTicketsHeldID, Count(Forms::Ticket()));
+		for (int i = 0; i < static_cast<int>(_best.size()); ++i) {
+			set(Forms::kFirstBestID + static_cast<std::uint32_t>(i), _best[i]);
+		}
 	}
 
 	int Arcade::Count(RE::TESBoundObject* a_item) const

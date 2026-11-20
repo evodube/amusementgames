@@ -104,6 +104,9 @@ namespace ag
 			return h.waiting < 0 ? 0 : std::min(a_all, h.waiting);
 		}
 		int Best(sim::GameId a_game) const { return a_game != sim::GameId::kCount ? _best[static_cast<int>(a_game)] : 0; }
+		// the Prize Counter's screen: your tickets and best scores into its globals (the game's thread: as you activate
+		// it, before its screen's drawn, and after each game)
+		void RefreshCounter() const;
 
 		// something of the game's hit by you (on the game's thread): Whac-a-Commie's heads are whacked this way
 		void OnHit(RE::TESObjectREFR* a_target);
