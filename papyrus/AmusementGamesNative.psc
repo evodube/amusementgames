@@ -434,9 +434,8 @@ EndFunction
 ; Atomic Rollers: the ball rolled up the lane, a mine's throw (low and underhand); if that won't play without a mine
 ; in hand, Nuka-World's own smoke bomb toss (an idle of its own, nothing in hand needed). 1 the mine's, 3 the toss, 2
 ; neither (the event sent)
-; one of a throw's three takes, at random. (Testing: the third take only, every throw)
+; one of a throw's three takes, at random
 Int Function ThrowTake(Int aiFirst, Int aiSecond, Int aiThird) Global
-	Return aiThird
 	Int r = Utility.RandomInt(0, 2)
 	If r == 0
 		Return aiFirst
