@@ -434,6 +434,17 @@ EndFunction
 ; Atomic Rollers: the ball rolled up the lane, a mine's throw (low and underhand); if that won't play without a mine
 ; in hand, Nuka-World's own smoke bomb toss (an idle of its own, nothing in hand needed). 1 the mine's, 3 the toss, 2
 ; neither (the event sent)
+; one of a throw's three takes, at random
+Int Function ThrowTake(Int aiFirst, Int aiSecond, Int aiThird) Global
+	Int r = Utility.RandomInt(0, 2)
+	If r == 0
+		Return aiFirst
+	ElseIf r == 1
+		Return aiSecond
+	EndIf
+	Return aiThird
+EndFunction
+
 Int Function NpcRoll(Int aiActor, Int aiSpot) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	; back on their spot (the last throw's step carried them forward: each throw a little further in) and square to
@@ -453,7 +464,7 @@ Int Function NpcRoll(Int aiActor, Int aiSpot) Global
 			a.SetAngle(0.0, 0.0, spot.GetAngleZ())
 		EndIf
 	EndIf
-	If a && a.PlayIdle(Game.GetFormFromFile(Utility.RandomInt(0, 1) * 4 + 0x000831, "AmusementGames.esl") as Idle)  ; (the roll, or its second take: 0x835)
+	If a && a.PlayIdle(Game.GetFormFromFile(ThrowTake(0x000831, 0x000835, 0x000837), "AmusementGames.esl") as Idle)  ; (the roll, or its second or third take)
 		Return 4  ; (AmusementGamesSkeeballRoll: our own)
 	EndIf
 	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F0, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000EC533, "Fallout4.esm") as Idle))
@@ -482,7 +493,7 @@ Int Function NpcToss(Int aiActor, Int aiSpot) Global
 			a.SetAngle(0.0, 0.0, spot.GetAngleZ())
 		EndIf
 	EndIf
-	If a && a.PlayIdle(Game.GetFormFromFile(Utility.RandomInt(0, 1) * 4 + 0x000830, "AmusementGames.esl") as Idle)  ; (the shot, or its second take: 0x834)
+	If a && a.PlayIdle(Game.GetFormFromFile(ThrowTake(0x000830, 0x000834, 0x000836), "AmusementGames.esl") as Idle)  ; (the shot, or its second or third take)
 		Return 4  ; (AmusementGamesBasketballShot: our own)
 	EndIf
 	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F1, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000CF927, "Fallout4.esm") as Idle))

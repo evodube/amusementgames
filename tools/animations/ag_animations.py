@@ -56,6 +56,8 @@ def pose(p,FZ):
     dz=p.get('com',0.0); dy=p.get('comy',0.0)
     move("COM",Vector((0,dy,dz)))
     sp=p.get('spine',0); rot("Spine1",X,sp*.5); rot("Spine2",X,sp*.3); rot("Chest",X,sp*.2)
+    tw=p.get('twist',0); rot("Spine1",Z,tw*.4); rot("Spine2",Z,tw*.3); rot("Chest",Z,tw*.3)  # (the torso turned)
+    sd=p.get('side',0); rot("Spine1",Vector((0,1,0)),sd*.6); rot("Spine2",Vector((0,1,0)),sd*.4)  # (leant to a side)
     stepL=p.get('stepL',0.0)
     if True:
         for s in "LR":
@@ -367,6 +369,15 @@ KEYS = {'AGBasketballShot': [(0,
                        (33, {'com': -0.3, 'comy': 0, 'liftL': 0, 'spine': 3, 'stepL': 7}),
                        (42, {'com': -1.0, 'comy': 0, 'liftL': 3, 'spine': 3, 'stepL': 3.5}),
                        (50, {'com': 0, 'comy': 0, 'liftL': 0, 'spine': 0, 'stepL': 0})],
+ 'AGBasketballShot3': [(0, {'com': 0, 'comy': 0, 'liftL': 0, 'side': 0, 'spine': 0, 'stepL': 0, 'twist': 0}),
+                       (6, {'com': -5, 'comy': 0, 'liftL': 3, 'side': -3, 'spine': -4, 'stepL': -4, 'twist': 8}),
+                       (14, {'com': -20, 'comy': 0, 'liftL': 0, 'side': -5, 'spine': -12, 'stepL': -8, 'twist': 14}),
+                       (18, {'com': -9, 'comy': 0, 'liftL': 0, 'side': -3, 'spine': -6, 'stepL': -8, 'twist': 9}),
+                       (21, {'com': -2, 'comy': 0, 'liftL': 0, 'side': -1, 'spine': 1, 'stepL': -8, 'twist': 3}),
+                       (24, {'com': -0.5, 'comy': 0, 'liftL': 0, 'side': 0, 'spine': 4, 'stepL': -8, 'twist': 0}),
+                       (33, {'com': -0.3, 'comy': 0, 'liftL': 0, 'side': 0, 'spine': 3, 'stepL': -8, 'twist': -2}),
+                       (42, {'com': -3, 'comy': 0, 'liftL': 3, 'side': 0, 'spine': 1, 'stepL': -4, 'twist': -1}),
+                       (50, {'com': 0, 'comy': 0, 'liftL': 0, 'side': 0, 'spine': 0, 'stepL': 0, 'twist': 0})],
  'AGSkeeballRoll': [(0, {}),
                     (8,
                      {'com': -4,
@@ -438,12 +449,21 @@ KEYS = {'AGBasketballShot': [(0,
                      (30, {'com': -21, 'comy': 8, 'liftL': 0, 'spine': -35, 'stepL': 16}),
                      (38, {'com': -17, 'comy': 6, 'liftL': 0, 'spine': -29, 'stepL': 16}),
                      (46, {'com': -7, 'comy': 3, 'liftL': 4, 'spine': -13, 'stepL': 9}),
-                     (54, {'com': 0, 'comy': 0, 'liftL': 0, 'spine': 0, 'stepL': 0})]}
+                     (54, {'com': 0, 'comy': 0, 'liftL': 0, 'spine': 0, 'stepL': 0})],
+ 'AGSkeeballRoll3': [(0, {'com': 0, 'comy': 0, 'liftL': 0, 'side': 0, 'spine': 0, 'stepL': 0, 'twist': 0}),
+                     (8, {'com': -8, 'comy': 2, 'liftL': 7, 'side': 0, 'spine': -14, 'stepL': 12, 'twist': -6}),
+                     (14, {'com': -24, 'comy': 6, 'liftL': 0, 'side': -4, 'spine': -32, 'stepL': 19, 'twist': -16}),
+                     (22, {'com': -22, 'comy': 8, 'liftL': 0, 'side': 0, 'spine': -36, 'stepL': 16, 'twist': 0}),
+                     (30, {'com': -20, 'comy': 8, 'liftL': 0, 'side': 3, 'spine': -33, 'stepL': 16, 'twist': 10}),
+                     (38, {'com': -14, 'comy': 5, 'liftL': 0, 'side': 3, 'spine': -24, 'stepL': 16, 'twist': 12}),
+                     (46, {'com': -5, 'comy': 2, 'liftL': 5, 'side': 0, 'spine': -9, 'stepL': 8, 'twist': 5}),
+                     (54, {'com': 0, 'comy': 0, 'liftL': 0, 'side': 0, 'spine': 0, 'stepL': 0, 'twist': 0})]}
 
 # a second take of each throw: its own body (stance, crouch, lean), its hands the first's, frame by frame (the ball
 # held and let go just as it is in the first: the same places, the same frame)
-HANDS_FROM = {'AGBasketballShot2': 'AGBasketballShot', 'AGSkeeballRoll2': 'AGSkeeballRoll'}
-BODY = ('com', 'comy', 'spine', 'stepL', 'liftL')
+HANDS_FROM = {'AGBasketballShot2': 'AGBasketballShot', 'AGSkeeballRoll2': 'AGSkeeballRoll',
+              'AGBasketballShot3': 'AGBasketballShot', 'AGSkeeballRoll3': 'AGSkeeballRoll'}
+BODY = ('com', 'comy', 'spine', 'stepL', 'liftL', 'twist', 'side')
 
 
 for _name, _keys in KEYS.items():
