@@ -130,6 +130,12 @@ namespace sim
 							}
 						}
 						if (b.state == BallState::kCaught) {
+							// no points (the gutter, or back down the lane short of the hump): the ball back, not one
+							// of the nine used (up to kMostReballs a game, with the stuck ones)
+							if (_last == 0 && _reballs < kMostReballs) {
+								++_reballs;
+								_reball = true;
+							}
 							_phase = Phase::kBetween;
 							_wait = 0.6;
 						}
@@ -138,7 +144,7 @@ namespace sim
 				case Phase::kBetween:
 					_wait -= a_dt;
 					if (_wait <= 0.0 && _reball) {
-						_reball = false;  // (the stuck ball again: not one of the nine used)
+						_reball = false;  // (a ball that scored nothing, again: not one of the nine used)
 						_phase = Phase::kAim;
 						HoldBall();
 					} else if (_wait <= 0.0) {
@@ -273,7 +279,7 @@ namespace sim
 			Charge _charge;
 			int    _reballs{ 0 };      // stuck balls given back this game
 			bool   _reball{ false };   // ...one now
-			static constexpr int kMostReballs = 5;
+			static constexpr int kMostReballs = 9;  // balls that scored nothing given back, a game at most
 		};
 
 		// ======================================================================== Hoop Shot
