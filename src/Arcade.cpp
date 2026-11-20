@@ -936,6 +936,7 @@ namespace ag
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
 		constexpr double    kSteadyBeforeShot = 0.4;           // the gun drawn this long before a shot (out, then fire)
+		constexpr float     kHandJump = 25.0f;                 // a settler's hand moved further than this in a frame: a jump
 		constexpr double    kDuelWait = 90.0;                  // a 1v1's settler, ready: their rival not ready by then, called off
 		constexpr double    kHoldToDuel = 0.5;                 // Bandit Roundup's Activate held this long: a 1v1
 		constexpr double    kDuelMiddle = 20.0;                // you this near the counter's middle: your side picked at random
@@ -1369,15 +1370,21 @@ namespace ag
 					a_s.sinceThrow = 0.0;
 					a_s.holding = false;
 					a_s.ballShown = false;
+					a_s.handShown = false;
 				}
 				if (a_s.thrower->TakeCue()) {
 					a_s.holding = true;
+					a_s.handShown = false;
+					a_s.throwFrames = 0;
+					*a_s.throwOn = false;
+					auto throwOn = a_s.throwOn;
 					static std::atomic<int> told{ -1 };  // (how the throws go: logged once each way)
 					const std::string       name = a_s.name;
 					const auto              game = a_s.gameId;
 					auto spot = a_s.marker.get();
 					Papyrus::Call(a_s.gameId == sim::GameId::kHoopShot ? "NpcToss" : "NpcRoll", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()) },
-						[name, game](std::int32_t a_r) {
+						[name, game, throwOn](std::int32_t a_r) {
+							*throwOn = true;
 							if (told.exchange(a_r) != a_r) {
 								log::info("{}: {}'s throws: {}", sim::GameName(game), name,
 									a_r == 4 ? (game == sim::GameId::kHoopShot ? "our basketball shot" : "our skee-ball roll") :
@@ -1402,8 +1409,11 @@ namespace ag
 				a_s.game->Pieces(pieces);
 				waiting.resize(pieces.size());
 				for (std::size_t i = 0; i < pieces.size(); ++i) {
+					// (Atomic Rollers': hidden once hers is shown in her hand - till then it's still on the lane)
+					// (this frame's: the hand's ball shown below once the throw's two frames on)
+					const bool inHand = a_s.handShown || (a_s.holding && *a_s.throwOn && a_s.throwFrames + 1 >= 2);
 					waiting[i] = a_s.gameId == sim::GameId::kHoopShot ? i + 1 == pieces.size() :
-					                                                    a_s.holding && (pieces[i].pos - held).Length() < 12.0;
+					                                                    inHand && (pieces[i].pos - held).Length() < 12.0;
 				}
 			}
 			PlacePieces(f, *a_s.game, a_s.gameId, machine.get(), a_s.pieces, a_s.pieceModel, a_s.frozen, &waiting);
@@ -1415,6 +1425,11 @@ namespace ag
 					RE::NiPoint3 at;
 					bool         show = false;
 					bool         placed = false;  // (where it'd be in her hand, shown or not)
+					// (the throw playing a couple of frames: her turn and any step made, the hand where the throw has it)
+					if (a_s.holding && *a_s.throwOn) {
+						++a_s.throwFrames;
+					}
+					const bool throwing = a_s.throwFrames >= 2;
 					{
 						auto* h = root ? root->GetObjectByName("RArm_Hand") : nullptr;
 						auto* mid = root ? root->GetObjectByName("RArm_Finger31") : nullptr;
@@ -1450,7 +1465,7 @@ namespace ag
 									// point, and the ball blinked in and out there)
 									at = wrist + along * 0.75f + n * (radius + 4.0f);  // (clear of the hand: on its palm, not round its fingers)
 									placed = true;
-									if (a_s.holding && (a_s.ballShown || n.x * forward.x + n.y * forward.y > 0.45f)) {
+									if (a_s.holding && throwing && (a_s.ballShown || n.x * forward.x + n.y * forward.y > 0.45f)) {
 										show = true;
 										a_s.ballShown = true;
 									}
@@ -1461,13 +1476,25 @@ namespace ag
 									const RE::NiPoint3 into = tip ? (tip->world.translate - knuckle) * 0.3f : RE::NiPoint3{};
 									at = knuckle + into + n * (radius + 2.0f);
 									placed = true;
-									show = a_s.holding;
+									show = a_s.holding && throwing;
 								}
 							}
 						}
 					}
 					// kept in her hand while hidden too: taken up, it shows where it is already (it was left where it was
 					// last let go, and shown in her hand it flickered a moment: the renderer's motion across from there)
+					// (a frame's jump of the hand - the actor turned or moved under it - ignored: the ball kept where it was)
+					if (placed && a_s.lastAtOk && (at - a_s.lastAt).Length() > kHandJump && a_s.jumps < 2) {
+						++a_s.jumps;
+						at = a_s.lastAt;
+					} else if (placed) {
+						a_s.jumps = 0;
+						a_s.lastAt = at;
+						a_s.lastAtOk = true;
+					}
+					if (show) {
+						a_s.handShown = true;
+					}
 					if (placed) {
 						Freeze(ball.get(), a_s.frozen);
 						PlaceNode(ball.get(), at, f.rot, f.scale, !show, true);

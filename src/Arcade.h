@@ -263,6 +263,14 @@ namespace ag
 			double                                 diagT{ 0.0 };
 			bool                                   everDrawn{ false };
 			bool                                   loaded{ false };  // (their magazine first filled: logged)
+			// a throw's ball in her hand: shown once the throw's actually playing (NpcRoll / NpcToss done: her turn to the
+			// machine and any step back to her spot made, which jumped the hand), and a frame's jump of the hand ignored
+			std::shared_ptr<std::atomic<bool>>     throwOn{ std::make_shared<std::atomic<bool>>(false) };
+			int                                    throwFrames{ 0 };
+			bool                                   handShown{ false };
+			RE::NiPoint3                           lastAt{};
+			bool                                   lastAtOk{ false };
+			int                                    jumps{ 0 };
 			// Bandit Roundup 1v1: their side (-1 alone, 0 left, 1 right); the rival of yours, or of another settler (the
 			// guest: their shots go into the host's game, the host's plays it); the other settler
 			int                                    side{ -1 };
