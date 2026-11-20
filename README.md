@@ -14,13 +14,13 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   Squirt your target with the Thirst Zapper: each hit sends your rocket a step up, ten and you've won (the other
   lanes race you). Unlimited ammo while you play.
 - **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with Far Harbor's Lever-Action Rifle
-  (iron sights, no scope), for 60 seconds. A point a hit, 3 for dead centre of a
+  (iron sights, no scope), for 60 seconds. 100 points a hit, 300 for dead centre of a
   bullseye, either row. Unlimited ammo while you play: it never needs reloading.
   Tap F to play alone; hold F for a 1v1 against a settler (**F) Play (hold: 1v1)**): your token in, a settler's
   called over and the game starts once they've the rifle up (activate it again while waiting to leave, token back).
   You both shoot at the same targets, any of them: whoever hits one first has its points. You're the left shooter if
   you're left of the counter's middle when you hold it, the right if right (near the middle, either); the settler
-  takes the other side. Both scores on the machine's boards (the left shooter's on the left one, the right's on the right) and on screen; the winner gets 10 more.
+  takes the other side. Both scores on the machine's boards (the left shooter's on the left one, the right's on the right) and on screen; the winner gets 1000 more.
 - **Settings** in F4SE Menu Framework (Amusement Games > Settlers, Income): settlers playing (on/off, how often, how
   often two play each other at Bandit Roundup, their skill), the takings and ticket rates; kept in
   `Data\F4SE\Plugins\AmusementGames_user.ini`.
@@ -65,9 +65,9 @@ On screen while you play: just the clock (Atomic Rollers: the ball you're on; th
 the power meter while you charge a throw; Atomic Rollers also shows each ball's points as they come and a green aim
 line up the lane to where you look (as fo4bowling's). At the end, the result. The machine's own scoreboard has the score.
 
-A point a hit (a basket, a whack, a target, a step up the zapper race; a race won is 10 more); Atomic Rollers' holes are
-worth what they say. Tickets come out at Nuka-World's own rates, doubled (the Income page's multiplier): a ticket every 100 at Atomic Rollers,
-every 2 points at Hoop Shot and Whac-a-Commie, every 4 at the zapper race, and at Bandit Roundup by what you hit, as
+Points in hundreds, as Nuka-World's machines count them: 100 a hit (a basket, a whack, a target, a step up the zapper
+race; a race won is 1000 more); Atomic Rollers' holes are worth what they say. Tickets come out at Nuka-World's own rates, doubled (the Income page's multiplier): a ticket every 100 at Atomic Rollers,
+every 200 at Hoop Shot and Whac-a-Commie, every 400 at the zapper race, and at Bandit Roundup by what you hit, as
 Nuka-World's gallery pays (the bunny half a ticket, the pig 3/4, the duck 1, the star 1 1/4, the bottle 1 1/2; a
 bullseye's more points, not more tickets). They're Nuka-Cade tickets, so the Nuka-Cade's prize terminal takes them too. The weapon's lent
 for the game (with ammo) if you haven't one, and you get back what you had out after. Each machine's own scoreboard

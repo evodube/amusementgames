@@ -389,7 +389,7 @@ namespace sim
 				a_out.power = _charge.on ? _charge.Power(layout::Hoop().chargeSeconds) : (_time > 0.0 ? 0.0 : -1.0);
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 2, 1, 40, 0, 0 }.For(a_score); }  // a ticket every 2 hits (Nuka-World's rate)
+			int TicketsFor(int a_score) const override { return TicketTable{ 200, 1, 40, 0, 0 }.For(a_score); }  // a ticket every 2 baskets (Nuka-World's rate: 200)
 
 		private:
 			void Throw(const Input& a_in, double a_power)
@@ -591,12 +591,12 @@ namespace sim
 			void Hud(HudInfo& a_out) const override
 			{
 				a_out.timeLeft = _time;
-				a_out.showPoints = true;  // (+1 each whack)
+				a_out.showPoints = true;  // (+100 each whack)
 				a_out.line1 = std::format("COMMIES WHACKED {}", _hits);
 				a_out.line2 = std::format("GOT AWAY {}", _misses);
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 2, 1, 40, 0, 0 }.For(a_score); }  // a ticket every 2 hits (Nuka-World's rate)
+			int TicketsFor(int a_score) const override { return TicketTable{ 200, 1, 40, 0, 0 }.For(a_score); }  // a ticket every 2 whacks (Nuka-World's rate: 200)
 
 		private:
 			struct Head
@@ -775,7 +775,7 @@ namespace sim
 				}
 			}
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 4, 1, 10, 0, 0 }.For(a_score); }  // a ticket every 4 points: a win (40) still 10
+			int TicketsFor(int a_score) const override { return TicketTable{ 400, 1, 10, 0, 0 }.For(a_score); }  // a ticket every 4 hits: a win (4000) still 10
 
 			void SetRacers(int a_you, const std::vector<double>& a_skill, const std::vector<std::string>& a_names)
 			{
@@ -922,13 +922,13 @@ namespace sim
 					}
 					if (_time <= 0.0) {
 						Say(Cue::kEnd, {});
-						// a 1v1 won: 10 more (as a zapper race won)
+						// a 1v1 won: 1000 more (as a zapper race won)
 						if (_versus && !_settled) {
 							_settled = true;
 							if (_score > _rival) {
-								Add(10);
+								Add(1000);
 							} else if (_rival > _score) {
-								_rival += 10;
+								_rival += 1000;
 							}
 						}
 					}
@@ -1051,7 +1051,7 @@ namespace sim
 			bool Versus() const { return _versus; }
 
 			// Nuka-World's rate: a ticket every 200 of its points, what it scores each target hit (the bunny 100 to the
-			// bottle 300); not from our score (a point a hit), so a bullseye's more points, not more tickets. Yours (side 0)
+			// bottle 300); not from our score (100 a hit), so a bullseye's more points, not more tickets. Yours (side 0)
 			int TicketsFor(int) const override { return TicketTable{ 200, 1, 100, 0, 0 }.For(_vanilla[0]); }
 
 		private:

@@ -128,7 +128,7 @@ namespace ag
 		};
 
 		constexpr std::uint32_t kSaveType = 0x41474253;  // 'AGBS': the best scores
-		constexpr std::uint32_t kSaveVersion = 1;
+		constexpr std::uint32_t kSaveVersion = 2;  // (2: points in hundreds, as Nuka-World's; 1's were ones but Atomic Rollers')
 		constexpr std::uint32_t kSwingType = 0x41475357;  // 'AGSW': the swing quickening on when saved
 		constexpr std::uint32_t kHeldType = 0x4147484C;  // 'AGHL': settlers held at a machine when saved
 	}
@@ -2868,6 +2868,10 @@ namespace ag
 					break;
 				}
 				if (i < self._best.size()) {
+					// (saved before points went to hundreds: Atomic Rollers' always were)
+					if (version < 2 && i != static_cast<std::uint32_t>(sim::GameId::kAtomicRollers)) {
+						v *= 100;
+					}
 					self._best[i] = v;
 				}
 			}
