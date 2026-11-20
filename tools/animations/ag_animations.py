@@ -3,7 +3,7 @@
 In Blender: import Meshes/Actors/Character/CharacterAssets/skeleton.hkx (Import HKX), then
 MT/Neutral/PoseA_Idle1.hkx onto it (the standing pose every key starts from); run this; then for each action
 export_scene.pynifly_hkx(game='FO4', reference_skel=skeleton.hkx, fps=30).
-The ball leaves the hand at frame 24 (the shot) and 22 (the roll); Arcade.cpp cues them that early.
+The ball leaves the hand at key 24 (the shot) and 22 (the roll); Arcade.cpp cues them that early.
 """
 
 import bpy, math
@@ -44,10 +44,18 @@ def pose(p,FZ):
         rot("Arm_ForeArm1."+s,X,p.get('fore'+s,0)); rot("Arm_Hand."+s,X,p.get('hand'+s,0))
 def ease(t): return 0.5-0.5*math.cos(math.pi*t)
 def lk(keys,f):
+    # through every key with no stop at it (Catmull-Rom, timed): the speed carries on through a key, still at the
+    # first and last
+    ts=[k[0] for k in keys]; ps=[k[1] for k in keys]; names=set().union(*ps)
     for i in range(len(keys)-1):
-        f0,p0=keys[i]; f1,p1=keys[i+1]
+        f0,f1=ts[i],ts[i+1]
         if f0<=f<=f1:
-            t=ease((f-f0)/(f1-f0)); return {k:p0.get(k,0)*(1-t)+p1.get(k,0)*t for k in set(p0)|set(p1)}
+            h=f1-f0; u=(f-f0)/h
+            h00=2*u**3-3*u**2+1; h10=u**3-2*u**2+u; h01=-2*u**3+3*u**2; h11=u**3-u**2
+            def tan(j,k):
+                if j==0 or j==len(keys)-1: return 0.0
+                return (ps[j+1].get(k,0)-ps[j-1].get(k,0))/(ts[j+1]-ts[j-1])
+            return {k:h00*ps[i].get(k,0)+h10*h*tan(i,k)+h01*ps[i+1].get(k,0)+h11*h*tan(i+1,k) for k in names}
     return keys[-1][1]
 def build(name,keys):
     a.animation_data.action=None
@@ -123,10 +131,10 @@ KEYS = {'AGBasketballShot': [(0, {}),
                         'yawR': 5}),
                       (46, {})],
  'AGSkeeballRoll': [(0, {}),
-                    (10, {'com': -4, 'foreL': 20, 'foreR': 10, 'spine': -10, 'upL': 15, 'upR': -50}),
-                    (20, {'com': -14, 'foreL': 35, 'foreR': 5, 'handR': -5, 'spine': -30, 'upL': 25, 'upR': 25}),
-                    (22, {'com': -14, 'foreL': 35, 'foreR': 5, 'handR': -15, 'spine': -30, 'upL': 25, 'upR': 40}),
-                    (30, {'com': -10, 'foreL': 30, 'foreR': 10, 'handR': -20, 'spine': -22, 'upL': 20, 'upR': 75}),
+                    (10, {'com': -4, 'foreL': 20, 'foreR': 10, 'spine': -12, 'upL': 15, 'upR': -50}),
+                    (19, {'com': -18, 'foreL': 35, 'foreR': 5, 'handR': -5, 'spine': -34, 'upL': 30, 'upR': 25}),
+                    (22, {'com': -20, 'foreL': 35, 'foreR': 5, 'handR': -15, 'spine': -38, 'upL': 30, 'upR': 60}),
+                    (30, {'com': -14, 'foreL': 30, 'foreR': 10, 'handR': -20, 'spine': -28, 'upL': 25, 'upR': 85}),
                     (48, {})]}
 
 for _name, _keys in KEYS.items():

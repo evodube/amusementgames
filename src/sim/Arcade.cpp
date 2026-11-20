@@ -376,7 +376,7 @@ namespace sim
 				// ball's a little elsewhere in your hand each time, and leaves it a little off line and off pace
 				std::normal_distribution<double> n(0.0, 1.0);
 				const Vec3 right = a_in.dir.Cross({ 0, 0, 1 }).Normalized();
-				const Vec3 from = Hand(a_in.eye, a_in.dir) + right * (n(_rng) * L.handWobble) + Vec3{ 0, 0, n(_rng) * L.handWobble * 0.6 };
+				const Vec3 from = (a_in.hasFrom ? a_in.from : Hand(a_in.eye, a_in.dir)) + right * (n(_rng) * L.handWobble) + Vec3{ 0, 0, n(_rng) * L.handWobble * 0.6 };
 				const Vec3 aimAt = a_in.eye + a_in.dir * std::max(60.0, (L.rim - a_in.eye).Length());
 				Vec3       toward = (aimAt - from).Normalized();
 				toward.z += L.arcLift;
@@ -1040,7 +1040,7 @@ namespace sim
 		if (_game == GameId::kHoopShot) {
 			const auto& L = layout::Hoop();
 			_at = L.rim + Vec3{ n(_rng) * 4.0 * off, 0.0, n(_rng) * 3.0 * off };
-			_charge = std::max(0.05, 0.38 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
+			_charge = std::max(0.05, 0.33 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
 		} else {
 			const auto& L = layout::Rollers();
 			_at = Vec3{ n(_rng) * (2.0 + 10.0 * off), L.release.y + 40.0, L.release.z };
@@ -1079,6 +1079,10 @@ namespace sim
 		} else {
 			in.released = true;
 			in.dir = (_at - in.eye).Normalized();
+			if (_game == GameId::kHoopShot) {
+				in.hasFrom = true;  // from her hands, where the shot lets go
+				in.from = layout::SettlerRelease(_game);
+			}
 			_held = -1.0;
 			_wait = _game == GameId::kHoopShot ? 2.2 : 3.0;
 			Plan();

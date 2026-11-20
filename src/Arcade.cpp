@@ -1083,11 +1083,12 @@ namespace ag
 			if (a_s.thrower) {
 				// the game's own ball waiting to be thrown (where your hand or the lane's start would be) out of sight:
 				// theirs is in their hand
-				const sim::Vec3 held = a_s.gameId == sim::GameId::kHoopShot ? a_s.thrower->Eye() : sim::layout::Rollers().release;
+				// (Hoop Shot's is its last piece, the one by your eye; its thrown balls leave from her hands and show at once)
+				const sim::Vec3 held = sim::layout::Rollers().release;
 				std::vector<sim::Piece> pieces;
 				a_s.game->Pieces(pieces);
 				for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
-					if ((pieces[i].pos - held).Length() < (a_s.gameId == sim::GameId::kHoopShot ? 60.0 : 12.0)) {
+					if (a_s.gameId == sim::GameId::kHoopShot ? i + 1 == pieces.size() : (pieces[i].pos - held).Length() < 12.0) {
 						if (auto ref = a_s.pieces[i].get(); ref && ref->Get3D()) {
 							ref->Get3D()->SetAppCulled(true);
 						}
@@ -1104,6 +1105,13 @@ namespace ag
 						RE::NiPoint3 at = hand->world.translate;
 						if (knuckle) {
 							at = at + (knuckle->world.translate - at) * 0.85f;
+						}
+						// (Hoop Shot's set shot holds it in both: between the palms)
+						auto* handL = a_s.gameId == sim::GameId::kHoopShot && root ? root->GetObjectByName("LArm_Hand") : nullptr;
+						auto* knuckleL = handL ? root->GetObjectByName("LArm_Finger31") : nullptr;
+						if (handL && knuckleL) {
+							const RE::NiPoint3 atL = handL->world.translate + (knuckleL->world.translate - handL->world.translate) * 0.85f;
+							at = (at + atL) * 0.5f;
 						}
 						Freeze(ball.get(), a_s.frozen);
 						PlaceNode(ball.get(), at, f.rot, f.scale, false);

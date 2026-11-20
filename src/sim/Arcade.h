@@ -35,6 +35,8 @@ namespace sim
 		bool pressed{ false }; // the fire button went down this frame
 		bool held{ false };    // ...is down
 		bool released{ false };// ...came up this frame
+		bool hasFrom{ false }; // a throw leaves from here, not the hand by the eye (a settler's hands, as animated)
+		Vec3 from;
 	};
 
 	// a sound the plugin plays (the game's own Nuka-Cade sound descriptors: Cue picks which)
