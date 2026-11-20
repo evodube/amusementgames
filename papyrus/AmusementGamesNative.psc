@@ -354,12 +354,33 @@ Int Function NpcSwing(Int aiActor, Int aiSpot, Int aiAt) Global
 	Return Act(a, 0x00056123, 0x000516EE, "meleeattackStart")  ; MeleeAttackStanding_3rdP, MeleeAttack
 EndFunction
 
-; Atomic Rollers: the ball rolled up the lane, a mine's throw (low and underhand)
+; Atomic Rollers: the ball rolled up the lane, a mine's throw (low and underhand); if that won't play without a mine
+; in hand, Nuka-World's own smoke bomb toss (an idle of its own, nothing in hand needed). 1 the mine's, 3 the toss, 2
+; neither (the event sent)
 Int Function NpcRoll(Int aiActor) Global
-	Return Act(Game.GetForm(aiActor) as Actor, 0x000EE0F0, 0x000EC533, "mineThrowStart")  ; CharacterMTMineThrow, CharacterWeaponMineThrow
+	Actor a = Game.GetForm(aiActor) as Actor
+	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F0, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000EC533, "Fallout4.esm") as Idle))
+		Return 1  ; (CharacterMTMineThrow, CharacterWeaponMineThrow)
+	EndIf
+	Return Toss(a, "mineThrowStart")
 EndFunction
 
-; Hoop Shot: the basketball thrown, a grenade's throw
+; Hoop Shot: the basketball thrown, a grenade's throw; or the smoke bomb toss
 Int Function NpcToss(Int aiActor) Global
-	Return Act(Game.GetForm(aiActor) as Actor, 0x000EE0F1, 0x000CF927, "grenadeThrowStart")  ; CharacterMTGrenadeThrow, CharacterWeaponGrenadeThrow
+	Actor a = Game.GetForm(aiActor) as Actor
+	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F1, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000CF927, "Fallout4.esm") as Idle))
+		Return 1  ; (CharacterMTGrenadeThrow, CharacterWeaponGrenadeThrow)
+	EndIf
+	Return Toss(a, "grenadeThrowStart")
+EndFunction
+
+Int Function Toss(Actor a, String asEvent) Global
+	If !a
+		Return 0
+	EndIf
+	If a.PlayIdle(Game.GetFormFromFile(0x0004A45A, "DLCNukaWorld.esm") as Idle)  ; DLC04LooseSmokeBombThrow
+		Return 3
+	EndIf
+	a.PlayAnimation(asEvent)
+	Return 2
 EndFunction

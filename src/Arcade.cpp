@@ -1056,7 +1056,17 @@ namespace ag
 				in = a_s.thrower->Next(a_dt);
 				a_s.sinceThrow += a_dt;
 				if (in.released) {
-					Papyrus::Call(a_s.gameId == sim::GameId::kHoopShot ? "NpcToss" : "NpcRoll", { static_cast<std::int32_t>(a_s.actorID) });
+					static std::atomic<int> told{ -1 };  // (how the throws go: logged once each way)
+					const std::string       name = a_s.name;
+					const auto              game = a_s.gameId;
+					Papyrus::Call(a_s.gameId == sim::GameId::kHoopShot ? "NpcToss" : "NpcRoll", { static_cast<std::int32_t>(a_s.actorID) },
+						[name, game](std::int32_t a_r) {
+							if (told.exchange(a_r) != a_r) {
+								log::info("{}: {}'s throws: {}", sim::GameName(game), name,
+									a_r == 1 ? (game == sim::GameId::kHoopShot ? "the grenade throw" : "the mine throw") :
+									a_r == 3 ? "Nuka-World's smoke bomb toss (the throw wouldn't play)" : "no animation would play");
+							}
+						});
 					a_s.sinceThrow = 0.0;
 				}
 			}
@@ -1082,10 +1092,16 @@ namespace ag
 				if (auto ball = a_s.handBall.get()) {
 					auto* root = actor->Get3D();
 					auto* hand = root ? root->GetObjectByName("RArm_Hand") : nullptr;
+					auto* knuckle = root ? root->GetObjectByName("RArm_Finger31") : nullptr;  // (the middle finger's base)
 					const bool show = hand && a_s.sinceThrow > 1.0;
 					if (show) {
+						// in the palm: most of the way from the wrist (the hand's node) to the knuckles
+						RE::NiPoint3 at = hand->world.translate;
+						if (knuckle) {
+							at = at + (knuckle->world.translate - at) * 0.85f;
+						}
 						Freeze(ball.get(), a_s.frozen);
-						PlaceNode(ball.get(), hand->world.translate, f.rot, f.scale, false);
+						PlaceNode(ball.get(), at, f.rot, f.scale, false);
 					} else if (auto* b3 = ball->Get3D()) {
 						b3->SetAppCulled(true);
 					}
