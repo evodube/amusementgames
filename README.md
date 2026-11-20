@@ -41,6 +41,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   better the more they play a machine (about half the most practice gives after 10 games
   there, nearly all by 30), and has good and bad days; the Settlers page's skill setting shifts everyone (-50 to +50).
   Kept in your save.
+- **Happiness**: each game machine adds +5 happiness to its settlement (as bars and stores add theirs; no settler or
+  power needed).
 - **Takings**: each machine earns its settlement 1 cap and 2 Nuka-Cade tickets a day for every settler there, put in
   the workbench when you're back (up to 30 days' worth). Both rates are on the Income page of the mod's settings
   (F4SE Menu Framework), or `[Income] fCapsPerSettler` / `fTicketsPerSettler` in `AmusementGames_user.ini`.
@@ -89,7 +91,7 @@ counter in front of your lane and the rifle on the gallery's counter (not to be 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,
 bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own like Playable Pool's.
 
-**Status: 0.9.11.**
+**Status: 0.9.12.**
 
 ## Requirements
 
