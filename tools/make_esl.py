@@ -111,6 +111,9 @@ SETTLER_LEVER_GUN = OWN | (FIRST_ID + 0x33)          # ours: the lever-action, t
 TOKEN = NUKA | 0x01998A                              # DLC04_Nukacade_Token01
 TOKEN_SOUND = NUKA | 0x04E5E4                        # DLC04OBJArcadeTokenExchangeDispense
 TOKEN_PRICE = 5.0                                    # caps a token
+HAPPINESS = 5.0                                      # each game machine adds its settlement this much happiness
+WORKSHOP_BONUS_HAPPINESS = 0x0012722C                # AVIF WorkshopRatingBonusHappiness (as bars' and stores')
+WORKSHOP_RESOURCE_OBJECT = 0x00129A8C                # AVIF WorkshopResourceObject (counted in the settlement's ratings)
 INCOME_PER_SETTLER = 1.0                             # caps a machine earns a day, a settler
 
 # ---- the Prize Counter: a terminal, tickets in, Nuka-World's prizes out
@@ -491,7 +494,9 @@ def token_stand(form_id: int, properties: list[tuple[str, int]]) -> bytes:
 
 def machine(form_id: int, editor_id: str, name: str, mesh: str, bounds: tuple, preview: int, prompt: str = "Play") -> bytes:
     """An arcade machine: an activator with no script (activating it is what the plugin listens for), Nuka-World's
-    model, bounds and workshop preview; its prompt (Bandit Roundup's says a hold is a 1v1)."""
+    model, bounds and workshop preview; its prompt (Bandit Roundup's says a hold is a 1v1). Its settlement's happier
+    for it: WorkshopRatingBonusHappiness HAPPINESS, a resource object (WorkshopResourceObject 1), as Nuka-World's raider
+    radio amplifier has its 5 (no settler to work it, no power)."""
     return record(
         b"ACTI", 0, form_id,
         subrecord(b"EDID", zstring(editor_id))
@@ -499,6 +504,7 @@ def machine(form_id: int, editor_id: str, name: str, mesh: str, bounds: tuple, p
         + subrecord(b"PTRN", struct.pack("<I", preview))
         + subrecord(b"FULL", zstring(name))
         + subrecord(b"MODL", zstring(mesh))
+        + subrecord(b"PRPS", struct.pack("<IfIf", WORKSHOP_BONUS_HAPPINESS, HAPPINESS, WORKSHOP_RESOURCE_OBJECT, 1.0))
         + subrecord(b"ATTX", zstring(prompt))
         + subrecord(b"FNAM", struct.pack("<H", 0)),
     )
