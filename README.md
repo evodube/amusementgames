@@ -78,6 +78,10 @@ bullseye's more points, not more tickets). They're Nuka-Cade tickets, so the Nuk
 for the game (with ammo) if you haven't one, and you get back what you had out after. Each machine's own scoreboard
 shows the game on it and your best at that game, kept in your save. X leaves a game early, paid for the score so far.
 
+**Controllers** work too: the games' fire button is the game's own attack (the left mouse button, or a controller's
+right trigger, or whatever you've bound it to), you aim with the right stick as you look, Activate (A) starts a game
+(hold it at Bandit Roundup for a 1v1), and holding Activate for a second while playing leaves (as X does).
+
 Each machine looks ready to play: Atomic Rollers' balls wait in its right-hand pocket (fewer as you play), Hoop
 Shot's at the foot of its ramp, the Nuka-Cade's mallet rests on Whac-a-Commie, a Thirst Zapper lies on the zapper race's
 counter in front of your lane and the rifle on the gallery's counter (not to be picked up: you're handed one to play).
