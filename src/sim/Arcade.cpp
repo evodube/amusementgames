@@ -1095,7 +1095,7 @@ namespace sim
 		if (_game == GameId::kHoopShot) {
 			const auto& L = layout::Hoop();
 			_at = L.rim + Vec3{ n(_rng) * 4.0 * off, 0.0, n(_rng) * 3.0 * off };
-			_charge = std::max(0.05, 0.35 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
+			_charge = std::max(0.05, 0.34 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
 		} else {
 			const auto& L = layout::Rollers();
 			_at = Vec3{ n(_rng) * (2.0 + 10.0 * off), L.release.y + 40.0, L.release.z };

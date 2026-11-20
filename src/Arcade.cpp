@@ -1363,7 +1363,11 @@ namespace ag
 										a_s.ballShown = true;
 									}
 								} else {
-									at = wrist + along * 1.0f + n * (radius * 1.1f);  // (up at the fingers' roots, clear of the palm: it sat at the wrist)
+									// (in the fingers, out from them by its radius: from the palm or the wrist it sat in the hand)
+									auto* tip = root ? root->GetObjectByName("RArm_Finger33") : nullptr;
+									const RE::NiPoint3 knuckle = mid->world.translate;
+									const RE::NiPoint3 into = tip ? (tip->world.translate - knuckle) * 0.3f : RE::NiPoint3{};
+									at = knuckle + into + n * (radius + 2.0f);
 									show = true;
 								}
 							}
