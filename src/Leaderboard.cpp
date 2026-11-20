@@ -81,6 +81,7 @@ namespace ag::Leaderboard
 
 		std::mutex                                       g_lock;
 		std::array<std::vector<Entry>, kGames>           g_boards;
+		bool                                             g_published{ false };  // every board's aliases filled this session
 
 		bool Generic(std::string_view a_name)
 		{
@@ -204,8 +205,13 @@ namespace ag::Leaderboard
 	void Refresh()
 	{
 		std::array<std::vector<Entry>, kGames> changed;
+		std::array<bool, kGames>               publish{};
 		{
 			std::scoped_lock l(g_lock);
+			if (!g_published) {
+				g_published = true;
+				publish.fill(true);
+			}
 			for (int game = 0; game < kGames; ++game) {
 				bool any = false;
 				auto& b = g_boards[game];
@@ -221,13 +227,14 @@ namespace ag::Leaderboard
 						any = true;
 					}
 				}
-				if (any) {
+				if (any || publish[game]) {
+					publish[game] = true;
 					changed[game].assign(b.begin(), b.begin() + std::min<std::size_t>(b.size(), kPlaces));
 				}
 			}
 		}
 		for (int game = 0; game < kGames; ++game) {
-			if (!changed[game].empty()) {
+			if (publish[game]) {
 				Publish(game, changed[game]);
 			}
 		}
@@ -253,6 +260,7 @@ namespace ag::Leaderboard
 	void Load(const F4SE::SerializationInterface* a_intfc, std::uint32_t, std::uint32_t)
 	{
 		std::scoped_lock l(g_lock);
+		g_published = false;
 		for (auto& b : g_boards) {
 			b.clear();
 			std::uint32_t n = 0;
@@ -284,6 +292,7 @@ namespace ag::Leaderboard
 	void Revert()
 	{
 		std::scoped_lock l(g_lock);
+		g_published = false;
 		for (auto& b : g_boards) {
 			b.clear();
 		}

@@ -66,13 +66,17 @@ Form IDs (src/Forms.h expects these):
     xx000848+ GLOB AmusementGamesTop<Game><NN>  the high scores (848-879): each game's top 10 across every settlement, a
                                                score each (game * 10 + place; 0 empty; the zapper race's, races
                                                won), the plugin's Leaderboard sets
-                                               them; who's at each is AmusementGamesQuest's alias of the same name (6-55)
+                                               them; who's at each is AmusementGamesTextQuest's alias of the same
+                                               name (2-51)
     xx00087A  TERM AmusementGamesPrizeCounterHighScores  View High Scores: the five games, and your Personal High Scores
     xx00087B+ TERM AmusementGamesPrizeCounterTop<Game>   a game's top 10 (87B-87F)
     xx000880+ GLOB AmusementGamesTop<Game><NN>Gone  1 when that place's player's been deleted (880-8B1): "..." for the
                                                name (dying's fine: the dead keep it)
     xx000840+ GLOB AmusementGamesBest*         your best score at each game (840-844, sim::GameId order; the plugin)
-              (AmusementGamesQuest's ref aliases 4 Player, 5 PrizeCounter: the counter's welcome, <Alias=Player>)
+    xx0008B2  QUST AmusementGamesTextQuest     the counter's names: ref aliases 0 Player, 1 PrizeCounter (its welcome,
+                                               <Alias=Player>), 2-51 the high scores' players. Its own quest (start
+                                               game enabled): aliases added to a quest already running in a save never
+                                               come to be (0.9.7 had them on AmusementGamesQuest: every name "...")
 
 Tokens and tickets are Nuka-World's own items (DLC04_Nukacade_Token01 0001998A, DLC04_Nukacade_Ticket01 00019988),
 so the Nuka-Cade's machines and prize terminal take ours and ours take theirs.
@@ -127,10 +131,13 @@ BEST_FIRST = FIRST_ID + 0x40                         # GLOB: your best score at 
 BEST_GAMES = ["AtomicRollers", "HoopShot", "WhacACommie", "NukaZapperRace", "BanditRoundup"]
 BEST_NAMES = ["Atomic Rollers", "Hoop Shot", "Whac-a-Commie", "Nuka-Zapper Race", "Bandit Roundup"]
 BEST_UNITS = ["", "", "", " wins", ""]               # (the zapper race's are races won: every win scores the same)
-PLAYER_ALIAS, COUNTER_ALIAS = 4, 5                   # AmusementGamesQuest's: you (stores text) and a counter (uses it)
+TEXT_QUEST = FIRST_ID + 0xB2                         # QUST AmusementGamesTextQuest: the Prize Counter's names (its
+                                                     # own quest: new aliases on a quest already running in a save
+                                                     # never come to be, so these are a quest of their own from the start)
+PLAYER_ALIAS, COUNTER_ALIAS = 0, 1                   # its aliases: you (stores text) and a counter (uses it)
 TOP_PLACES = 10                                      # the high scores: each game's top 10, across every settlement
 TOP_FIRST = FIRST_ID + 0x48                          # GLOB: a score each, game * 10 + place (0x848-0x879; 0 empty)
-TOP_ALIAS_FIRST = 6                                  # AmusementGamesQuest's ref aliases: who's at each, the same order
+TOP_ALIAS_FIRST = 2                                  # its ref aliases: who's at each, the same order
 HIGH_SCORES_PAGE = FIRST_ID + 0x7A                   # TERM: View High Scores (the five games)
 TOP_PAGE_FIRST = FIRST_ID + 0x7B                     # TERM: a game's top 10 (0x87B-0x87F)
 TOP_GONE_FIRST = FIRST_ID + 0x80                     # GLOB: a place's player deleted (1: "..." for the name), as TOP_FIRST
@@ -439,22 +446,30 @@ def quest(form_id: int, editor_id: str, package: int, hold: int, hold_drawn: int
         + subrecord(b"VMAD", vmad)
         + subrecord(b"DNAM", struct.pack("<HBBfI", 0x0011, priority, 0, 0.0, 0))
         + subrecord(b"NEXT", b"")
-        + subrecord(b"ANAM", struct.pack("<I", TOP_ALIAS_FIRST + len(BEST_GAMES) * TOP_PLACES))
+        + subrecord(b"ANAM", struct.pack("<I", len(aliases)))
         + b"".join(collection(i, n, p) for i, n, p in aliases)
-        # the Prize Counter's: you, whose name it stores (stores text, optional), and the counter you're at, which uses
-        # it (uses stored text, optional), as DLCNukaWorld.esm's DLC04NukaCade has its Player and NukacadeTerminal:
-        # its welcome, "<Alias=Player>". Both filled by the counter's script (AmusementGamesPrizeCounter)
-        + subrecord(b"ALST", struct.pack("<I", PLAYER_ALIAS)) + subrecord(b"ALID", zstring("Player"))
-        + subrecord(b"FNAM", struct.pack("<I", 0x00000102)) + subrecord(b"ALED", b"")
-        + subrecord(b"ALST", struct.pack("<I", COUNTER_ALIAS)) + subrecord(b"ALID", zstring("PrizeCounter"))
-        + subrecord(b"FNAM", struct.pack("<I", 0x00004002)) + subrecord(b"ALED", b"")
-        # the high scores' players (Top<Game><NN>: AmusementGamesNative.TopAlias fills them as the plugin's boards
-        # change): their names on the counter, as Nuka-World's ItemA01... put its prizes' names on its pages. Optional,
-        # allow reuse in quest (one player on several boards), allow dead, allow disabled, stores text, allow reserved
-        + b"".join(subrecord(b"ALST", struct.pack("<I", top_alias(g, p))) + subrecord(b"ALID", zstring(top_name(g, p)))
-                   + subrecord(b"FNAM", struct.pack("<I", 0x0000039A)) + subrecord(b"ALED", b"")
-                   for g in range(len(BEST_GAMES)) for p in range(TOP_PLACES))
     )
+    return record(b"QUST", 0, form_id, body)
+
+
+def text_quest(form_id: int) -> bytes:
+    """AmusementGamesTextQuest: the Prize Counter's names, start game enabled, no script. Its ref aliases: 0 Player,
+    you, whose name it stores (stores text, optional), and 1 PrizeCounter, the counter you're at, which uses it (uses
+    stored text, optional), as DLCNukaWorld.esm's DLC04NukaCade has its Player and NukacadeTerminal (its welcome,
+    "<Alias=Player>"); both filled by the counter's script. Then the high scores' players (Top<Game><NN>, 2 on:
+    AmusementGamesNative.TopAlias fills them as the plugin's boards change), their names on the counter as Nuka-World's
+    ItemA01... put its prizes' names on its pages: optional, allow reuse in quest (one player on several boards), allow
+    dead, allow disabled, stores text, allow reserved"""
+    def ref_alias(alias_id: int, name: str, flags: int) -> bytes:
+        return (subrecord(b"ALST", struct.pack("<I", alias_id)) + subrecord(b"ALID", zstring(name))
+                + subrecord(b"FNAM", struct.pack("<I", flags)) + subrecord(b"ALED", b""))
+    aliases = [ref_alias(PLAYER_ALIAS, "Player", 0x00000102), ref_alias(COUNTER_ALIAS, "PrizeCounter", 0x00004002)]
+    aliases += [ref_alias(top_alias(g, p), top_name(g, p), 0x0000039A) for g in range(len(BEST_GAMES)) for p in range(TOP_PLACES)]
+    body = (subrecord(b"EDID", zstring("AmusementGamesTextQuest"))
+            + subrecord(b"DNAM", struct.pack("<HBBfI", 0x0011, 0, 0, 0.0, 0))  # (start game enabled, as AmusementGamesQuest)
+            + subrecord(b"NEXT", b"")
+            + subrecord(b"ANAM", struct.pack("<I", TOP_ALIAS_FIRST + len(BEST_GAMES) * TOP_PLACES))
+            + b"".join(aliases))
     return record(b"QUST", 0, form_id, body)
 
 
@@ -812,7 +827,8 @@ def build() -> bytes:
                 travel_package(hold_drawn, "AmusementGamesHoldDrawnAtSpot", link, general=0x00802000, interrupts=0),
                 aim_package(hold_zapper, "AmusementGamesHoldZapperAtSpot", link, target, weapon=NUKA | 0x007BC8)]  # DLC04_ThirstZapper
     # (priority 101: above Wasteland Wagers' 100, so a roulette bettor called over isn't pulled back mid-walk)
-    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk, hold, hold_drawn, hold_zapper, priority=101)]
+    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk, hold, hold_drawn, hold_zapper, priority=101),
+              text_quest(OWN | TEXT_QUEST)]
     # the category's picture: its first item, Whac-a-Commie, framed as its own workshop preview
     # (DLC04workshop_NukaCade_WhackACommie01) with its bounds
     art = [menu_art(OWN | (FIRST_ID + 1), "AmusementGamesWorkshopMenuArt", menu,
@@ -883,7 +899,7 @@ def build() -> bytes:
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0xB2))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0xB3))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
