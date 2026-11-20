@@ -167,6 +167,10 @@ namespace sim
 	// with no time passing, Update(0, ...)). Named for the HUD ("YOU" for you); the winner's 10 more at the end. Each's
 	// score, and whether it's a 1v1
 	void SetGalleryVersus(Game& a_game, const std::string& a_name0, const std::string& a_name1);
+	// Whac-a-Commie: a settler's game's heads up a_scale as long (their swing comes down about a second after they
+	// choose it); a head's height out of its hole (0 down, 1 up)
+	void   SetWhacUpScale(Game& a_game, double a_scale);
+	double WhacHeight(const Game& a_game, int a_head);
 	int  GalleryScore(const Game& a_game, int a_who);
 	bool GalleryVersus(const Game& a_game);
 	// ...the lanes that squirted since the last call (their settlers' shots to show)

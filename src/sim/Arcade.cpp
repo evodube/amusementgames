@@ -490,7 +490,7 @@ namespace sim
 				}
 				// how far into the round: faster and more at once as it goes
 				const double k = 1.0 - _time / L.seconds;
-				const double upFor = L.upLongest + (L.upShortest - L.upLongest) * k;
+				const double upFor = (L.upLongest + (L.upShortest - L.upLongest) * k) * _upScale;
 				const int    most = 1 + static_cast<int>(k * (L.mostUp - 1) + 0.5);
 				if (_time > 0.0) {
 					_next -= a_dt;
@@ -539,11 +539,12 @@ namespace sim
 				}
 			}
 
-			// a whack: your Commie Whacker hit a head (its hit event); it counts if the head's up far enough
+			// a whack: your Commie Whacker hit a head (its hit event); it counts if the head's up far enough (a quarter up:
+			// out of its hole, the mallet seen landing on it)
 			void OnPieceHit(int a_piece) override
 			{
 				const auto& L = layout::Whac();
-				if (_time <= 0.0 || a_piece < 0 || a_piece >= static_cast<int>(_heads.size()) || Height(a_piece) <= 0.35 ||
+				if (_time <= 0.0 || a_piece < 0 || a_piece >= static_cast<int>(_heads.size()) || Height(a_piece) <= 0.25 ||
 					_heads[a_piece].phase == Head::kHit) {
 					return;
 				}
@@ -606,6 +607,14 @@ namespace sim
 				double t{ 0.0 };
 				double upFor{ 1.0 };
 			};
+
+		public:
+			// a settler's game: heads up this much longer (their swing comes down about a second after they choose it)
+			void SetUpScale(double a_scale) { _upScale = a_scale; }
+			double HeightOf(int a_i) const { return a_i >= 0 && a_i < static_cast<int>(_heads.size()) ? Height(a_i) : 0.0; }
+
+		private:
+			double _upScale{ 1.0 };
 
 			// where a head's origin is now
 			Vec3 HeadAt(int a_i) const
@@ -1096,6 +1105,19 @@ namespace sim
 			n += jackpotBonus;
 		}
 		return std::clamp(n, min, std::max(min, max));
+	}
+
+	void SetWhacUpScale(Game& a_game, double a_scale)
+	{
+		if (auto* w = dynamic_cast<Whac*>(&a_game)) {
+			w->SetUpScale(a_scale);
+		}
+	}
+
+	double WhacHeight(const Game& a_game, int a_head)
+	{
+		const auto* w = dynamic_cast<const Whac*>(&a_game);
+		return w ? w->HeightOf(a_head) : 0.0;
 	}
 
 	void SetZapperRacers(Game& a_game, int a_you, const std::vector<double>& a_skill, const std::vector<std::string>& a_names)

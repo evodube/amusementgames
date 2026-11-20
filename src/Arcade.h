@@ -304,6 +304,9 @@ namespace ag
 			double                                 swingT{ -1.0 };  // ...the swing coming down this long (-1: none)
 			float                                  swingBest{ 1e9f };  // ...its mallet the nearest it's been to the head they're after
 			int                                    swingTarget{ -1 };
+			float                                  swingLowZ{ 1e9f };  // ...the mallet head's lowest yet, and there
+			RE::NiPoint3                           swingLowAt{};
+			int                                    swingsLogged{ 0 };
 			RE::NiPoint3                           swingMiss;          // ...from the mallet then to that head  // ...the throw's animation on, the ball in their hand(s)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
