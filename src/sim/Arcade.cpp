@@ -668,6 +668,7 @@ namespace sim
 				_you = std::clamp(L.playerLane, 0, static_cast<int>(_lanes.size()) - 1);
 				_lanes[_you].name = "YOU";
 				_shots.clear();
+				_shotHits.clear();
 				_winner = -1;
 				_place = 0;
 				_score = 0;
@@ -715,7 +716,9 @@ namespace sim
 						l.next = std::uniform_real_distribution<double>(L.aiShotShortest, L.aiShotLongest)(_rng);
 						_shots.push_back(i);
 						const double chance = L.aiHitWorst + (L.aiHitBest - L.aiHitWorst) * l.skill;
-						if (std::uniform_real_distribution<double>(0.0, 1.0)(_rng) < chance) {
+						const bool   hit = std::uniform_real_distribution<double>(0.0, 1.0)(_rng) < chance;
+						_shotHits.push_back(hit);
+						if (hit) {
 							Hit(i);
 						}
 					}
@@ -778,7 +781,21 @@ namespace sim
 				}
 			}
 
-			std::vector<int> TakeShots() { return std::exchange(_shots, {}); }
+			std::vector<int> TakeShots()
+			{
+				_shotHits.clear();
+				return std::exchange(_shots, {});
+			}
+			std::vector<std::pair<int, bool>> TakeShotsHit()
+			{
+				std::vector<std::pair<int, bool>> out;
+				for (std::size_t i = 0; i < _shots.size(); ++i) {
+					out.emplace_back(_shots[i], i < _shotHits.size() && _shotHits[i]);
+				}
+				_shots.clear();
+				_shotHits.clear();
+				return out;
+			}
 			int              Winner() const { return _winner; }
 
 		private:
@@ -837,6 +854,7 @@ namespace sim
 			double            _countdown{ 3.0 };
 			double            _cool{ 0.0 };
 			std::vector<int>  _shots;
+			std::vector<bool> _shotHits;  // ...each a hit or not
 			int               _winner{ -1 };
 		};
 
@@ -1052,6 +1070,12 @@ namespace sim
 		return z ? z->TakeShots() : std::vector<int>{};
 	}
 
+	std::vector<std::pair<int, bool>> TakeZapperShotsHit(Game& a_game)
+	{
+		auto* z = dynamic_cast<Zapper*>(&a_game);
+		return z ? z->TakeShotsHit() : std::vector<std::pair<int, bool>>{};
+	}
+
 	int ZapperWinner(const Game& a_game)
 	{
 		const auto* z = dynamic_cast<const Zapper*>(&a_game);
@@ -1071,7 +1095,7 @@ namespace sim
 		if (_game == GameId::kHoopShot) {
 			const auto& L = layout::Hoop();
 			_at = L.rim + Vec3{ n(_rng) * 4.0 * off, 0.0, n(_rng) * 3.0 * off };
-			_charge = std::max(0.05, 0.35 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
+			_charge = std::max(0.05, 0.34 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
 		} else {
 			const auto& L = layout::Rollers();
 			_at = Vec3{ n(_rng) * (2.0 + 10.0 * off), L.release.y + 40.0, L.release.z };
@@ -1096,9 +1120,11 @@ namespace sim
 			if (a_ready) {
 				_wait -= a_dt;
 			} else {
-				_wait = std::max(_wait, 1.0);  // (the game's busy: the last ball not counted yet, or over)
+				// (the game's busy: the last ball not counted yet, or over. Atomic Rollers: the next roll straight
+				// after it's counted)
+				_wait = std::max(_wait, _game == GameId::kHoopShot ? 1.0 : std::max(0.0, _lead - _charge));
 			}
-			if (_wait > 0.0) {
+			if (_wait > 0.0 || !a_ready) {
 				in.dir = (_game == GameId::kHoopShot ? layout::Hoop().rim : Vec3{ 0.0, layout::Rollers().release.y + 40.0, layout::Rollers().release.z }) - in.eye;
 				in.dir = in.dir.Normalized();
 			} else {
@@ -1119,13 +1145,14 @@ namespace sim
 				in.from = layout::SettlerRelease(_game);
 			}
 			_held = -1.0;
-			_wait = _game == GameId::kHoopShot ? 2.2 : 1.4;  // (Atomic Rollers: from the last ball counted)
 			Plan();
+			// (Atomic Rollers: the next once the last ball's counted, as soon as its animation can be under way)
+			_wait = _game == GameId::kHoopShot ? 2.2 : std::max(0.0, _lead - _charge);
 			_cued = false;
 		}
 		// the animation's cue: _lead before the release
 		const double toRelease = _held < 0.0 ? std::max(0.0, _wait) + _charge : _charge - _held;
-		if (!_cued && !in.released && toRelease <= _lead) {
+		if (!_cued && !in.released && (a_ready || _held >= 0.0) && toRelease <= _lead) {  // (none while the game's busy)
 			_cued = _cue = true;
 		}
 		return in;

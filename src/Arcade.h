@@ -225,6 +225,8 @@ namespace ag
 			double                                 onTarget{ 0.0 }; // a shot held back this long, turning onto the target
 			double                                 steady{ 0.0 };   // their weapon drawn this long
 			double                                 drawAsked{ 0.0 };  // ...put away: till it's asked out again
+			double                                 diag{ 0.0 };
+			double                                 diagT{ 0.0 };
 			bool                                   everDrawn{ false };
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been
@@ -242,7 +244,9 @@ namespace ag
 			int                                    hits{ 0 };  // ...their mallet's hits on the heads
 			int                                    misses{ 0 };
 			double                                 swingT{ -1.0 };  // ...the swing coming down this long (-1: none)
-			float                                  swingBest{ 1e9f };  // ...its mallet the nearest it's been to a head  // ...the throw's animation on, the ball in their hand(s)
+			float                                  swingBest{ 1e9f };  // ...its mallet the nearest it's been to the head they're after
+			int                                    swingTarget{ -1 };
+			RE::NiPoint3                           swingMiss;          // ...from the mallet then to that head  // ...the throw's animation on, the ball in their hand(s)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
 			std::vector<RE::NiAVObject*>           frozen;

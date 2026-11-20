@@ -182,10 +182,11 @@ namespace sim::layout
 		// a point a hit, whatever it is; the bullseyes' centres from the models' bullseye plates (their :173 shapes)
 		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0, -0.7, 11.1 }, { 1, 15.0, 16.0, 3.0, -0.4, 11.0 }, { 1, 13.0, 11.0, 2.0, -1.1, 15.0 },
 			{ 1, 8.0, 22.0, 1.2, 0.0, 20.0 }, { 1, 12.0, 11.0, 0.6, -0.15, 14.15 } };
-		Vec3                     stand{ -15.0, -105.0, 0.0 };   // where a settler playing it stands: well back from the
+		Vec3                     stand{ -15.0, -135.0, 0.0 };   // where a settler playing it stands: well back from the
 		                                                        // counter (its front at -47; near it, the game reads the
-		                                                        // counter as low cover and they crouch to aim over it),
-		                                                        // a little left of the middle
+		                                                        // counter as low cover and they crouch to aim over it;
+		                                                        // from -105 the rifle's muzzle came up to the counter's
+		                                                        // front), a little left of the middle
 		Vec3                     aimAt{ 0.0, 397.0, 155.0 };  // a settler playing it aims here: between the two tracks
 		Vec3                     rifleRest{ 12.0, 3.0, 67.0 };  // the rifle lying along the counter (its top at 64, from y -32 to
 		                                                        // 38: too shallow for it to point at the targets), its grip here
@@ -205,16 +206,16 @@ namespace sim::layout
 		case GameId::kHoopShot: return { 0.0, -160.0, 0.0 };       // (its front at -127)
 		case GameId::kWhacACommie: return { 0.0, -105.0, 0.0 };    // (its front at -40, the holes -20 to 20: a standing swing's
 		                                                           // mallet comes down about a metre ahead; from -68 it hit the back)
-		default: return { -15.0, -105.0, 0.0 };                    // Bandit Roundup (GalleryLayout::stand)
+		default: return { -15.0, -135.0, 0.0 };                    // Bandit Roundup (GalleryLayout::stand)
 		}
 	}
 
 	// where a settler's ball leaves her hands (machine space): the release frame of our animation, from her spot.
-	// Hoop Shot's set shot: the ball on her fingers, in front of the right palm, on the ball's back (5 right, 24 ahead, 143 up)
+	// Hoop Shot's set shot: the ball on her fingers, in front of the right palm, on the ball's back (2 right, 22 ahead, 145 up)
 	inline Vec3 SettlerRelease(GameId a_game)
 	{
 		const Vec3 at = SettlerStand(a_game);
-		return a_game == GameId::kHoopShot ? Vec3{ at.x + 5.2, at.y + 24.1, at.z + 143.0 } : Vec3{ at.x + 21.4, at.y + 45.5, at.z + 42.6 };
+		return a_game == GameId::kHoopShot ? Vec3{ at.x + 1.7, at.y + 21.6, at.z + 144.5 } : Vec3{ at.x + 21.4, at.y + 45.5, at.z + 42.6 };
 	}
 
 	const RollersLayout& Rollers();

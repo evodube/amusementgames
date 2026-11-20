@@ -163,6 +163,8 @@ namespace sim
 	void SetZapperRacers(Game& a_game, int a_you, const std::vector<double>& a_skill, const std::vector<std::string>& a_names);
 	// ...the lanes that squirted since the last call (their settlers' shots to show)
 	std::vector<int> TakeZapperShots(Game& a_game);
+	// ...and whether each was a hit (the plugin points their stream on or off the bullseye to match)
+	std::vector<std::pair<int, bool>> TakeZapperShotsHit(Game& a_game);
 	// ...the lane that won (-1: not yet)
 	int ZapperWinner(const Game& a_game);
 
