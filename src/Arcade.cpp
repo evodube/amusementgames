@@ -3,6 +3,7 @@
 #include "Income.h"
 #include "Leaderboard.h"
 #include "SettlerSkill.h"
+#include "Reactions.h"
 
 #include "Forms.h"
 #include "Hud.h"
@@ -128,6 +129,7 @@ namespace ag
 		};
 
 		constexpr std::uint32_t kSaveType = 0x41474253;  // 'AGBS': the best scores
+		constexpr double        kReactAfter = 1.5;  // s after a game a settler reacts (their gun away, out of its idle)
 		constexpr std::uint32_t kSaveVersion = 2;  // (2: points in hundreds, as Nuka-World's; 1's were ones but Atomic Rollers')
 		constexpr std::uint32_t kSwingType = 0x41475357;  // 'AGSW': the swing quickening on when saved
 		constexpr std::uint32_t kHeldType = 0x4147484C;  // 'AGHL': settlers held at a machine when saved
@@ -392,13 +394,23 @@ namespace ag
 			player->AddObjectToContainer(ticket, nullptr, tickets, nullptr, RE::ITEM_REMOVE_REASON::kNone);
 		}
 		RefreshCounter();  // (the Prize Counter's screen: these tickets, a new best)
-		// the high scores (played to the end): you, and whoever played you (your 1v1's rival, the settlers you raced)
+		// the high scores (played to the end): you, and whoever played you (your 1v1's rival, the settlers you raced);
+		// and the reactions: your rival or the racers, cheering a win or shaking their heads; those about clapping a
+		// win, your new best, or cheering your new top score
 		if (!a_early && player) {
-			Leaderboard::Record(_gameId, player->GetFormID(), score);
+			const int                  yourPlace = Leaderboard::Record(_gameId, player->GetFormID(), score);
+			std::vector<RE::TESFormID> others;
+			bool                       won = false;  // (a 1v1 or race with a winner)
 			if (sim::GalleryVersus(*_game)) {
 				for (const auto& sh : _shows) {
 					if (sh.vsYou && sh.phase != Show::Phase::kNone) {
-						Leaderboard::Record(_gameId, sh.actorID, sim::GalleryScore(*_game, 1));
+						const int theirs = sim::GalleryScore(*_game, 1);
+						Leaderboard::Record(_gameId, sh.actorID, theirs);
+						SettlerSkill::Scored(sh.actorID, _gameId, theirs);
+						using K = Reactions::Kind;
+						Reactions::Play(sh.actorID, theirs > score ? K::kCheer : theirs < score ? K::kShake : K::kNod, kReactAfter, _showRng);
+						others.push_back(sh.actorID);
+						won = won || theirs != score;
 					}
 				}
 			}
@@ -419,6 +431,18 @@ namespace ag
 					winner = player->GetFormID();
 				}
 				Leaderboard::RecordWin(winner);
+				for (const auto& r : _races) {
+					if (r.withYou && r.machineID == _machineID) {
+						for (const auto& q : r.racers) {
+							Reactions::Play(q.actorID, q.lane == w ? Reactions::Kind::kCheer : Reactions::Kind::kShake, kReactAfter, _showRng);
+							others.push_back(q.actorID);
+						}
+					}
+				}
+				won = won || w >= 0;
+			}
+			if (machine && (won || newBest || yourPlace == 0)) {
+				Spectate(machine.get(), others, yourPlace == 0);
 			}
 		}
 		if (machine) {
@@ -1632,7 +1656,11 @@ namespace ag
 				_lastScores[a_s.machineID] = a_s.game->Score();
 				_played[Played(a_s.actorID, a_s.gameId)] = kShowTurnAbout;
 				log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
-				Leaderboard::Record(a_s.gameId, a_s.actorID, a_s.game->Score());
+				const int place = Leaderboard::Record(a_s.gameId, a_s.actorID, a_s.game->Score());
+				ReactToGame(a_s.actorID, a_s.gameId, a_s.game->Score(), place);
+				if (place == 0) {
+					Spectate(machine.get(), { a_s.actorID }, true);  // (a new top score: those about cheer)
+				}
 				EndShow(a_s, nullptr);
 			}
 			return;
@@ -1775,11 +1803,24 @@ namespace ag
 				const int mine = sim::GalleryScore(*a_s.game, 0), theirs = sim::GalleryScore(*a_s.game, 1);
 				Leaderboard::Record(a_s.gameId, a_s.actorID, mine);
 				Leaderboard::Record(a_s.gameId, other->actorID, theirs);
+				// the winner cheers, the loser shakes their head (a tie: both nod); those about clap
+				SettlerSkill::Scored(a_s.actorID, a_s.gameId, mine);
+				SettlerSkill::Scored(other->actorID, a_s.gameId, theirs);
+				using K = Reactions::Kind;
+				Reactions::Play(a_s.actorID, mine > theirs ? K::kCheer : mine < theirs ? K::kShake : K::kNod, kReactAfter, _showRng);
+				Reactions::Play(other->actorID, theirs > mine ? K::kCheer : theirs < mine ? K::kShake : K::kNod, kReactAfter, _showRng);
+				if (mine != theirs) {
+					Spectate(machine.get(), { a_s.actorID, other->actorID }, false);
+				}
 				log::info("{}: {} ({:08X}) {}, {} ({:08X}) {}: {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, mine, other->name,
 					other->actorID, theirs, mine == theirs ? std::string("a tie") : std::format("{} won", mine > theirs ? a_s.name : other->name));
 			} else {
 				log::info("{}: {} ({:08X}) scored {}", sim::GameName(a_s.gameId), a_s.name, a_s.actorID, a_s.game->Score());
-				Leaderboard::Record(a_s.gameId, a_s.actorID, a_s.game->Score());
+				const int place = Leaderboard::Record(a_s.gameId, a_s.actorID, a_s.game->Score());
+				ReactToGame(a_s.actorID, a_s.gameId, a_s.game->Score(), place);
+				if (place == 0) {
+					Spectate(machine.get(), { a_s.actorID }, true);
+				}
 			}
 			EndShow(a_s, nullptr);
 		}
@@ -2304,6 +2345,52 @@ namespace ag
 		return settlers[std::uniform_int_distribution<std::size_t>(0, settlers.size() - 1)(_showRng)];
 	}
 
+	void Arcade::ReactToGame(RE::TESFormID a_actor, sim::GameId a_game, int a_score, int a_place)
+	{
+		const int before = SettlerSkill::Scored(a_actor, a_game, a_score);
+		Reactions::Play(a_actor, Reactions::Judge(a_score, before, a_place), kReactAfter, _showRng);
+	}
+
+	void Arcade::Spectate(RE::TESObjectREFR* a_machine, const std::vector<RE::TESFormID>& a_others, bool a_cheer)
+	{
+		constexpr float kWatching = 1500.0f;  // settlers this near the machine see it
+		constexpr int   kMost = 3;
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		auto* lists = RE::ProcessLists::GetSingleton();
+		auto* kw = Forms::WorkshopItemKeyword();
+		auto* workshop = a_machine && kw ? a_machine->GetLinkedRef(kw) : nullptr;
+		if (!player || !lists || !workshop) {
+			return;
+		}
+		static auto*               npcType = RE::TESForm::GetFormByID<RE::BGSKeyword>(0x00013794);  // ActorTypeNPC
+		std::vector<RE::TESFormID> about;
+		for (auto& ah : lists->highActorHandles) {
+			auto a = ah.get();
+			if (!a || a.get() == player || a->IsDead(false) || a->IsDisabled() || !a->Get3D() || a->IsInCombat() ||
+				(npcType && !a->HasKeywordHelper(npcType, nullptr)) || a->GetLinkedRef(kw) != workshop ||
+				(a->data.location - a_machine->data.location).Length() > kWatching) {
+				continue;
+			}
+			const auto id = a->GetFormID();
+			// (not the players, nor anyone at a game or walking to one)
+			const bool busy = std::ranges::find(a_others, id) != a_others.end() ||
+			                  std::ranges::any_of(_shows, [&](const Show& a_s) { return a_s.actorID == id; }) ||
+			                  std::ranges::any_of(_races, [&](const Race& a_r) {
+								  return std::ranges::any_of(a_r.racers, [&](const Racer& a_q) { return a_q.actorID == id; });
+							  });
+			if (!busy) {
+				about.push_back(id);
+			}
+		}
+		std::ranges::shuffle(about, _showRng);
+		for (int i = 0; i < kMost && i < static_cast<int>(about.size()); ++i) {
+			// (each a moment apart; cheering a top score, else clapping or now and then cheering)
+			const bool cheer = a_cheer || std::uniform_int_distribution<int>(0, 3)(_showRng) == 0;
+			Reactions::Play(about[i], cheer ? Reactions::Kind::kCheer : Reactions::Kind::kClap,
+				kReactAfter + std::uniform_real_distribution<double>(0.0, 1.2)(_showRng), _showRng);
+		}
+	}
+
 	void Arcade::LetGo(Racer& a_q)
 	{
 		const auto weaponID = Forms::WeaponOf(sim::GameId::kNukaZapperRace) ? Forms::WeaponOf(sim::GameId::kNukaZapperRace)->GetFormID() : 0;
@@ -2545,6 +2632,13 @@ namespace ag
 				if (it != a_r.racers.end()) {
 					Leaderboard::RecordWin(it->actorID);  // (its board's races won)
 				}
+				// the winner cheers, the rest shake their heads; those about clap
+				std::vector<RE::TESFormID> racers;
+				for (const auto& q : a_r.racers) {
+					racers.push_back(q.actorID);
+					Reactions::Play(q.actorID, q.lane == w ? Reactions::Kind::kCheer : Reactions::Kind::kShake, kReactAfter, _showRng);
+				}
+				Spectate(machine.get(), racers, false);
 				EndRace(a_r, nullptr);
 			}
 		}

@@ -131,41 +131,45 @@ namespace ag::Leaderboard
 		}
 	}
 
-	void Record(sim::GameId a_game, RE::TESFormID a_actor, int a_score)
+	int Record(sim::GameId a_game, RE::TESFormID a_actor, int a_score)
 	{
 		const int game = static_cast<int>(a_game);
 		if (game < 0 || game >= kGames || game == kRace || a_actor == 0 || a_score <= 0) {
-			return;
+			return -1;
 		}
 		const char* name = Named(a_actor);
 		if (!name) {
-			return;
+			return -1;
 		}
 		std::vector<Entry> board;
+		int                place = -1;
 		{
 			std::scoped_lock l(g_lock);
 			auto& b = g_boards[game];
 			auto  it = std::ranges::find_if(b, [&](const Entry& e) { return e.actor == a_actor; });
 			if (it != b.end()) {
 				if (a_score <= it->score) {
-					return;  // (their best's already up)
+					return -1;  // (their best's already up)
 				}
 				it->score = a_score;
 			} else {
 				b.push_back({ a_actor, a_score });
 			}
 			std::ranges::stable_sort(b, std::greater<>{}, &Entry::score);
-			const bool placed = std::ranges::any_of(b | std::views::take(kPlaces), [&](const Entry& e) { return e.actor == a_actor; });
+			const auto at = std::ranges::find_if(b, [&](const Entry& e) { return e.actor == a_actor; });
+			place = static_cast<int>(at - b.begin());
+			const bool placed = place < kPlaces;
 			if (b.size() > static_cast<std::size_t>(kPlaces)) {
 				b.resize(kPlaces);
 			}
 			if (!placed) {
-				return;
+				return -1;
 			}
 			board = b;
 		}
 		log::info("high scores: {} ({:08X}) {} at {}", name, a_actor, a_score, sim::GameName(a_game));
 		Publish(game, board);
+		return place;
 	}
 
 	void RecordWin(RE::TESFormID a_actor)

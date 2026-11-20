@@ -438,6 +438,36 @@ Function NpcEnd(Int aiActor, Int aiWeapon, Int aiLent) Global
 	a.EvaluatePackage()
 EndFunction
 
+; a settler reacting (the plugin's Reactions): an idle of the game's own (a cheer, a clap, a nod, a head shake), a
+; moment after their game (the delay: their gun away first), a few tries (busy with the last one); a cheer or a clap
+; stopped after aiHoldMs (ActionIdleStop), the nods and shakes ending themselves
+Function NpcReact(Int aiActor, Int aiIdle, Int aiDelayMs, Int aiHoldMs) Global
+	Actor a = Game.GetForm(aiActor) as Actor
+	Idle i = Game.GetForm(aiIdle) as Idle
+	If !a || !i
+		Return
+	EndIf
+	If aiDelayMs > 0
+		Utility.Wait(aiDelayMs / 1000.0)
+	EndIf
+	If a.IsDead() || a.IsInCombat() || !a.Is3DLoaded()
+		Return
+	EndIf
+	Int tries = 0
+	Bool played = a.PlayIdle(i)
+	While !played && tries < 5
+		Utility.Wait(0.3)
+		played = a.PlayIdle(i)
+		tries += 1
+	EndWhile
+	If played && aiHoldMs > 0
+		Utility.Wait(aiHoldMs / 1000.0)
+		If !a.IsDead() && !a.IsInCombat()
+			a.PlayIdleAction(Game.GetFormFromFile(0x00018BA8, "Fallout4.esm") as Action)  ; (ActionIdleStop)
+		EndIf
+	EndIf
+EndFunction
+
 ; after a load: nobody left in the quest's walk
 Function NpcClearAll(Int aiUnused) Global
 	AmusementGamesQuest q = TheQuest()

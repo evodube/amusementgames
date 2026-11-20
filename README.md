@@ -32,6 +32,11 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   seconds after the second is ready they race. No racing on your own: put your token in and you wait for a settler
   to be ready (10 seconds after, you're off), racing only the settlers who came; the HUD shows who's racing and their
   rockets, and at the end whether you won or lost (and who won). Activate it again while waiting to leave, token back.
+- **Settlers react**, with the game's own animations, a moment after a game: a new best of theirs or a place near the
+  top of the high scores gets a cheer (the base game's crowd cheers, Nuka-World's wild ones), an ordinary game a nod,
+  nothing scored or well under their best a head shake; a 1v1's or a race's winner cheers, the rest shake their heads.
+  Up to three settlers about who aren't playing clap (or cheer) when someone wins a 1v1 or a race, sets a new top
+  score, or when you set a new best.
 - **Settlers' skill**: each settler has a talent of their own (rolled the first time they play, theirs for good), gets
   better the more they play a machine (about half the most practice gives after 10 games
   there, nearly all by 30), and has good and bad days; the Settlers page's skill setting shifts everyone (-50 to +50).
@@ -80,7 +85,7 @@ counter in front of your lane and the rifle on the gallery's counter (not to be 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,
 bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own like Playable Pool's.
 
-**Status: 0.9.9.**
+**Status: 0.9.10.**
 
 ## Requirements
 

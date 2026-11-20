@@ -416,6 +416,11 @@ namespace ag
 			return nullptr;
 		}
 		RE::Actor* PickSettler(RE::TESObjectREFR* a_machine, sim::GameId a_game);
+		// settlers reacting: one's own game over (cheer, nod or head shake, against their best and the high scores);
+		// and up to three near the machine, not playing and not a_others, clapping or cheering (someone's won, a new
+		// top score, your new best)
+		void ReactToGame(RE::TESFormID a_actor, sim::GameId a_game, int a_score, int a_place);
+		void Spectate(RE::TESObjectREFR* a_machine, const std::vector<RE::TESFormID>& a_others, bool a_cheer);
 		// a settler's gun can fire: what it fires (its current ammo) known, a pocketful given once; none: no shot (firing a
 		// gun with nothing to fire crashes the game)
 		bool CanFire(RE::Actor* a_actor, const std::string& a_name);
