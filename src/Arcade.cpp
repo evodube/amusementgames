@@ -1357,8 +1357,9 @@ namespace ag
 				[name](std::int32_t a_r) {
 					if (told.exchange(a_r) != a_r) {
 						log::info("BANDIT ROUNDUP: {}'s shots: {}", name,
-							a_r == 1 ? "the rifle's own shot animation (RaiderFireSingle)" :
-							a_r == 2 ? "the shot animation wouldn't play: fired without it" : "nobody to fire it");
+							a_r == 3 ? "the rifle's fire event (weaponFire)" :
+							a_r == 1 ? "the shot idle (RaiderFireSingle)" :
+							a_r == 2 ? "an attack (attackStart)" : "nobody to fire it");
 					}
 				});
 		}

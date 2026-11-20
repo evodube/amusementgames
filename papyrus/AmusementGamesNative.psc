@@ -303,8 +303,10 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	If !a || !w
 		Return 0
 	EndIf
-	If a.GetEquippedWeapon() != w && a.GetItemCount(w) > 0
-		a.EquipItem(w, True, True)  ; (swapped for one of their own: the game's again)
+	Weapon held = a.GetEquippedWeapon()
+	If held && held != w && a.GetItemCount(w) > 0
+		a.EquipItem(w, True, True)  ; (swapped for one of their own: the game's again. Not when the game just doesn't say
+		                            ; what's in their hands: equipping it again had them holster it and draw it again)
 	EndIf
 	If !a.IsWeaponDrawn()
 		; (drawn again only: their hold package raises and aims it. The sighted idle played here on top put them in a
@@ -312,10 +314,22 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 		a.DrawWeapon()
 		Utility.Wait(0.6)
 	EndIf
-	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
-		Return 1
+	; (no Weapon.Fire: from a settler whose gun has nothing to fire, it crashed the game)
+	If w != Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm")
+		; a rifle: fired by its own fire event in their aim, as their AI fires it at an enemy. RaiderFireSingle, an idle,
+		; broke off their aim package for it (the rifle lowered and raised again) and played from a stance that sank them
+		; into the floor
+		If a.PlayAnimation("weaponFire")
+			Return 3
+		EndIf
+		If a.PlayAnimation("attackStart")
+			Return 2
+		EndIf
 	EndIf
-	a.PlayAnimation("attackStart")  ; (no Weapon.Fire: from a settler whose gun has nothing to fire, it crashed the game)
+	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
+		Return 1  ; (the Thirst Zapper's squirt: as it was)
+	EndIf
+	a.PlayAnimation("attackStart")
 	Return 2
 EndFunction
 
