@@ -1071,7 +1071,7 @@ namespace sim
 		if (_game == GameId::kHoopShot) {
 			const auto& L = layout::Hoop();
 			_at = L.rim + Vec3{ n(_rng) * 4.0 * off, 0.0, n(_rng) * 3.0 * off };
-			_charge = std::max(0.05, 0.34 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
+			_charge = std::max(0.05, 0.35 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
 		} else {
 			const auto& L = layout::Rollers();
 			_at = Vec3{ n(_rng) * (2.0 + 10.0 * off), L.release.y + 40.0, L.release.z };
@@ -1151,7 +1151,7 @@ namespace sim
 			_swing -= a_dt;
 			if (_swing < 0.0) {
 				// the mallet comes down: on the head if they're good enough and it's still up
-				if (u(_rng) < 0.5 + 0.4 * _skill) {
+				if (u(_rng) < 0.6 + 0.35 * _skill) {
 					a_game.OnPieceHit(_target);
 				}
 				_target = -1;
@@ -1177,7 +1177,7 @@ namespace sim
 				return false;
 			}
 			_target = up[std::uniform_int_distribution<std::size_t>(0, up.size() - 1)(_rng)];
-			_react = 0.45 - 0.25 * _skill + 0.1 * u(_rng);
+			_react = 0.4 - 0.25 * _skill + 0.1 * u(_rng);
 			return false;
 		}
 		_react -= a_dt;

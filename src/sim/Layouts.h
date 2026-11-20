@@ -199,8 +199,8 @@ namespace sim::layout
 	inline Vec3 SettlerStand(GameId a_game)
 	{
 		switch (a_game) {
-		case GameId::kAtomicRollers: return { -22.0, -191.0, 0.0 };  // (its front at -162, the ball's release at -148: our roll
-		                                                             // steps the left foot in and lets go 22 right, 43 ahead, 45 up
+		case GameId::kAtomicRollers: return { -21.4, -193.5, 0.0 };  // (its front at -162, the ball's release at -148: our roll
+		                                                             // steps the left foot in and lets go 21 right, 46 ahead, 45 up
 		                                                             // of her spot; her toes 4 clear of the front)
 		case GameId::kHoopShot: return { 0.0, -160.0, 0.0 };       // (its front at -127)
 		case GameId::kWhacACommie: return { 0.0, -105.0, 0.0 };    // (its front at -40, the holes -20 to 20: a standing swing's
@@ -210,11 +210,11 @@ namespace sim::layout
 	}
 
 	// where a settler's ball leaves her hands (machine space): the release frame of our animation, from her spot.
-	// Hoop Shot's set shot: the ball on her fingers, between the palms, arms up (4 right, 15 ahead, 141 up)
+	// Hoop Shot's set shot: the ball on her fingers, in front of the right palm, on the ball's back (5 right, 21 ahead, 139 up)
 	inline Vec3 SettlerRelease(GameId a_game)
 	{
 		const Vec3 at = SettlerStand(a_game);
-		return a_game == GameId::kHoopShot ? Vec3{ at.x + 4.0, at.y + 14.7, at.z + 141.3 } : Vec3{ at.x + 22.0, at.y + 43.0, at.z + 42.6 };
+		return a_game == GameId::kHoopShot ? Vec3{ at.x + 5.3, at.y + 20.7, at.z + 138.8 } : Vec3{ at.x + 21.4, at.y + 45.5, at.z + 42.6 };
 	}
 
 	const RollersLayout& Rollers();

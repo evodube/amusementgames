@@ -297,10 +297,10 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 		a.EquipItem(w, True, True)  ; (swapped for one of their own: the game's again)
 	EndIf
 	If !a.IsWeaponDrawn()
+		; (drawn again only: their hold package raises and aims it. The sighted idle played here on top put them in a
+		; low crouch, as behind cover: sunk a few centimetres into the ground at Bandit Roundup)
 		a.DrawWeapon()
 		Utility.Wait(0.6)
-		Aim(a)
-		Utility.Wait(0.25)
 	EndIf
 	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
 		Return 1

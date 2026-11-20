@@ -1119,7 +1119,7 @@ namespace ag
 			const double skill = std::uniform_real_distribution<double>(0.0, 1.0)(_showRng);  // how good they are
 			const double spread = 0.03 - 0.024 * skill;  // (a shot's spread at the gallery: 0.006 to 0.03)
 			switch (a_s.gameId) {
-			case sim::GameId::kWhacACommie: a_s.whacker = std::make_unique<sim::WhacPlayer>(seed ^ 0x5EED, skill); break;
+			case sim::GameId::kWhacACommie: a_s.whacker = std::make_unique<sim::WhacPlayer>(seed ^ 0x5EED, 0.45 + 0.55 * skill); break;  // (none hopeless with a mallet)
 			case sim::GameId::kAtomicRollers:
 			case sim::GameId::kHoopShot:
 				{
@@ -1207,28 +1207,13 @@ namespace ag
 						}
 					}
 				}
-				// ...theirs in their hand(s) while the throw's on: Hoop Shot's between the palms once both are on it,
+				// ...theirs in their hand(s) while the throw's on: Hoop Shot's out in front of the right palm (on the ball's back),
 				// Atomic Rollers' cupped in the right palm (out from the palm by its radius, not through the hand)
 				if (auto ball = a_s.handBall.get()) {
 					auto* root = actor->Get3D();
-					auto  palmOf = [&](const char* a_hand, const char* a_knuckle, RE::NiPoint3& a_out) {
-						auto* h = root ? root->GetObjectByName(a_hand) : nullptr;
-						auto* k = root ? root->GetObjectByName(a_knuckle) : nullptr;
-						if (!h || !k) {
-							return false;
-						}
-						a_out = h->world.translate + (k->world.translate - h->world.translate) * 0.75f;
-						return true;
-					};
 					RE::NiPoint3 at;
 					bool         show = false;
-					if (a_s.holding && a_s.gameId == sim::GameId::kHoopShot) {
-						RE::NiPoint3 r, l;
-						if (palmOf("RArm_Hand", "RArm_Finger31", r) && palmOf("LArm_Hand", "LArm_Finger31", l) && (r - l).Length() < 36.0f) {
-							at = (r + l) * 0.5f;
-							show = true;
-						}
-					} else if (a_s.holding) {
+					if (a_s.holding) {
 						auto* h = root ? root->GetObjectByName("RArm_Hand") : nullptr;
 						auto* mid = root ? root->GetObjectByName("RArm_Finger31") : nullptr;
 						auto* index = root ? root->GetObjectByName("RArm_Finger21") : nullptr;
@@ -1250,12 +1235,23 @@ namespace ag
 										n = n * -1.0f;
 									}
 								}
-								float radius = 4.5f;
+								float radius = a_s.gameId == sim::GameId::kHoopShot ? 12.0f : 4.5f;
 								if (auto* b3 = ball->Get3D(); b3 && b3->worldBound.fRadius > 0.5f) {
 									radius = b3->worldBound.fRadius;
 								}
-								at = wrist + along * 0.7f + n * (radius * 0.9f);
-								show = true;
+								if (a_s.gameId == sim::GameId::kHoopShot) {
+									// the set shot's right palm on the back of the ball, facing the hoop (the left hand at its
+									// side): shown once the palm's turned to face forward, the ball out in front of it
+									const float        heading = actor->data.angle.z;
+									const RE::NiPoint3 forward{ std::sin(heading), std::cos(heading), 0.0f };
+									if (n.x * forward.x + n.y * forward.y > 0.45f) {
+										at = wrist + along * 0.75f + n * radius;
+										show = true;
+									}
+								} else {
+									at = wrist + along * 0.7f + n * (radius * 0.9f);
+									show = true;
+								}
 							}
 						}
 					}
