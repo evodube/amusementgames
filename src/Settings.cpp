@@ -36,6 +36,7 @@ namespace ag
 		settlersOn = ReadFloat(L"Settlers", L"bSettlersPlay", 1.0f) != 0.0f;
 		settlersGapShortest = std::clamp(ReadFloat(L"Settlers", L"fGapShortest", 45.0f), 5.0f, 1800.0f);
 		settlersGapLongest = std::clamp(ReadFloat(L"Settlers", L"fGapLongest", 120.0f), settlersGapShortest, 3600.0f);
+		settlersDuel = std::clamp(ReadFloat(L"Settlers", L"fDuelPercent", 35.0f), 0.0f, 100.0f);
 	}
 
 	void Settings::Save() const
@@ -46,6 +47,7 @@ namespace ag
 		WriteFloat(L"Settlers", L"bSettlersPlay", settlersOn ? 1.0f : 0.0f);
 		WriteFloat(L"Settlers", L"fGapShortest", settlersGapShortest);
 		WriteFloat(L"Settlers", L"fGapLongest", settlersGapLongest);
+		WriteFloat(L"Settlers", L"fDuelPercent", settlersDuel);
 	}
 
 	namespace SettingsMenu
@@ -121,6 +123,9 @@ namespace ag
 				if (s.settlersGapLongest < s.settlersGapShortest) {
 					s.settlersGapLongest = s.settlersGapShortest;
 				}
+				Saved(IsItemDeactivatedAfterEdit());
+				SetNextItemWidth(260.0f);
+				SliderFloat("Bandit Roundup: two settlers playing each other", &s.settlersDuel, 0.0f, 100.0f, "%.0f %% of games");
 				Saved(IsItemDeactivatedAfterEdit());
 			}
 		}

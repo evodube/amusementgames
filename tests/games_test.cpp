@@ -413,6 +413,28 @@ namespace
 			Check(a > 30 && a > b && b > 0, "bandit roundup: a settler plays it (a good shot beats a poor one)");
 		}
 
+		// 1v1: two settlers side by side at the same targets, each scoring their own hits; the winner 10 more
+		{
+			auto duel = MakeGame(GameId::kBanditRoundup);
+			duel->Start(11);
+			SetGalleryVersus(*duel, "ANN", "BOB");
+			const Vec3     left = layout::SettlerStand1v1(0) + Vec3{ 0, 0, 115 }, right = layout::SettlerStand1v1(1) + Vec3{ 0, 0, 115 };
+			GalleryShooter a(3, 0.006), b(4, 0.02);
+			for (int i = 0; i < 70 * 60 && !duel->Over(); ++i) {
+				Input ia = a.Next(*duel, left, 1.0 / 60.0);
+				duel->Update(1.0 / 60.0, ia);
+				Input ib = b.Next(*duel, right, 1.0 / 60.0);
+				ib.who = 1;
+				duel->Update(0.0, ib);
+			}
+			const int sa = GalleryScore(*duel, 0), sb = GalleryScore(*duel, 1);
+			std::printf("     bandit roundup 1v1: %d to %d\n", sa, sb);
+			Check(duel->Over() && sa > 10 && sb > 10 && sa != sb && duel->Score() == sa, "bandit roundup: a 1v1, each scoring their own hits");
+			HudInfo h;
+			duel->Hud(h);
+			Check(h.verdict == (sa > sb ? "ANN WON" : "BOB WON"), "bandit roundup: a 1v1's winner");
+		}
+
 		// one shot dead centre at a bullseye, either row: 3
 		for (int row = 0; row < 2; ++row) {
 			auto shot = MakeGame(GameId::kBanditRoundup);

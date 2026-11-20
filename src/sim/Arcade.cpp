@@ -882,11 +882,13 @@ namespace sim
 					}
 				}
 				_time = L.seconds;
-				_cool = 0.0;
+				_cool = { 0.0, 0.0 };
 				_score = 0;
-				_shots = 0;
-				_hits = 0;
+				_rival = 0;
+				_shots = { 0, 0 };
+				_hits = { 0, 0 };
 				_bullseyes = 0;
+				_settled = false;
 				_ending = 1.5;
 				_hurried = false;
 				Say(Cue::kStart, { 0, L.rows.empty() ? 0.0 : L.rows[0].y, L.rows.empty() ? 0.0 : L.rows[0].z });
@@ -904,6 +906,15 @@ namespace sim
 					}
 					if (_time <= 0.0) {
 						Say(Cue::kEnd, {});
+						// a 1v1 won: 10 more (as a zapper race won)
+						if (_versus && !_settled) {
+							_settled = true;
+							if (_score > _rival) {
+								Add(10);
+							} else if (_rival > _score) {
+								_rival += 10;
+							}
+						}
 					}
 				} else {
 					_ending -= a_dt;
@@ -926,10 +937,12 @@ namespace sim
 						t.flip = std::min(1.0, t.flip + a_dt / L.flipSeconds);
 					}
 				}
-				_cool -= a_dt;
-				if (a_in.pressed && _time > 0.0 && _cool <= 0.0) {
-					_cool = L.shotSeconds;
-					++_shots;
+				const int who = _versus && a_in.who == 1 ? 1 : 0;
+				_cool[0] -= a_dt;
+				_cool[1] -= a_dt;
+				if (a_in.pressed && _time > 0.0 && _cool[who] <= 0.0) {
+					_cool[who] = L.shotSeconds;
+					++_shots[who];
 					// the nearest upright target the shot passes through
 					int    best = -1;
 					double bestT = 1e30;
@@ -958,7 +971,7 @@ namespace sim
 						auto& t = _targets[best];
 						t.down = true;
 						t.flip = 0.0;
-						++_hits;
+						++_hits[who];
 						// dead centre of a target's bullseye: worth more
 						const auto& k = L.kinds[t.kind];
 						const auto& r = L.rows[t.row];
@@ -966,7 +979,12 @@ namespace sim
 						if (bull) {
 							++_bullseyes;
 						}
-						Add(bull ? L.bullseyePoints : k.points);
+						const int pts = bull ? L.bullseyePoints : k.points;
+						if (who == 0) {
+							Add(pts);
+						} else {
+							_rival += pts;
+						}
 						const auto& row = L.rows[t.row];
 						Say(Cue::kTargetHit, { t.x, row.y, row.z });
 					}
@@ -992,9 +1010,28 @@ namespace sim
 			void Hud(HudInfo& a_out) const override
 			{
 				a_out.timeLeft = _time;
-				a_out.line1 = std::format("BANDITS {}", _hits);
-				a_out.line2 = _shots > 0 ? std::format("{} SHOTS, {}% HIT", _shots, _hits * 100 / _shots) : std::string("FIRE AT THE TARGETS");
+				if (_versus) {
+					a_out.line1 = std::format("{} {}   {} {}", _names[0], _score, _names[1], _rival);
+					a_out.scores = { { _names[0], _score }, { _names[1], _rival } };
+					a_out.line2 = _shots[0] > 0 ? std::format("{} SHOTS, {}% HIT", _shots[0], _hits[0] * 100 / _shots[0]) : std::string("FIRE AT THE TARGETS");
+					if (_time <= 0.0) {
+						a_out.verdict = _score == _rival ? std::string("A TIE") :
+						                _score > _rival  ? (_names[0] == "YOU" ? std::string("YOU WON!") : std::format("{} WON", _names[0])) :
+						                                   (_names[0] == "YOU" ? std::format("YOU LOST · {} WON", _names[1]) : std::format("{} WON", _names[1]));
+					}
+					return;
+				}
+				a_out.line1 = std::format("BANDITS {}", _hits[0]);
+				a_out.line2 = _shots[0] > 0 ? std::format("{} SHOTS, {}% HIT", _shots[0], _hits[0] * 100 / _shots[0]) : std::string("FIRE AT THE TARGETS");
 			}
+
+			void SetVersus(const std::string& a_name0, const std::string& a_name1)
+			{
+				_versus = true;
+				_names = { a_name0, a_name1 };
+			}
+			int  ScoreOf(int a_who) const { return a_who == 1 ? _rival : _score; }
+			bool Versus() const { return _versus; }
 
 			int TicketsFor(int a_score) const override { return TicketTable{ 2, 1, 60, 0, 0 }.For(a_score); }  // a ticket every 2 hits (Nuka-World's rate)
 
@@ -1025,14 +1062,18 @@ namespace sim
 				a_t.kind = PickKind();
 			}
 
-			std::vector<Target> _targets;
-			double              _time{ 0.0 };
-			double              _cool{ 0.0 };
-			double              _ending{ 1.5 };
-			int                 _shots{ 0 };
-			int                 _hits{ 0 };
-			int                 _bullseyes{ 0 };
-			bool                _hurried{ false };
+			std::vector<Target>        _targets;
+			double                     _time{ 0.0 };
+			std::array<double, 2>      _cool{};
+			double                     _ending{ 1.5 };
+			std::array<int, 2>         _shots{};
+			std::array<int, 2>         _hits{};
+			int                        _bullseyes{ 0 };
+			bool                       _hurried{ false };
+			bool                       _versus{ false };
+			bool                       _settled{ false };
+			int                        _rival{ 0 };  // the other's score (1v1)
+			std::array<std::string, 2> _names;
 		};
 	}
 
@@ -1062,6 +1103,25 @@ namespace sim
 		if (auto* z = dynamic_cast<Zapper*>(&a_game)) {
 			z->SetRacers(a_you, a_skill, a_names);
 		}
+	}
+
+	void SetGalleryVersus(Game& a_game, const std::string& a_name0, const std::string& a_name1)
+	{
+		if (auto* g = dynamic_cast<Gallery*>(&a_game)) {
+			g->SetVersus(a_name0, a_name1);
+		}
+	}
+
+	int GalleryScore(const Game& a_game, int a_who)
+	{
+		const auto* g = dynamic_cast<const Gallery*>(&a_game);
+		return g ? g->ScoreOf(a_who) : (a_who == 0 ? a_game.Score() : 0);
+	}
+
+	bool GalleryVersus(const Game& a_game)
+	{
+		const auto* g = dynamic_cast<const Gallery*>(&a_game);
+		return g && g->Versus();
 	}
 
 	std::vector<int> TakeZapperShots(Game& a_game)

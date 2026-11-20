@@ -16,10 +16,17 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Bandit Roundup**: shoot the cut-outs running along the gallery's two tracks with Far Harbor's Lever-Action Rifle
   (iron sights, no scope), for 60 seconds. A point a hit, 3 for dead centre of a
   bullseye, either row. Unlimited ammo while you play: it never needs reloading.
+  Tap F to play alone; hold F for a 1v1 against a settler (**F) Play (hold: 1v1)**): your token in, a settler's
+  called over and the game starts once they've the rifle up (activate it again while waiting to leave, token back).
+  You both shoot at the same targets, any of them: whoever hits one first has its points. You're the left shooter if
+  you're left of the counter's middle when you hold it, the right if right (near the middle, either); the settler
+  takes the other side. Both scores on the machine's board (the left's on top) and on screen; the winner gets 10 more.
 - **Settings** in F4SE Menu Framework (Amusement Games > Whac-a-Commie, Settlers): the Agility swing (on/off, how much,
-  with your Agility and swing speed shown live) and settlers playing (on/off, how often); kept in
+  with your Agility and swing speed shown live) and settlers playing (on/off, how often, how often two play each other
+  at Bandit Roundup); kept in
   `Data\F4SE\Plugins\AmusementGames_user.ini`.
-- **Settlers play too**, one settler to each machine: Bandit Roundup (rifle to the shoulder), Whac-a-Commie (the
+- **Settlers play too**, one settler to each machine: Bandit Roundup (rifle to the shoulder; now and then two settlers
+  play each other, one each side: how often in the settings), Whac-a-Commie (the
   Commie Whacker in hand, one-handed swings), Atomic Rollers (the red ball in hand, rolled with a low underhand
   throw) and Hoop Shot (the basketball in hand, a grenade's throw), their score on the machine's board as they go; at Nuka-Zapper Race, settlers gather at the lanes (up to five: every lane but yours), and 10
   seconds after the second is ready they race. No racing on your own: put your token in and you wait for a settler

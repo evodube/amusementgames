@@ -21,6 +21,7 @@ namespace ag
 		bool  settlersOn{ true };
 		float settlersGapShortest{ 45.0f };  // seconds between their games...
 		float settlersGapLongest{ 120.0f };  // ...to this
+		float settlersDuel{ 35.0f };         // % of Bandit Roundup games two settlers play each other
 
 		void Load();
 		void Save() const;

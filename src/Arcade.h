@@ -80,6 +80,8 @@ namespace ag
 			return it != _lastScores.end() ? it->second : 0;
 		}
 		bool PlayingOn(RE::TESFormID a_machine) const { return _playing && _machineID == a_machine; }
+		// Bandit Roundup 1v1 on a machine (yours with a settler, or two settlers'): the left and right shooters' scores
+		bool DuelScoresOn(RE::TESFormID a_machine, int& a_left, int& a_right) const;
 		// how many of a machine's props are on show: all of them, or while you play on it what the game says
 		int PropsShown(RE::TESFormID a_machine, int a_all) const
 		{
@@ -153,6 +155,38 @@ namespace ag
 		std::atomic<bool> _lmb{ false };
 		std::atomic<bool> _leavePressed{ false };     // the leave key went down
 		bool              _leaveWas{ false };
+		// the Activate key (as bound, keyboard): a machine tapped or held. Bandit Roundup tapped you play alone, held
+		// (kHoldToDuel) a settler's called to take you on
+		std::atomic<int>    _activateVk{ 0 };
+		std::atomic<bool>   _activateDown{ false };
+		std::atomic<double> _activateHeld{ 0.0 };     // ...down this long (now, or the last press)
+		std::chrono::steady_clock::time_point _activateDownAt{};
+		bool                _activateWas{ false };
+		double              _activateVkAge{ 99.0 };
+		struct PendingActivation
+		{
+			RE::ObjectRefHandle machine;
+			double              age{ 0.0 };
+		};
+		PendingActivation _pending;
+		void              ResolvePending(double a_dt);
+
+		// your Bandit Roundup 1v1: your token in, a settler called (a Show, vsYou) to the other side; the game starts
+		// once they've the rifle up. Activate it again while waiting to leave, token back
+		struct Duel
+		{
+			bool                on{ false };
+			bool                started{ false };
+			RE::ObjectRefHandle machine;
+			RE::TESFormID       machineID{ 0 };
+			int                 yourSide{ 0 };  // 0 left, 1 right (the settler the other)
+			int                 tries{ 0 };     // settlers called (one couldn't come: another)
+		};
+		Duel _duel;
+		void StartDuel(RE::TESObjectREFR* a_machine);
+		bool CallRival();
+		void TickDuel();
+		void EndDuel(const char* a_notify, bool a_tokenBack);
 
 		// the game (game thread)
 		std::unique_ptr<sim::Game>           _game;
@@ -208,6 +242,7 @@ namespace ag
 				kNone,
 				kWalking,  // on their way (AmusementGamesQuest's walk package: AmusementGamesNative.NpcStartGallery)
 				kArming,   // there: the rifle being taken up (NpcTakeUp)
+				kWaiting,  // a 1v1: the rifle up, waiting for their rival
 				kPlaying
 			};
 			Phase                                  phase{ Phase::kNone };
@@ -230,6 +265,14 @@ namespace ag
 			double                                 diagT{ 0.0 };
 			bool                                   everDrawn{ false };
 			bool                                   loaded{ false };  // (their magazine first filled: logged)
+			// Bandit Roundup 1v1: their side (-1 alone, 0 left, 1 right); the rival of yours, or of another settler (the
+			// guest: their shots go into the host's game, the host's plays it); the other settler
+			int                                    side{ -1 };
+			bool                                   vsYou{ false };
+			bool                                   guest{ false };
+			RE::TESFormID                          partner{ 0 };
+			double                                 waited{ 0.0 };
+			double                                 skill{ 0.5 };
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been
 			int                                    resends{ 0 };    // ...walks sent again with no step closer between
@@ -263,12 +306,17 @@ namespace ag
 		void TickShow(double a_dt);
 		void TickOne(Show& a_s, double a_dt);
 		bool StartShow();
+		bool CallToPlay(RE::TESObjectREFR* a_machine, RE::Actor* a_who, sim::GameId a_game, int a_side, bool a_vsYou, bool a_guest,
+			RE::TESFormID a_partner);
+		void BeginGame(Show& a_s, RE::TESObjectREFR* a_machine, const Frame& a_f);
+		Show* PartnerOf(const Show& a_s);
 		void EndShow(Show& a_s, const char* a_why);
 		void Release(RE::TESFormID a_actor, RE::TESFormID a_weapon, bool a_added);
+		// the settler's game on a machine (a 1v1's host: not your rival, or the other settler's)
 		const Show* ShowOn(RE::TESFormID a_machine) const
 		{
 			for (const auto& s : _shows) {
-				if (s.phase != Show::Phase::kNone && s.machineID == a_machine) {
+				if (s.phase != Show::Phase::kNone && s.machineID == a_machine && !s.guest && !s.vsYou) {
 					return &s;
 				}
 			}

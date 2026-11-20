@@ -366,9 +366,9 @@ def token_stand(form_id: int, properties: list[tuple[str, int]]) -> bytes:
     )
 
 
-def machine(form_id: int, editor_id: str, name: str, mesh: str, bounds: tuple, preview: int) -> bytes:
+def machine(form_id: int, editor_id: str, name: str, mesh: str, bounds: tuple, preview: int, prompt: str = "Play") -> bytes:
     """An arcade machine: an activator with no script (activating it is what the plugin listens for), Nuka-World's
-    model, bounds and workshop preview."""
+    model, bounds and workshop preview; its prompt (Bandit Roundup's says a hold is a 1v1)."""
     return record(
         b"ACTI", 0, form_id,
         subrecord(b"EDID", zstring(editor_id))
@@ -376,7 +376,7 @@ def machine(form_id: int, editor_id: str, name: str, mesh: str, bounds: tuple, p
         + subrecord(b"PTRN", struct.pack("<I", preview))
         + subrecord(b"FULL", zstring(name))
         + subrecord(b"MODL", zstring(mesh))
-        + subrecord(b"ATTX", zstring("Play"))
+        + subrecord(b"ATTX", zstring(prompt))
         + subrecord(b"FNAM", struct.pack("<H", 0)),
     )
 
@@ -509,7 +509,8 @@ def build() -> bytes:
 
     # ---- the machines and their pieces
     for off, name, title, mesh, bounds, preview in GAMES:
-        acti.append(machine(OWN | (FIRST_ID + off), f"AmusementGames{name}", title, GAMES_DIR + mesh, bounds, preview))
+        acti.append(machine(OWN | (FIRST_ID + off), f"AmusementGames{name}", title, GAMES_DIR + mesh, bounds, preview,
+                            "Play (hold: 1v1)" if name == "BanditRoundup" else "Play"))
     stats = [stat(OWN | (FIRST_ID + off), f"AmusementGamesPiece{name}", mesh, bounds) for off, name, mesh, bounds in PIECES
              if name != "CommieHead"]
     # the commie's head: an activator (no script, nothing to activate), as Nuka-World's own heads are: it gets hit events
