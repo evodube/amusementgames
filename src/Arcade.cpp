@@ -875,7 +875,10 @@ namespace ag
 		constexpr double    kSteadyBeforeShot = 2.5;           // the rifle drawn this long before a shot
 		constexpr float     kWhacMalletReach = 14.0f;          // a settler's mallet head this near a head's middle: a hit
 		constexpr float     kWhacHeadMiddle = 8.0f;            // ...its middle above where it's placed
-		constexpr double    kWhacSwingLong = 0.9;              // ...a swing followed this long
+		constexpr double    kWhacSwingLong = 1.6;              // ...a swing followed this long (the Papyrus call's wait, the
+		                                                       // turn and the swing's wind-up before it comes down)
+		constexpr double    kWhacSwingDown = 0.6;              // ...by then it's come down
+		constexpr float     kWhacSpotMost = 80.0f;             // ...their spot moved toward the heads no further than this
 		constexpr double    kZapperAimUnder = 45.0;            // a zapper racer's aim point, under their target's centre
 	}
 
@@ -1187,7 +1190,35 @@ namespace ag
 		if (!a_s.shooter) {
 			sim::Input in;
 			if (a_s.whacker) {
+				// a swing over (it missed): their spot moved by most of how far the mallet came down short of (or past, or
+				// beside) the head they were after, flat on the ground, so the next swings land (no further than 80 from
+				// where the machine puts them)
+				// a swing over that missed: their spot moved by most of how far the mallet came down short of (or past, or
+				// beside) the head they were after, flat on the ground, so the next swings land (no further than 80 from
+				// where the machine puts them). Not off a swing cut short before it could come down
+				const auto missed = [&]() {
+					if (a_s.swingBest < 1e8f && a_s.swingT >= kWhacSwingDown) {
+						if (auto spot = a_s.marker.get()) {
+							const RE::NiPoint3 home = ToWorld(f, sim::layout::SettlerStand(a_s.gameId));
+							RE::NiPoint3       off{ spot->data.location.x + a_s.swingMiss.x * 0.7f - home.x,
+                                spot->data.location.y + a_s.swingMiss.y * 0.7f - home.y, 0.0f };
+							if (const float len = off.Length(); len > kWhacSpotMost) {
+								off = off * (kWhacSpotMost / len);
+							}
+							spot->data.location.x = home.x + off.x;
+							spot->data.location.y = home.y + off.y;
+						}
+						if (a_s.misses++ < 6) {
+							log::info("WHAC-A-COMMIE: {}'s swing missed, its mallet {:.0f} from the head ({:+.0f} {:+.0f} {:+.0f}): their spot moved toward it",
+								a_s.name, a_s.swingBest, a_s.swingMiss.x, a_s.swingMiss.y, a_s.swingMiss.z);
+						}
+					}
+					a_s.swingT = -1.0;
+				};
 				if (a_s.whacker->Update(*a_s.game, a_dt)) {
+					if (a_s.swingT >= 0.0) {
+						missed();  // (the last swing not over yet: settled first)
+					}
 					auto spot = a_s.marker.get();
 					auto at = a_s.aimAt.get();
 					// turned to the head they're after: what they face, moved onto its hole
@@ -1199,6 +1230,7 @@ namespace ag
 					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()), Papyrus::Id(at.get()), Papyrus::Id(a_s.weapon) });
 					a_s.swingT = 0.0;
 					a_s.swingBest = 1e9f;
+					a_s.swingTarget = a_s.whacker->Target();
 				}
 				// the swing's mallet coming down: a head it gets to is hit (a settler's melee hits on the heads never come
 				// through as hit events, so their mallet's head is followed instead). Its head: the far end of what's in
@@ -1216,13 +1248,17 @@ namespace ag
 						for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
 							auto  ref = a_s.pieces[i].get();
 							auto* h3 = ref ? ref->Get3D() : nullptr;
-							if (!h3 || pieces[i].hidden) {
+							if (!h3) {
 								continue;
 							}
 							const RE::NiPoint3 top = h3->world.translate + RE::NiPoint3{ 0.0f, 0.0f, kWhacHeadMiddle };
 							const float        d = (head - top).Length();
-							a_s.swingBest = std::min(a_s.swingBest, d);
-							if (d < kWhacMalletReach) {
+							// (the head they were after, up or not: where the mallet came nearest it)
+							if (static_cast<int>(i) == a_s.swingTarget && d < a_s.swingBest) {
+								a_s.swingBest = d;
+								a_s.swingMiss = top - head;
+							}
+							if (!pieces[i].hidden && d < kWhacMalletReach) {
 								a_s.game->OnPieceHit(static_cast<int>(i));
 								if (++a_s.hits == 1) {
 									log::info("WHAC-A-COMMIE: {}'s mallet is landing on the heads", a_s.name);
@@ -1233,11 +1269,7 @@ namespace ag
 						}
 					}
 					if (a_s.swingT > kWhacSwingLong) {
-						// (missed: how near it came, the first few times, to set where they stand by)
-						if (a_s.misses++ < 4) {
-							log::info("WHAC-A-COMMIE: {}'s swing missed, its mallet {:.0f} from the nearest head", a_s.name, a_s.swingBest);
-						}
-						a_s.swingT = -1.0;
+						missed();
 					}
 				}
 			} else if (a_s.thrower) {

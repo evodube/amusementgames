@@ -410,7 +410,7 @@ Int Function NpcSwing(Int aiActor, Int aiSpot, Int aiAt, Int aiWeapon) Global
 	; at the machine, facing it: back on their spot if a swing's carried them off it, turned to the head they're after
 	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
 	ObjectReference at = Game.GetForm(aiAt) as ObjectReference
-	If spot && a.GetDistance(spot) > 20.0
+	If spot && a.GetDistance(spot) > 4.0
 		a.MoveTo(spot)
 	EndIf
 	If at
