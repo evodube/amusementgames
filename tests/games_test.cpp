@@ -265,7 +265,7 @@ namespace
             return LookAt(eye, { 0, 0, 0 });
         }, 60.0, &took);
 		std::printf("     whac-a-commie: %d points in %.1f s, %d tickets\n", s, took, g->TicketsFor(s));
-		Check(s > 20, "whac-a-commie: a quick player whacks plenty");
+		Check(s > 2000, "whac-a-commie: a quick player whacks plenty");
 		Check(g->Over() && took < 33.0, "whac-a-commie: over after its 30 seconds");
 		auto      idle = MakeGame(GameId::kWhacACommie);
 		const int none = Play(*idle, [&](Game& a_g, double) {
@@ -274,7 +274,7 @@ namespace
             in.pressed = true;  // (clicking scores nothing: only the weapon's hits)
             return in;
         }, 60.0);
-		Check(none < 20, "whac-a-commie: clicks score nothing; whacking one hole only gets its own heads");
+		Check(none < 2000, "whac-a-commie: clicks score nothing; whacking one hole only gets its own heads");
 	}
 
 	void Zapper()
@@ -399,7 +399,7 @@ namespace
 			}, 40.0);
 		}
 		std::printf("     whac-a-commie settlers: a good one %d, a poor one %d\n", got[0], got[1]);
-		Check(got[0] > 5 && got[0] > got[1] && got[1] > 0, "whac-a-commie: a settler plays it (a good one beats a poor one)");
+		Check(got[0] > 500 && got[0] > got[1] && got[1] > 0, "whac-a-commie: a settler plays it (a good one beats a poor one)");
 	}
 
 	void Gallery()
@@ -425,10 +425,10 @@ namespace
             return in;
         }, 60.0);
 		std::printf("     bandit roundup: %d points, %d tickets\n", s, g->TicketsFor(s));
-		Check(s > 20, "bandit roundup: aiming at the targets hits them");
+		Check(s > 2000, "bandit roundup: aiming at the targets hits them");
 		// its tickets at Nuka-World's rate: what its gallery scores each target (100 to 300), a ticket every 200, so
-		// between half a ticket and one and a half a hit (a bullseye's 3 points no more)
-		Check(g->TicketsFor(s) * 2 >= s / 3 - 2 && g->TicketsFor(s) * 2 <= s * 3 + 2,
+		// between half a ticket and one and a half a hit (a hit 100 points, a bullseye's 300 no more tickets)
+		Check(g->TicketsFor(s) * 2 >= s / 300 - 2 && g->TicketsFor(s) * 2 <= s / 100 * 3 + 2,
 			"bandit roundup: tickets at Nuka-World's rate (half a ticket to one and a half a hit)");
 
 		// a settler at it: a good shot scores, a poor one less
@@ -439,7 +439,7 @@ namespace
 			const int a = Play(*good, [&](Game& a_g, double) { return sg.Next(a_g, eye, 1.0 / 60.0); }, 70.0);
 			const int b = Play(*poor, [&](Game& a_g, double) { return sp.Next(a_g, eye, 1.0 / 60.0); }, 70.0);
 			std::printf("     bandit roundup settlers: a good shot %d points, a poor one %d\n", a, b);
-			Check(a > 30 && a > b && b > 0, "bandit roundup: a settler plays it (a good shot beats a poor one)");
+			Check(a > 3000 && a > b && b > 0, "bandit roundup: a settler plays it (a good shot beats a poor one)");
 		}
 
 		// 1v1: two settlers side by side at the same targets, each scoring their own hits; the winner 10 more
@@ -458,13 +458,13 @@ namespace
 			}
 			const int sa = GalleryScore(*duel, 0), sb = GalleryScore(*duel, 1);
 			std::printf("     bandit roundup 1v1: %d to %d\n", sa, sb);
-			Check(duel->Over() && sa > 10 && sb > 10 && sa != sb && duel->Score() == sa, "bandit roundup: a 1v1, each scoring their own hits");
+			Check(duel->Over() && sa > 1000 && sb > 1000 && sa != sb && duel->Score() == sa, "bandit roundup: a 1v1, each scoring their own hits");
 			HudInfo h;
 			duel->Hud(h);
 			Check(h.verdict == (sa > sb ? "ANN WON" : "BOB WON"), "bandit roundup: a 1v1's winner");
 		}
 
-		// one shot dead centre at a bullseye, either row: 3
+		// one shot dead centre at a bullseye, either row: 300
 		for (int row = 0; row < 2; ++row) {
 			auto shot = MakeGame(GameId::kBanditRoundup);
 			shot->Start(5);
@@ -480,8 +480,8 @@ namespace
 			Input in = LookAt(eye, p.pos + Vec3{ k.bullX, 0, k.bullZ });
 			in.pressed = true;
 			shot->Update(0.0, in);
-			Check(shot->Score() == 3, row == 0 ? "bandit roundup: dead centre of a top-row bullseye is 3" :
-			                                     "bandit roundup: dead centre of a bottom-row bullseye is 3");
+			Check(shot->Score() == 300, row == 0 ? "bandit roundup: dead centre of a top-row bullseye is 300" :
+			                                     "bandit roundup: dead centre of a bottom-row bullseye is 300");
 		}
 	}
 

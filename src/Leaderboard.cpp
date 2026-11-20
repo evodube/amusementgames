@@ -257,12 +257,17 @@ namespace ag::Leaderboard
 		}
 	}
 
-	void Load(const F4SE::SerializationInterface* a_intfc, std::uint32_t, std::uint32_t)
+	void Load(const F4SE::SerializationInterface* a_intfc, std::uint32_t a_version, std::uint32_t)
 	{
 		std::scoped_lock l(g_lock);
 		g_published = false;
 		for (auto& b : g_boards) {
 			b.clear();
+		}
+		for (int game = 0; game < kGames; ++game) {
+			auto& b = g_boards[game];
+			// (saved before points went to hundreds: scores x 100; Atomic Rollers' always were, the zapper's are wins)
+			const bool hundred = a_version < 2 && game != kRace && game != static_cast<int>(sim::GameId::kAtomicRollers);
 			std::uint32_t n = 0;
 			if (!a_intfc->ReadRecordData(&n, sizeof(n))) {
 				return;
@@ -283,6 +288,9 @@ namespace ag::Leaderboard
 				} else {
 					e.actor = 0;
 					e.gone = 1;
+				}
+				if (hundred) {
+					e.score *= 100;
 				}
 				b.push_back(e);
 			}

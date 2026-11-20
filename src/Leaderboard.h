@@ -31,5 +31,5 @@ namespace ag::Leaderboard
 	void Revert();
 
 	inline constexpr std::uint32_t kSaveType = 0x41475450;  // 'AGTP': the boards
-	inline constexpr std::uint32_t kSaveVersion = 1;
+	inline constexpr std::uint32_t kSaveVersion = 2;  // (2: points in hundreds; 1's were ones but Atomic Rollers')
 }

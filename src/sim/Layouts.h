@@ -85,7 +85,7 @@ namespace sim::layout
 		double chargeSeconds{ 0.7 };
 		double reloadSeconds{ 0.35 };
 		double ballLife{ 6.0 };
-		int    points{ 1 };                 // a basket
+		int    points{ 100 };               // a basket (Nuka-World's)
 		double bounce{ 0.385 };             // how much of its speed into a surface the ball keeps (the cage, board, rim)
 	};
 
@@ -109,7 +109,7 @@ namespace sim::layout
 		double            gapShortest{ 0.35 }; // ...and at the end
 		int               mostUp{ 3 };         // most at once by the end
 		double            swingSeconds{ 0.18 };
-		int               points{ 1 };         // a whack
+		int               points{ 100 };       // a whack (Nuka-World's)
 		Vec3              malletRest{ -38.74, -36.02, 70.72 };  // the mallet in its holder (the whacker01 node)
 		                                                    // (its handle's end here, its head toward the front-left corner)
 	};
@@ -143,8 +143,8 @@ namespace sim::layout
 		double aiHitWorst{ 0.4 };           // ...each hitting with this chance (the worst player)...
 		double aiHitBest{ 0.75 };           // ...to this (the best)
 		double rocketRise{ 3.0 };           // how fast a rocket climbs to its height (a fraction a second)
-		int    pointsPerHit{ 1 };
-		int    winPoints{ 10 };             // a win's bonus
+		int    pointsPerHit{ 100 };         // (as Nuka-World's steps up)
+		int    winPoints{ 1000 };           // a win's bonus (as Nuka-World's)
 		double standY{ -80.0 };             // settlers racing stand this far out, behind their lane's gun
 		std::vector<int> settlerLanes{ 2, 4, 1, 5, 0 };  // the lanes settlers take, in turn (all but yours, out from it)
 		double gatherSeconds{ 10.0 };       // the race starts this long after the second settler's ready...
@@ -165,7 +165,7 @@ namespace sim::layout
 
 	struct GalleryKind  // the five cut-outs, in the plugin's model order: duck, bunny, pig, bottle, star
 	{
-		int    points{ 1 };
+		int    points{ 100 };
 		double radius{ 10.0 };  // how big a target it is
 		double height{ 10.0 };  // its middle above its feet
 		double weight{ 1.0 };   // how often it comes up
@@ -180,11 +180,11 @@ namespace sim::layout
 		double                   left{ -224.0 };
 		double                   right{ 232.0 };
 		std::vector<GalleryRow>  rows{ { 418.3, 180.2, 75.0, 6, true }, { 375.0, 111.2, -95.0, 6, true } };
-		// a point a hit, whatever it is; the bullseyes' centres from the models' bullseye plates (their :173 shapes). The
+		// 100 a hit, whatever it is; the bullseyes' centres from the models' bullseye plates (their :173 shapes). The
 		// tickets go by Nuka-World's own values (DLC04_Nukacade_BanditRoundup's ScoreEvents, its targets told apart by
 		// their bounds: the bunny 100, the pig 150, the duck 200, the star 250, the bottle 300)
-		std::vector<GalleryKind> kinds{ { 1, 14.0, 14.0, 4.0, -0.7, 11.1, 200 }, { 1, 15.0, 16.0, 3.0, -0.4, 11.0, 100 },
-			{ 1, 13.0, 11.0, 2.0, -1.1, 15.0, 150 }, { 1, 8.0, 22.0, 1.2, 0.0, 20.0, 300 }, { 1, 12.0, 11.0, 0.6, -0.15, 14.15, 250 } };
+		std::vector<GalleryKind> kinds{ { 100, 14.0, 14.0, 4.0, -0.7, 11.1, 200 }, { 100, 15.0, 16.0, 3.0, -0.4, 11.0, 100 },
+			{ 100, 13.0, 11.0, 2.0, -1.1, 15.0, 150 }, { 100, 8.0, 22.0, 1.2, 0.0, 20.0, 300 }, { 100, 12.0, 11.0, 0.6, -0.15, 14.15, 250 } };
 		Vec3                     stand{ -15.0, -135.0, 0.0 };   // where a settler playing it stands: well back from the
 		                                                        // counter (its front at -47; near it, the game reads the
 		                                                        // counter as low cover and they crouch to aim over it;
@@ -194,7 +194,7 @@ namespace sim::layout
 		Vec3                     rifleRest{ 12.0, 3.0, 67.0 };  // the rifle lying along the counter (its top at 64, from y -32 to
 		                                                        // 38: too shallow for it to point at the targets), its grip here
 		double                   deadCentre{ 2.0 };   // within this of a bullseye's centre (either row's)...
-		int                      bullseyePoints{ 3 }; // ...is worth this
+		int                      bullseyePoints{ 300 }; // ...is worth this
 		double                   flipSeconds{ 0.15 };
 		double                   shotSeconds{ 0.6 };  // the lever between shots
 	};

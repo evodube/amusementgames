@@ -164,7 +164,7 @@ namespace sim
 	// settlers race each other: the game's score is then the winner's)
 	void SetZapperRacers(Game& a_game, int a_you, const std::vector<double>& a_skill, const std::vector<std::string>& a_names);
 	// Bandit Roundup 1v1: two shooting at the same targets, any of them (Input::who 0 and 1; the rival's shots come in
-	// with no time passing, Update(0, ...)). Named for the HUD ("YOU" for you); the winner's 10 more at the end. Each's
+	// with no time passing, Update(0, ...)). Named for the HUD ("YOU" for you); the winner's 1000 more at the end. Each's
 	// score, and whether it's a 1v1
 	void SetGalleryVersus(Game& a_game, const std::string& a_name0, const std::string& a_name1);
 	// Whac-a-Commie: a settler's game's heads up a_scale as long (their swing comes down about a second after they
