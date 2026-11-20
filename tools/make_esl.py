@@ -346,6 +346,18 @@ def message(form_id: int, editor_id: str, text: str, title: str = "", buttons: l
     return record(b"MESG", 0, form_id, body)
 
 
+def idle(form_id: int, editor_id: str, animation: str) -> bytes:
+    """A dynamic idle playing our own .hkx, laid out as Nuka-World's DLC04LooseSmokeBombThrow: the human behavior graph,
+    event dyn_Activation, the file in GNAM (Meshes-relative, .hkt as the game's own spell it), no conditions."""
+    return record(b"IDLE", 0, form_id,
+                  subrecord(b"EDID", zstring(editor_id))
+                  + subrecord(b"DNAM", zstring("actors\\Character\\Behaviors\\RaiderRootBehavior.hkx"))
+                  + subrecord(b"ENAM", zstring("dyn_Activation"))
+                  + subrecord(b"ANAM", struct.pack("<II", 0, 0))
+                  + subrecord(b"DATA", bytes((0, 0, 1, 0x53, 0, 0)))
+                  + subrecord(b"GNAM", zstring(f"Actors/Character/Animations/AmusementGames/{animation}.hkt")))
+
+
 def global_float(form_id: int, editor_id: str, value: float) -> bytes:
     return record(b"GLOB", 0, form_id,
                   subrecord(b"EDID", zstring(editor_id)) + subrecord(b"FNAM", b"f") + subrecord(b"FLTV", struct.pack("<f", value)))
@@ -446,12 +458,16 @@ def build() -> bytes:
                 + subrecord(b"MODL", zstring(mesh))
                 + subrecord(b"FNAM", struct.pack("<H", 0))))
 
-    count = len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests)
+    # ---- the throws settlers make at Hoop Shot and Atomic Rollers: our own animations (30 fps, Blender + PyNifly)
+    idles = [idle(OWN | (FIRST_ID + 0x30), "AmusementGamesBasketballShot", "AGBasketballShot"),
+             idle(OWN | (FIRST_ID + 0x31), "AmusementGamesSkeeballRoll", "AGSkeeballRoll")]
+
+    count = len(idles) + len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests)
     header = record(
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x30))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x32))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
@@ -462,7 +478,7 @@ def build() -> bytes:
     # groups in the order the game's own master has them
     return (header + group(b"GLOB", b"".join(globs)) + group(b"KYWD", b"".join(keywords))
             + group(b"ACTI", b"".join(acti)) + group(b"STAT", b"".join(stats)) + group(b"QUST", b"".join(quests))
-            + group(b"PACK", b"".join(packages)) + group(b"MESG", b"".join(messages)) + group(b"ARTO", b"".join(art))
+            + group(b"IDLE", b"".join(idles)) + group(b"PACK", b"".join(packages)) + group(b"MESG", b"".join(messages)) + group(b"ARTO", b"".join(art))
             + group(b"COBJ", b"".join(recipes)))
 
 

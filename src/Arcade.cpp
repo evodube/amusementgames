@@ -1020,6 +1020,8 @@ namespace ag
 			case sim::GameId::kHoopShot:
 				{
 					a_s.thrower = std::make_unique<sim::Thrower>(seed ^ 0x5EED, skill, a_s.gameId);
+					// our own throw animations let go at frame 24 (Hoop Shot) and 22 (Atomic Rollers), at 30 fps
+					a_s.thrower->SetLead(a_s.gameId == sim::GameId::kHoopShot ? 24.0 / 30.0 : 22.0 / 30.0);
 					// the ball in their hand
 					const auto ids = Forms::PiecesOf(a_s.gameId);
 					if (auto* ball = ids.empty() ? nullptr : Forms::Bound(Forms::Own(ids[0]))) {
@@ -1056,6 +1058,9 @@ namespace ag
 				in = a_s.thrower->Next(a_dt);
 				a_s.sinceThrow += a_dt;
 				if (in.released) {
+					a_s.sinceThrow = 0.0;
+				}
+				if (a_s.thrower->TakeCue()) {
 					static std::atomic<int> told{ -1 };  // (how the throws go: logged once each way)
 					const std::string       name = a_s.name;
 					const auto              game = a_s.gameId;
@@ -1063,11 +1068,11 @@ namespace ag
 						[name, game](std::int32_t a_r) {
 							if (told.exchange(a_r) != a_r) {
 								log::info("{}: {}'s throws: {}", sim::GameName(game), name,
+									a_r == 4 ? (game == sim::GameId::kHoopShot ? "our basketball shot" : "our skee-ball roll") :
 									a_r == 1 ? (game == sim::GameId::kHoopShot ? "the grenade throw" : "the mine throw") :
 									a_r == 3 ? "Nuka-World's smoke bomb toss (the throw wouldn't play)" : "no animation would play");
 							}
 						});
-					a_s.sinceThrow = 0.0;
 				}
 			}
 			a_s.game->Update(a_dt, in);

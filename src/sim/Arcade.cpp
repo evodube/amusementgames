@@ -1029,7 +1029,24 @@ namespace sim
 
 	Thrower::Thrower(std::uint32_t a_seed, double a_skill, GameId a_game) :
 		_rng(a_seed), _skill(std::clamp(a_skill, 0.0, 1.0)), _game(a_game)
-	{}
+	{
+		Plan();
+	}
+
+	void Thrower::Plan()
+	{
+		std::normal_distribution<double> n(0.0, 1.0);
+		const double                     off = 1.0 - _skill;
+		if (_game == GameId::kHoopShot) {
+			const auto& L = layout::Hoop();
+			_at = L.rim + Vec3{ n(_rng) * 4.0 * off, 0.0, n(_rng) * 3.0 * off };
+			_charge = std::max(0.05, 0.38 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
+		} else {
+			const auto& L = layout::Rollers();
+			_at = Vec3{ n(_rng) * (2.0 + 10.0 * off), L.release.y + 40.0, L.release.z };
+			_charge = L.chargeSeconds * std::uniform_real_distribution<double>(0.3, 0.9)(_rng);
+		}
+	}
 
 	Vec3 Thrower::Eye() const
 	{
@@ -1042,38 +1059,36 @@ namespace sim
 
 	Input Thrower::Next(double a_dt)
 	{
-		Input  in;
+		Input in;
 		in.eye = Eye();
-		std::normal_distribution<double> n(0.0, 1.0);
 		if (_held < 0.0) {
 			_wait -= a_dt;
 			if (_wait > 0.0) {
 				in.dir = (_game == GameId::kHoopShot ? layout::Hoop().rim : Vec3{ 0.0, layout::Rollers().release.y + 40.0, layout::Rollers().release.z }) - in.eye;
 				in.dir = in.dir.Normalized();
-				return in;
-			}
-			// a throw: where, and how hard
-			const double off = 1.0 - _skill;
-			if (_game == GameId::kHoopShot) {
-				const auto& L = layout::Hoop();
-				_at = L.rim + Vec3{ n(_rng) * 4.0 * off, 0.0, n(_rng) * 3.0 * off };
-				_charge = std::max(0.05, 0.38 * (1.0 + n(_rng) * (0.04 + 0.12 * off)));
 			} else {
-				const auto& L = layout::Rollers();
-				_at = Vec3{ n(_rng) * (2.0 + 10.0 * off), L.release.y + 40.0, L.release.z };
-				_charge = L.chargeSeconds * std::uniform_real_distribution<double>(0.3, 0.9)(_rng);
+				// the throw planned: pressed, held _charge, let go
+				_held = 0.0;
+				in.pressed = in.held = true;
+				in.dir = (_at - in.eye).Normalized();
 			}
-			_held = 0.0;
-			in.pressed = in.held = true;
 		} else if (_held < _charge) {
 			_held += a_dt;
 			in.held = true;
+			in.dir = (_at - in.eye).Normalized();
 		} else {
 			in.released = true;
+			in.dir = (_at - in.eye).Normalized();
 			_held = -1.0;
 			_wait = _game == GameId::kHoopShot ? 2.2 : 3.0;
+			Plan();
+			_cued = false;
 		}
-		in.dir = (_at - in.eye).Normalized();
+		// the animation's cue: _lead before the release
+		const double toRelease = _held < 0.0 ? std::max(0.0, _wait) + _charge : _charge - _held;
+		if (!_cued && !in.released && toRelease <= _lead) {
+			_cued = _cue = true;
+		}
 		return in;
 	}
 

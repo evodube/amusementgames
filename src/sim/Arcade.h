@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <random>
+#include <utility>
 #include <string>
 #include <vector>
 
@@ -187,11 +188,20 @@ namespace sim
 		Thrower(std::uint32_t a_seed, double a_skill, GameId a_game);
 		Input Next(double a_dt);
 		Vec3  Eye() const;
+		// the throw's animation lets go a_seconds after it starts: TakeCue() is true once a throw, that long before
+		// the ball's released (so the hand opens as the game lets the ball go)
+		void SetLead(double a_seconds) { _lead = a_seconds; }
+		bool TakeCue() { return std::exchange(_cue, false); }
 
 	private:
+		void Plan();  // the next throw: where, and how long it's held
+
 		std::mt19937 _rng;
 		double       _skill;
 		GameId       _game;
+		double       _lead{ 0.0 };
+		bool         _cued{ false };
+		bool         _cue{ false };
 		double       _wait{ 2.0 };   // till the next throw's charge starts
 		double       _charge{ 0.0 }; // ...how long it's held
 		double       _held{ -1.0 };  // ...held so far (-1: not holding)

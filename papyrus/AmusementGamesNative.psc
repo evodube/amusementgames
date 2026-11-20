@@ -369,6 +369,9 @@ EndFunction
 ; neither (the event sent)
 Int Function NpcRoll(Int aiActor) Global
 	Actor a = Game.GetForm(aiActor) as Actor
+	If a && a.PlayIdle(Game.GetFormFromFile(0x000831, "AmusementGames.esl") as Idle)
+		Return 4  ; (AmusementGamesSkeeballRoll: our own)
+	EndIf
 	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F0, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000EC533, "Fallout4.esm") as Idle))
 		Return 1  ; (CharacterMTMineThrow, CharacterWeaponMineThrow)
 	EndIf
@@ -378,6 +381,9 @@ EndFunction
 ; Hoop Shot: the basketball thrown, a grenade's throw; or the smoke bomb toss
 Int Function NpcToss(Int aiActor) Global
 	Actor a = Game.GetForm(aiActor) as Actor
+	If a && a.PlayIdle(Game.GetFormFromFile(0x000830, "AmusementGames.esl") as Idle)
+		Return 4  ; (AmusementGamesBasketballShot: our own)
+	EndIf
 	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F1, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000CF927, "Fallout4.esm") as Idle))
 		Return 1  ; (CharacterMTGrenadeThrow, CharacterWeaponGrenadeThrow)
 	EndIf
