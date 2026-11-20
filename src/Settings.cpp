@@ -36,6 +36,7 @@ namespace ag
 		settlersDuel = std::clamp(ReadFloat(L"Settlers", L"fDuelPercent", 35.0f), 0.0f, 100.0f);
 		incomeCaps = std::clamp(ReadFloat(L"Income", L"fCapsPerSettler", 1.0f), 0.0f, 100.0f);
 		incomeTickets = std::clamp(ReadFloat(L"Income", L"fTicketsPerSettler", 2.0f), 0.0f, 100.0f);
+		playTickets = std::clamp(ReadFloat(L"Income", L"fPlayTicketsMult", 2.0f), 0.5f, 5.0f);
 	}
 
 	void Settings::Save() const
@@ -46,6 +47,7 @@ namespace ag
 		WriteFloat(L"Settlers", L"fDuelPercent", settlersDuel);
 		WriteFloat(L"Income", L"fCapsPerSettler", incomeCaps);
 		WriteFloat(L"Income", L"fTicketsPerSettler", incomeTickets);
+		WriteFloat(L"Income", L"fPlayTicketsMult", playTickets);
 	}
 
 	namespace SettingsMenu
@@ -95,6 +97,11 @@ namespace ag
 				Saved(IsItemDeactivatedAfterEdit());
 				SetNextItemWidth(260.0f);
 				SliderFloat("Tickets a day, per settler, per machine", &s.incomeTickets, 0.0f, 20.0f, "%.1f");
+				Saved(IsItemDeactivatedAfterEdit());
+				Spacing();
+				TextWrapped("The tickets you win playing: each game's own rate (Nuka-World's) times this.");
+				SetNextItemWidth(260.0f);
+				SliderFloat("Tickets from playing", &s.playTickets, 0.5f, 5.0f, "%.1fx");
 				Saved(IsItemDeactivatedAfterEdit());
 			}
 		}

@@ -22,6 +22,9 @@ namespace ag
 		float incomeCaps{ 1.0f };
 		float incomeTickets{ 2.0f };
 
+		// the tickets you win playing: each game's own rate times this
+		float playTickets{ 2.0f };
+
 		void Load();
 		void Save() const;
 	};

@@ -371,7 +371,8 @@ namespace ag
 		}
 		auto       machine = _machine.get();
 		const int  score = _game->Score();
-		const int  tickets = _game->TicketsFor(score);
+		// (the game's own rate, times the Income page's multiplier: 2x unless changed)
+		const int  tickets = static_cast<int>(std::lround(_game->TicketsFor(score) * Settings::Get().playTickets));
 		auto&      best = _best[static_cast<int>(_gameId)];
 		const bool newBest = score > best && score > 0;
 		if (newBest) {

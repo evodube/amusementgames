@@ -34,6 +34,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Takings**: each machine earns its settlement 1 cap and 2 Nuka-Cade tickets a day for every settler there, put in
   the workbench when you're back (up to 30 days' worth). Both rates are on the Income page of the mod's settings
   (F4SE Menu Framework), or `[Income] fCapsPerSettler` / `fTicketsPerSettler` in `AmusementGames_user.ini`.
+- **Tickets from playing**: each game's rate below, doubled by default; the multiplier is on the same Income page
+  (`fPlayTicketsMult`, 0.5x to 5x).
 - **Token Stand**: press F to buy 5 Nuka-Cade tokens (5 caps a token, 25 a press). Each game takes a token.
 - **Prize Counter**: a terminal (no power needed) that trades Nuka-Cade tickets for Nuka-World's own things. A prize
   you haven't the tickets for says "(not enough)".
@@ -51,7 +53,7 @@ the power meter while you charge a throw; Atomic Rollers also shows each ball's 
 line up the lane to where you look (as fo4bowling's). At the end, the result. The machine's own scoreboard has the score.
 
 A point a hit (a basket, a whack, a target, a step up the zapper race; a race won is 10 more); Atomic Rollers' holes are
-worth what they say. Tickets come out at Nuka-World's own rates: a ticket every 100 at Atomic Rollers, every 2
+worth what they say. Tickets come out at Nuka-World's own rates, doubled (the Income page's multiplier): a ticket every 100 at Atomic Rollers, every 2
 points at the rest. They're Nuka-Cade tickets, so the Nuka-Cade's prize terminal takes them too. The weapon's lent
 for the game (with ammo) if you haven't one, and you get back what you had out after. Each machine's own scoreboard
 shows the game on it and your best at that game, kept in your save. X leaves a game early, paid for the score so far.
