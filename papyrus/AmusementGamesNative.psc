@@ -219,7 +219,11 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	m.SetPosition(m.GetPositionX(), m.GetPositionY(), a.GetPositionZ())
 	a.MoveTo(m)
 	If !w
-		Return 1  ; (a game played with the hands: Atomic Rollers, Hoop Shot)
+		; (a game played with the hands: Atomic Rollers, Hoop Shot) held in place while they play: each throw's idle
+		; had them walk a few steps toward the machine first (an activation idle closing in on what's in front of them,
+		; when they weren't near it already). Let go in NpcEnd
+		a.SetRestrained(True)
+		Return 1
 	EndIf
 	Int r = 1
 	Bool zapper = w == Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm")
@@ -297,14 +301,24 @@ EndFunction
 ; ...a shot (they're aiming already: their hold package aims at the targets; drawn and raised again if they've put it
 ; away): the rifle's own shot animation, which fires it, as at an enemy; fired from them without it only if that won't play. 1: the shot animation, 2: fired without
 ; it, 0: no one to fire it
+; a settler's gun found put away mid-game: out again at once (it's never put away while they play)
+Function NpcDraw(Int aiActor) Global
+	Actor a = Game.GetForm(aiActor) as Actor
+	If a && !a.IsWeaponDrawn()
+		a.DrawWeapon()
+	EndIf
+EndFunction
+
 Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	Actor a = Game.GetForm(aiActor) as Actor
 	Weapon w = Game.GetForm(aiWeapon) as Weapon
 	If !a || !w
 		Return 0
 	EndIf
-	If a.GetEquippedWeapon() != w && a.GetItemCount(w) > 0
-		a.EquipItem(w, True, True)  ; (swapped for one of their own: the game's again)
+	Weapon held = a.GetEquippedWeapon()
+	If held && held != w && a.GetItemCount(w) > 0
+		a.EquipItem(w, True, True)  ; (swapped for one of their own: the game's again. Not when the game just doesn't say
+		                            ; what's in their hands: equipping it again had them holster it and draw it again)
 	EndIf
 	If !a.IsWeaponDrawn()
 		; (drawn again only: their hold package raises and aims it. The sighted idle played here on top put them in a
@@ -312,10 +326,22 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 		a.DrawWeapon()
 		Utility.Wait(0.6)
 	EndIf
-	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
-		Return 1
+	; (no Weapon.Fire: from a settler whose gun has nothing to fire, it crashed the game)
+	If w != Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm")
+		; a rifle: fired by its own fire event in their aim, as their AI fires it at an enemy. RaiderFireSingle, an idle,
+		; broke off their aim package for it (the rifle lowered and raised again) and played from a stance that sank them
+		; into the floor
+		If a.PlayAnimation("weaponFire")
+			Return 3
+		EndIf
+		If a.PlayAnimation("attackStart")
+			Return 2
+		EndIf
 	EndIf
-	a.PlayAnimation("attackStart")  ; (no Weapon.Fire: from a settler whose gun has nothing to fire, it crashed the game)
+	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
+		Return 1  ; (the Thirst Zapper's squirt: as it was)
+	EndIf
+	a.PlayAnimation("attackStart")
 	Return 2
 EndFunction
 
@@ -327,6 +353,7 @@ Function NpcEnd(Int aiActor, Int aiWeapon, Int aiLent) Global
 	EndIf
 	; out of any idle still playing (a throw's, which left Hoop Shot settlers standing there after): ActionIdleStop
 	a.PlayIdleAction(Game.GetFormFromFile(0x00018BA8, "Fallout4.esm") as Action)
+	a.SetRestrained(False)  ; (held in place for a game played with the hands)
 	If !a.PlayIdle(Game.GetFormFromFile(0x00018DEA, "Fallout4.esm") as Idle)  ; (RaiderRifleSightedEnd: the rifle down)
 		a.PlayAnimation("rifleSightedEnd")
 	EndIf
@@ -404,8 +431,12 @@ EndFunction
 ; neither (the event sent)
 Int Function NpcRoll(Int aiActor, Int aiSpot) Global
 	Actor a = Game.GetForm(aiActor) as Actor
-	; square to the machine first (their spot faces it): turned away, the throw went off the side
+	; back on their spot (the last throw's step carried them forward: each throw a little further in) and square to
+	; the machine (their spot faces it): turned away, the throw went off the side
 	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
+	If a && spot && a.GetDistance(spot) > 3.0
+		a.MoveTo(spot)
+	EndIf
 	If a && spot
 		Float off = spot.GetAngleZ() - a.GetAngleZ()
 		If off > 180.0
@@ -429,8 +460,12 @@ EndFunction
 ; Hoop Shot: the basketball thrown, a grenade's throw; or the smoke bomb toss
 Int Function NpcToss(Int aiActor, Int aiSpot) Global
 	Actor a = Game.GetForm(aiActor) as Actor
-	; square to the machine first (their spot faces it): turned away, the throw went off the side
+	; back on their spot (the last throw's step carried them forward: each throw a little further in) and square to
+	; the machine (their spot faces it): turned away, the throw went off the side
 	ObjectReference spot = Game.GetForm(aiSpot) as ObjectReference
+	If a && spot && a.GetDistance(spot) > 3.0
+		a.MoveTo(spot)
+	EndIf
 	If a && spot
 		Float off = spot.GetAngleZ() - a.GetAngleZ()
 		If off > 180.0

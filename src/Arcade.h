@@ -224,6 +224,8 @@ namespace ag
 			double                                 walked{ 0.0 };   // seconds on the way
 			double                                 onTarget{ 0.0 }; // a shot held back this long, turning onto the target
 			double                                 steady{ 0.0 };   // their weapon drawn this long
+			double                                 drawAsked{ 0.0 };  // ...put away: till it's asked out again
+			bool                                   everDrawn{ false };
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been
 			int                                    resends{ 0 };    // ...walks sent again with no step closer between
@@ -236,7 +238,11 @@ namespace ag
 			RE::ObjectRefHandle                    handBall; // ...the ball in their hand
 			double                                 sinceThrow{ 9.0 };
 			bool                                   holding{ false };
-			int                                    hits{ 0 };  // ...their mallet's hits on the heads  // ...the throw's animation on, the ball in their hand(s)
+			bool                                   ballShown{ false };  // ...the ball in their hands shown this throw
+			int                                    hits{ 0 };  // ...their mallet's hits on the heads
+			int                                    misses{ 0 };
+			double                                 swingT{ -1.0 };  // ...the swing coming down this long (-1: none)
+			float                                  swingBest{ 1e9f };  // ...its mallet the nearest it's been to a head  // ...the throw's animation on, the ball in their hand(s)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
 			std::vector<RE::NiAVObject*>           frozen;
@@ -282,6 +288,8 @@ namespace ag
 			double                                 skill{ 0.5 };
 			double                                 sinceShot{ 9.0 };
 			double                                 steady{ 0.0 };   // ...their gun drawn this long
+			double                                 drawAsked{ 0.0 };
+			bool                                   everDrawn{ false };
 			bool                                   added{ false };
 			std::shared_ptr<std::atomic<std::int32_t>> ready;
 			std::shared_ptr<std::atomic<std::int32_t>> armed;

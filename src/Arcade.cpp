@@ -873,6 +873,10 @@ namespace ag
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
 		constexpr double    kSteadyBeforeShot = 2.5;           // the rifle drawn this long before a shot
+		constexpr float     kWhacMalletReach = 14.0f;          // a settler's mallet head this near a head's middle: a hit
+		constexpr float     kWhacHeadMiddle = 8.0f;            // ...its middle above where it's placed
+		constexpr double    kWhacSwingLong = 0.9;              // ...a swing followed this long
+		constexpr double    kZapperAimUnder = 45.0;            // a zapper racer's aim point, under their target's centre
 	}
 
 	std::vector<Arcade::Worn> Arcade::WornBy(RE::Actor* a_actor)
@@ -1193,6 +1197,48 @@ namespace ag
 						at->data.location = RE::NiPoint3A{ hole.x, hole.y, hole.z };
 					}
 					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()), Papyrus::Id(at.get()), Papyrus::Id(a_s.weapon) });
+					a_s.swingT = 0.0;
+					a_s.swingBest = 1e9f;
+				}
+				// the swing's mallet coming down: a head it gets to is hit (a settler's melee hits on the heads never come
+				// through as hit events, so their mallet's head is followed instead). Its head: the far end of what's in
+				// their hand (the Weapon node's grip, through the middle of the mallet's bounds, as far again)
+				if (a_s.swingT >= 0.0) {
+					a_s.swingT += a_dt;
+					auto* root = actor->Get3D();
+					auto* grip = root ? root->GetObjectByName("Weapon") : nullptr;
+					if (grip && grip->worldBound.fRadius > 1.0f) {
+						const RE::NiPoint3 g = grip->world.translate;
+						const RE::NiPoint3 c = grip->worldBound.center;
+						const RE::NiPoint3 head = g + (c - g) * 2.0f;
+						std::vector<sim::Piece> pieces;
+						a_s.game->Pieces(pieces);
+						for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
+							auto  ref = a_s.pieces[i].get();
+							auto* h3 = ref ? ref->Get3D() : nullptr;
+							if (!h3 || pieces[i].hidden) {
+								continue;
+							}
+							const RE::NiPoint3 top = h3->world.translate + RE::NiPoint3{ 0.0f, 0.0f, kWhacHeadMiddle };
+							const float        d = (head - top).Length();
+							a_s.swingBest = std::min(a_s.swingBest, d);
+							if (d < kWhacMalletReach) {
+								a_s.game->OnPieceHit(static_cast<int>(i));
+								if (++a_s.hits == 1) {
+									log::info("WHAC-A-COMMIE: {}'s mallet is landing on the heads", a_s.name);
+								}
+								a_s.swingT = -1.0;
+								break;
+							}
+						}
+					}
+					if (a_s.swingT > kWhacSwingLong) {
+						// (missed: how near it came, the first few times, to set where they stand by)
+						if (a_s.misses++ < 4) {
+							log::info("WHAC-A-COMMIE: {}'s swing missed, its mallet {:.0f} from the nearest head", a_s.name, a_s.swingBest);
+						}
+						a_s.swingT = -1.0;
+					}
 				}
 			} else if (a_s.thrower) {
 				in = a_s.thrower->Next(a_dt, a_s.game->Ready());
@@ -1200,6 +1246,7 @@ namespace ag
 				if (in.released) {
 					a_s.sinceThrow = 0.0;
 					a_s.holding = false;
+					a_s.ballShown = false;
 				}
 				if (a_s.thrower->TakeCue()) {
 					a_s.holding = true;
@@ -1275,9 +1322,12 @@ namespace ag
 									// side): shown once the palm's turned to face forward, the ball out in front of it
 									const float        heading = actor->data.angle.z;
 									const RE::NiPoint3 forward{ std::sin(heading), std::cos(heading), 0.0f };
-									if (n.x * forward.x + n.y * forward.y > 0.45f) {
+									// (once shown, kept till it's let go: the palm's turn hovers about the line through the set
+									// point, and the ball blinked in and out there)
+									if (a_s.ballShown || n.x * forward.x + n.y * forward.y > 0.45f) {
 										at = wrist + along * 0.75f + n * radius;
 										show = true;
+										a_s.ballShown = true;
 									}
 								} else {
 									at = wrist + along * 1.0f + n * (radius * 1.1f);  // (up at the fingers' roots, clear of the palm: it sat at the wrist)
@@ -1338,8 +1388,25 @@ namespace ag
 		// package takes over and raise it again, and the first shots of that went into the ground
 		if (actor->GetWeaponMagicDrawn()) {
 			a_s.steady += a_dt;
-		} else {
+			a_s.drawAsked = 0.0;
+			a_s.everDrawn = true;
+		} else if (a_s.everDrawn) {  // (not before their package has first raised it: that's its job)
+			// never put away while they play: if it is, straight out again
+			if (a_s.steady > 0.0) {
+				log::info("BANDIT ROUNDUP: {} put the rifle away mid-game: drawn again", a_s.name);
+			}
 			a_s.steady = 0.0;
+			a_s.drawAsked -= a_dt;
+			if (a_s.drawAsked <= 0.0) {
+				a_s.drawAsked = 1.0;
+				Papyrus::Call("NpcDraw", { static_cast<std::int32_t>(a_s.actorID) });
+			}
+		} else {
+			a_s.drawAsked -= a_dt;  // (their package not raising it at all in 4 s: drawn for them)
+			if (a_s.drawAsked <= -4.0) {
+				a_s.drawAsked = 0.0;
+				Papyrus::Call("NpcDraw", { static_cast<std::int32_t>(a_s.actorID) });
+			}
 		}
 		if (in.pressed && a_s.steady < kSteadyBeforeShot) {
 			in.pressed = false;
@@ -1352,8 +1419,9 @@ namespace ag
 				[name](std::int32_t a_r) {
 					if (told.exchange(a_r) != a_r) {
 						log::info("BANDIT ROUNDUP: {}'s shots: {}", name,
-							a_r == 1 ? "the rifle's own shot animation (RaiderFireSingle)" :
-							a_r == 2 ? "the shot animation wouldn't play: fired without it" : "nobody to fire it");
+							a_r == 3 ? "the rifle's fire event (weaponFire)" :
+							a_r == 1 ? "the shot idle (RaiderFireSingle)" :
+							a_r == 2 ? "an attack (attackStart)" : "nobody to fire it");
 					}
 				});
 		}
@@ -1621,7 +1689,9 @@ namespace ag
 		}
 		const auto& ln = L.lanes[lane];
 		q.marker = Spawn(markerForm, machine.get(), ToWorld(f, sim::Vec3{ ln.gun.x, L.standY, 0.0 }));
-		q.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, ln.target));
+		// what they aim at: their lane's target, put this far under its centre - aimed at the centre itself, their
+		// stream went over it, into the Nuka-Cola bottle above (an NPC aims at a point this much over what it's given)
+		q.aimAt = Spawn(markerForm, machine.get(), ToWorld(f, ln.target - sim::Vec3{ 0.0, 0.0, kZapperAimUnder }));
 		auto marker = q.marker.get();
 		if (!marker) {
 			Remove(q.aimAt);
@@ -1857,6 +1927,14 @@ namespace ag
 			auto  r = q.actor.get();
 			auto* a = r ? r->As<RE::Actor>() : nullptr;
 			q.steady = a && a->GetWeaponMagicDrawn() ? q.steady + a_dt : 0.0;  // (as at the gallery: drawn a while first)
+			q.everDrawn = q.everDrawn || (a && a->GetWeaponMagicDrawn());
+			if (a && q.state == 2 && q.everDrawn && !a->GetWeaponMagicDrawn()) {
+				q.drawAsked -= a_dt;  // (never put away while they race: out again)
+				if (q.drawAsked <= 0.0) {
+					q.drawAsked = 1.0;
+					Papyrus::Call("NpcDraw", { static_cast<std::int32_t>(q.actorID) });
+				}
+			}
 		}
 		for (int lane : sim::TakeZapperShots(a_game)) {
 			auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == lane && a_q.state == 2; });
