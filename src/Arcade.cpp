@@ -873,6 +873,9 @@ namespace ag
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
 		constexpr double    kSteadyBeforeShot = 2.5;           // the rifle drawn this long before a shot
+		constexpr float     kWhacMalletReach = 14.0f;          // a settler's mallet head this near a head's middle: a hit
+		constexpr float     kWhacHeadMiddle = 8.0f;            // ...its middle above where it's placed
+		constexpr double    kWhacSwingLong = 0.9;              // ...a swing followed this long
 		constexpr double    kZapperAimUnder = 45.0;            // a zapper racer's aim point, under their target's centre
 	}
 
@@ -1194,6 +1197,48 @@ namespace ag
 						at->data.location = RE::NiPoint3A{ hole.x, hole.y, hole.z };
 					}
 					Papyrus::Call("NpcSwing", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(spot.get()), Papyrus::Id(at.get()), Papyrus::Id(a_s.weapon) });
+					a_s.swingT = 0.0;
+					a_s.swingBest = 1e9f;
+				}
+				// the swing's mallet coming down: a head it gets to is hit (a settler's melee hits on the heads never come
+				// through as hit events, so their mallet's head is followed instead). Its head: the far end of what's in
+				// their hand (the Weapon node's grip, through the middle of the mallet's bounds, as far again)
+				if (a_s.swingT >= 0.0) {
+					a_s.swingT += a_dt;
+					auto* root = actor->Get3D();
+					auto* grip = root ? root->GetObjectByName("Weapon") : nullptr;
+					if (grip && grip->worldBound.fRadius > 1.0f) {
+						const RE::NiPoint3 g = grip->world.translate;
+						const RE::NiPoint3 c = grip->worldBound.center;
+						const RE::NiPoint3 head = g + (c - g) * 2.0f;
+						std::vector<sim::Piece> pieces;
+						a_s.game->Pieces(pieces);
+						for (std::size_t i = 0; i < pieces.size() && i < a_s.pieces.size(); ++i) {
+							auto  ref = a_s.pieces[i].get();
+							auto* h3 = ref ? ref->Get3D() : nullptr;
+							if (!h3 || pieces[i].hidden) {
+								continue;
+							}
+							const RE::NiPoint3 top = h3->world.translate + RE::NiPoint3{ 0.0f, 0.0f, kWhacHeadMiddle };
+							const float        d = (head - top).Length();
+							a_s.swingBest = std::min(a_s.swingBest, d);
+							if (d < kWhacMalletReach) {
+								a_s.game->OnPieceHit(static_cast<int>(i));
+								if (++a_s.hits == 1) {
+									log::info("WHAC-A-COMMIE: {}'s mallet is landing on the heads", a_s.name);
+								}
+								a_s.swingT = -1.0;
+								break;
+							}
+						}
+					}
+					if (a_s.swingT > kWhacSwingLong) {
+						// (missed: how near it came, the first few times, to set where they stand by)
+						if (a_s.misses++ < 4) {
+							log::info("WHAC-A-COMMIE: {}'s swing missed, its mallet {:.0f} from the nearest head", a_s.name, a_s.swingBest);
+						}
+						a_s.swingT = -1.0;
+					}
 				}
 			} else if (a_s.thrower) {
 				in = a_s.thrower->Next(a_dt, a_s.game->Ready());

@@ -239,7 +239,10 @@ namespace ag
 			double                                 sinceThrow{ 9.0 };
 			bool                                   holding{ false };
 			bool                                   ballShown{ false };  // ...the ball in their hands shown this throw
-			int                                    hits{ 0 };  // ...their mallet's hits on the heads  // ...the throw's animation on, the ball in their hand(s)
+			int                                    hits{ 0 };  // ...their mallet's hits on the heads
+			int                                    misses{ 0 };
+			double                                 swingT{ -1.0 };  // ...the swing coming down this long (-1: none)
+			float                                  swingBest{ 1e9f };  // ...its mallet the nearest it's been to a head  // ...the throw's animation on, the ball in their hand(s)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
 			std::vector<RE::NiAVObject*>           frozen;
