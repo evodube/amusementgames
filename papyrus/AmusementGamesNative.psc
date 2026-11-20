@@ -147,7 +147,7 @@ Int Function NpcStartGallery(Int aiActor, Int aiWeapon, Int aiMarker) Global
 	ObjectReference m = Game.GetForm(aiMarker) as ObjectReference
 	AmusementGamesQuest q = TheQuest()
 	Keyword k = LinkSpot()
-	If !a || !w || !m || !q || !k
+	If !a || !m || !q || !k  ; (no weapon: a game played with the hands)
 		Return 10
 	ElseIf a.IsDead()
 		Return 11
