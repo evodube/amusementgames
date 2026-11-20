@@ -272,6 +272,9 @@ namespace ag
 			bool                                   lastAtOk{ false };
 			int                                    jumps{ 0 };
 			int                                    pickups{ 0 };    // (logged frame by frame: the first few)
+			int                                    shotsLogged{ 0 };  // Bandit Roundup: the first shots' magazine logged
+			double                                 magCheckIn{ -1.0 };
+			std::uint32_t                          magBefore{ 0 };
 			int                                    pickupLog{ -1 }; // frames of this one logged so far (-1: none)
 			RE::NiPoint3                           lastActorAt{};
 			float                                  lastHeading{ 0.0f };

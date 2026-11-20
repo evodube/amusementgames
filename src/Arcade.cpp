@@ -1619,7 +1619,22 @@ namespace ag
 				log::info("BANDIT ROUNDUP: {}'s magazine filled ({} of {})", a_s.name, now, full);
 			}
 		}
+		// (the first ten shots: the magazine just before and half a second after - back up, a reload; one down, the
+		// action worked after the shot)
+		if (a_s.magCheckIn >= 0.0) {
+			a_s.magCheckIn -= a_dt;
+			if (a_s.magCheckIn < 0.0) {
+				const auto now = actor->GetCurrentAmmoCount(RE::BGSEquipIndex{ 0 });
+				log::info("BANDIT ROUNDUP: {}'s shot {}: magazine {} before, {} after{}", a_s.name, a_s.shotsLogged, a_s.magBefore, now,
+					now > a_s.magBefore ? " (reloaded)" : now == a_s.magBefore ? " (no round used: the shot never fired)" : "");
+			}
+		}
 		if (in.pressed && a_s.weapon && CanFire(actor, a_s.name)) {
+			if (a_s.shotsLogged < 10 && a_s.magCheckIn < 0.0) {
+				++a_s.shotsLogged;
+				a_s.magBefore = actor->GetCurrentAmmoCount(RE::BGSEquipIndex{ 0 });
+				a_s.magCheckIn = 0.5;
+			}
 			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
 			const std::string       name = a_s.name;
 			Papyrus::Call("NpcShoot", { static_cast<std::int32_t>(a_s.actorID), Papyrus::Id(a_s.weapon), Papyrus::Id(a_s.weapon->weaponData.ammo) },
