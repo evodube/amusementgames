@@ -103,6 +103,7 @@ namespace ag
 
 		// something of the game's hit by you (on the game's thread): Whac-a-Commie's heads are whacked this way
 		void OnHit(RE::TESObjectREFR* a_target);
+		void OnSettlerHit(RE::TESObjectREFR* a_target, RE::TESFormID a_cause);
 
 		// a machine activated by you (on the game's thread)
 		void OnActivated(RE::TESObjectREFR* a_machine);
@@ -233,7 +234,8 @@ namespace ag
 			std::unique_ptr<sim::Thrower>          thrower;  // Atomic Rollers' and Hoop Shot's
 			RE::ObjectRefHandle                    handBall; // ...the ball in their hand
 			double                                 sinceThrow{ 9.0 };
-			bool                                   holding{ false };  // ...the throw's animation on, the ball in their hand(s)
+			bool                                   holding{ false };
+			int                                    hits{ 0 };  // ...their mallet's hits on the heads  // ...the throw's animation on, the ball in their hand(s)
 			std::vector<RE::ObjectRefHandle>       pieces;
 			std::vector<int>                       pieceModel;
 			std::vector<RE::NiAVObject*>           frozen;
