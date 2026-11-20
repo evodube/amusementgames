@@ -1446,6 +1446,19 @@ namespace ag
 			in.pressed = false;
 			a_s.shooter->Again();
 		}
+		// the magazine kept full, as yours is: the rifle's handed over empty, and their first shots were reloads till one
+		// filled it
+		if (a_s.weapon && actor->GetWeaponMagicDrawn()) {
+			const RE::BGSEquipIndex hand{ 0 };
+			const auto              full = a_s.weapon->weaponData.ammoCapacity > 0 ? a_s.weapon->weaponData.ammoCapacity : 10u;
+			if (const auto now = actor->GetCurrentAmmoCount(hand); now < full) {
+				actor->SetCurrentAmmoCount(hand, full);
+				if (!a_s.loaded) {
+					a_s.loaded = true;
+					log::info("BANDIT ROUNDUP: {}'s magazine filled ({} of {})", a_s.name, now, full);
+				}
+			}
+		}
 		if (in.pressed && a_s.weapon && CanFire(actor, a_s.name)) {
 			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
 			const std::string       name = a_s.name;

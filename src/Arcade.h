@@ -229,6 +229,7 @@ namespace ag
 			double                                 diag{ 0.0 };
 			double                                 diagT{ 0.0 };
 			bool                                   everDrawn{ false };
+			bool                                   loaded{ false };  // (their magazine first filled: logged)
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been
 			int                                    resends{ 0 };    // ...walks sent again with no step closer between
