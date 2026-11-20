@@ -66,9 +66,8 @@ FLAG_MASTER = 0x1
 FLAG_LIGHT = 0x200
 FIRST_ID = 0x800
 
-COAST = 0x01000000  # DLCCoast.esm (Far Harbor), our second master: Bandit Roundup's lever-action rifle
-NUKA = 0x02000000   # DLCNukaWorld.esm, our third master
-OWN = 0x03000000    # our records come after the three masters
+NUKA = 0x01000000  # DLCNukaWorld.esm, our second master
+OWN = 0x02000000   # our records come after the two masters
 
 # components (Fallout4.esm)
 WOOD, STEEL, SCREWS, CIRCUITRY, COPPER, GEARS = 0x0001FAC2, 0x0001FABD, 0x0003D294, 0x0001FA9B, 0x0001FA9C, 0x0001FAB0
@@ -76,7 +75,7 @@ WORKBENCH_FURNITURE = 0x0005B5E3  # WorkshopWorkbenchTypeFurniture (the settleme
 ARCADE_SOUNDS = (NUKA | 0x05710E, NUKA | 0x05710F)  # DLC04UIWorkshopModeItemPickUp/PutDownArcadeMachinex
 METAL_SOUNDS = (0x000196B0, 0x000196BA)             # the token dispenser's, as Nuka-World's recipe has them
 CAPS = 0x0000000F
-LEVER_GUN = COAST | 0x02C8B0                         # DLC03_LeverGun: Bandit Roundup's rifle
+HUNTING_RIFLE = 0x0004F46A                           # HuntingRifle: Bandit Roundup's rifle
 TOKEN = NUKA | 0x01998A                              # DLC04_Nukacade_Token01
 TOKEN_SOUND = NUKA | 0x04E5E4                        # DLC04OBJArcadeTokenExchangeDispense
 TOKEN_PRICE = 5.0                                    # caps a token
@@ -422,8 +421,8 @@ def build() -> bytes:
     hold_drawn = OWN | (FIRST_ID + 0x2E)
     hold_zapper = OWN | (FIRST_ID + 0x2F)  # (the zapper race's: aiming the Thirst Zapper itself)
     packages = [travel_package(walk, "AmusementGamesWalkToSpot", link),
-                # (Bandit Roundup's: that very rifle, the lever-action, as the zapper race's names the Thirst Zapper)
-                aim_package(hold, "AmusementGamesHoldAtSpot", link, target, weapon=LEVER_GUN),
+                # (Bandit Roundup's: that very rifle, the Hunting Rifle, as the zapper race's names the Thirst Zapper)
+                aim_package(hold, "AmusementGamesHoldAtSpot", link, target, weapon=HUNTING_RIFLE),
                 travel_package(hold_drawn, "AmusementGamesHoldDrawnAtSpot", link, general=0x00802000, interrupts=0),
                 aim_package(hold_zapper, "AmusementGamesHoldZapperAtSpot", link, target, weapon=NUKA | 0x007BC8)]  # DLC04_ThirstZapper
     # (priority 101: above Wasteland Wagers' 100, so a roulette bettor called over isn't pulled back mid-walk)
@@ -474,8 +473,6 @@ def build() -> bytes:
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
-        + subrecord(b"DATA", struct.pack("<Q", 0))
-        + subrecord(b"MAST", zstring("DLCCoast.esm"))
         + subrecord(b"DATA", struct.pack("<Q", 0))
         + subrecord(b"MAST", zstring("DLCNukaWorld.esm"))
         + subrecord(b"DATA", struct.pack("<Q", 0)),
