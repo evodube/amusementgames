@@ -318,6 +318,7 @@ namespace ag
 		_gameId = a_game;
 		_machine = a_machine->GetHandle();
 		_machineID = a_machine->GetFormID();
+		_lastDuel.erase(_machineID);
 		_game->Start(static_cast<std::uint32_t>(std::chrono::steady_clock::now().time_since_epoch().count()));
 		_playing = true;
 		_held = _lmb.load();  // (a button already down when you start doesn't throw)
@@ -364,6 +365,9 @@ namespace ag
 	{
 		if (!_game) {
 			return;
+		}
+		if (int left = 0, right = 0; sim::GalleryVersus(*_game) && DuelScoresOn(_machineID, left, right)) {
+			_lastDuel[_machineID] = { left, right };  // (on the board, each on its side, till the next game there)
 		}
 		auto       machine = _machine.get();
 		const int  score = _game->Score();
@@ -1029,6 +1033,7 @@ namespace ag
 
 	void Arcade::Release(RE::TESFormID a_actor, RE::TESFormID a_weapon, bool a_added)
 	{
+		_swept[a_actor] = 5.0;  // (being let go: not swept up again while Papyrus does it)
 		std::vector<Worn> worn;
 		if (auto found = _worn.find(a_actor); found != _worn.end()) {
 			worn = std::move(found->second);
@@ -1094,6 +1099,7 @@ namespace ag
 		for (std::size_t i = 0; i < _shows.size(); ++i) {
 			TickOne(_shows[i], a_dt);
 		}
+		SweepStragglers(a_dt);
 		std::erase_if(_shows, [](const Show& a_s) { return a_s.phase == Show::Phase::kNone; });
 	}
 
@@ -1593,6 +1599,9 @@ namespace ag
 		if (a_s.game->Over()) {
 			_lastScores[a_s.machineID] = a_s.game->Score();
 			_played[Played(a_s.actorID, sim::GameId::kBanditRoundup)] = kShowTurnAbout;
+			if (int left = 0, right = 0; sim::GalleryVersus(*a_s.game) && DuelScoresOn(a_s.machineID, left, right)) {
+				_lastDuel[a_s.machineID] = { left, right };  // (on the board, each on its side, till the next game there)
+			}
 			if (const Show* other = sim::GalleryVersus(*a_s.game) ? PartnerOf(a_s) : nullptr) {
 				_played[Played(other->actorID, sim::GameId::kBanditRoundup)] = kShowTurnAbout;
 				const int mine = sim::GalleryScore(*a_s.game, 0), theirs = sim::GalleryScore(*a_s.game, 1);
@@ -1760,6 +1769,7 @@ namespace ag
 	// a settler's game under way: its pieces put up, its music on
 	void Arcade::BeginGame(Show& a_s, RE::TESObjectREFR* a_machine, const Frame& a_f)
 	{
+		_lastDuel.erase(a_s.machineID);
 		std::vector<sim::Piece> pieces;
 		a_s.game->Pieces(pieces);
 		const auto models = Forms::PiecesOf(a_s.gameId);
@@ -1797,6 +1807,12 @@ namespace ag
 			side = s->side;
 		}
 		if (!g) {
+			// (the last game there a 1v1: its final scores, each on its side, till the next game)
+			if (const auto it = _lastDuel.find(a_machine); it != _lastDuel.end()) {
+				a_left = it->second.first;
+				a_right = it->second.second;
+				return true;
+			}
 			return false;
 		}
 		const int own = sim::GalleryScore(*g, 0), rival = sim::GalleryScore(*g, 1);
@@ -1931,6 +1947,46 @@ namespace ag
 		}
 		if (a_notify) {
 			Notify(a_notify);
+		}
+	}
+
+	// a settler still linked to a game's spot when no game has them (one let go while walking that kept on, or stood
+	// there after): let go now, once a second at most
+	void Arcade::SweepStragglers(double a_dt)
+	{
+		for (auto it = _swept.begin(); it != _swept.end();) {
+			it->second -= a_dt;
+			it = it->second <= 0.0 ? _swept.erase(it) : std::next(it);
+		}
+		_sweep -= a_dt;
+		if (_sweep > 0.0) {
+			return;
+		}
+		_sweep = 1.0;
+		auto* lists = RE::ProcessLists::GetSingleton();
+		auto* link = Forms::Own(0x80D) ? Forms::Own(0x80D)->As<RE::BGSKeyword>() : nullptr;  // AmusementGamesLinkSpot
+		if (!lists || !link) {
+			return;
+		}
+		for (auto& ah : lists->highActorHandles) {
+			auto a = ah.get();
+			if (!a || a->IsDead(false) || !a->GetLinkedRef(link)) {
+				continue;
+			}
+			const auto id = a->GetFormID();
+			const bool busy = _swept.contains(id) ||
+			                  std::ranges::any_of(_shows, [&](const Show& a_s) { return a_s.phase != Show::Phase::kNone && a_s.actorID == id; }) ||
+			                  std::ranges::any_of(_letGo, [&](const Held& a_h) { return a_h.actor == id; }) ||
+			                  std::ranges::any_of(_heldFromSave, [&](const Held& a_h) { return a_h.actor == id; }) ||
+			                  std::ranges::any_of(_races, [&](const Race& a_r) {
+								  return std::ranges::any_of(a_r.racers, [&](const Racer& a_q) { return a_q.actorID == id; });
+							  });
+			if (busy) {
+				continue;
+			}
+			const char* n = a->GetDisplayFullName();
+			log::info("{} ({:08X}) still headed for a game's spot, no game theirs: let go", n && *n ? n : "a settler", id);
+			Release(id, 0, false);
 		}
 	}
 

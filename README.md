@@ -28,7 +28,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Settlers play too**, one settler to each machine: Bandit Roundup (rifle to the shoulder; now and then two settlers
   play each other, one each side: how often in the settings), Whac-a-Commie (the
   Commie Whacker in hand, one-handed swings), Atomic Rollers (the red ball in hand, rolled with a low underhand
-  throw) and Hoop Shot (the basketball in hand, a grenade's throw), their score on the machine's board as they go; at Nuka-Zapper Race, settlers gather at the lanes (up to five: every lane but yours), and 10
+  throw) and Hoop Shot (the basketball in hand, a two-handed set shot): each throw one of three takes at random,
+  the same hands on the ball, their stance, crouch, turn and lean their own, their score on the machine's board as they go; at Nuka-Zapper Race, settlers gather at the lanes (up to five: every lane but yours), and 10
   seconds after the second is ready they race. No racing on your own: put your token in and you wait for a settler
   to be ready (10 seconds after, you're off), racing only the settlers who came; the HUD shows who's racing and their
   rockets, and at the end whether you won or lost (and who won). Activate it again while waiting to leave, token back.
@@ -53,7 +54,7 @@ counter in front of your lane and the rifle on the gallery's counter (not to be 
 Every model, texture and sound is the game's own (Nuka-World's): the mod ships none. The physics (the balls' runs,
 bounces and rims) is the mod's own, in plain C++ (`src/sim`), tested on its own like Playable Pool's.
 
-**Status: 0.9.2.**
+**Status: 0.9.3.**
 
 ## Requirements
 

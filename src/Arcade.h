@@ -321,6 +321,12 @@ namespace ag
 			return nullptr;
 		}
 		std::vector<Show>  _shows;  // settlers' games: one a machine, as many as there are machines free
+		// a 1v1's final scores (left, right), kept on its machine's board till the next game there
+		std::unordered_map<RE::TESFormID, std::pair<int, int>> _lastDuel;
+		// settlers still linked to a spot no game's using (let go late, or a walk that outlived its game): let go
+		void   SweepStragglers(double a_dt);
+		double _sweep{ 1.0 };
+		std::unordered_map<RE::TESFormID, double> _swept;  // (let go lately: not again while Papyrus does it)
 
 		// settlers racing at Nuka-Zapper Race: up to one a lane but yours. They gather (each walks to the spot behind
 		// their lane's gun and takes up a Thirst Zapper); 10 s after the second is ready the race starts. You can

@@ -524,8 +524,14 @@ def build() -> bytes:
                 + subrecord(b"FNAM", struct.pack("<H", 0))))
 
     # ---- the throws settlers make at Hoop Shot and Atomic Rollers: our own animations (30 fps, Blender + PyNifly)
+    # (each a second and a third take: its own stance, crouch, turn and lean, its hands the first's; one of the three at
+    # random each throw)
     idles = [idle(OWN | (FIRST_ID + 0x30), "AmusementGamesBasketballShot", "AGBasketballShot"),
-             idle(OWN | (FIRST_ID + 0x31), "AmusementGamesSkeeballRoll", "AGSkeeballRoll")]
+             idle(OWN | (FIRST_ID + 0x31), "AmusementGamesSkeeballRoll", "AGSkeeballRoll"),
+             idle(OWN | (FIRST_ID + 0x34), "AmusementGamesBasketballShot2", "AGBasketballShot2"),
+             idle(OWN | (FIRST_ID + 0x35), "AmusementGamesSkeeballRoll2", "AGSkeeballRoll2"),
+             idle(OWN | (FIRST_ID + 0x36), "AmusementGamesBasketballShot3", "AGBasketballShot3"),
+             idle(OWN | (FIRST_ID + 0x37), "AmusementGamesSkeeballRoll3", "AGSkeeballRoll3")]
 
     # ---- the settlers' lever-action at Bandit Roundup: Far Harbor's own (yours), with the Hunting Rifle's animations.
     # Far Harbor's for it (third person) had them lower it and drop into the floor at each shot; a weapon's animations
@@ -537,7 +543,7 @@ def build() -> bytes:
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x34))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x38))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
