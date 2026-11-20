@@ -223,7 +223,7 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 			akId = ak.GetFormID()
 		EndIf
 		; (the spot held, aiming at the targets, no other idles or chatter)
-		q.Hold(aiActor, aiMarker, k.GetFormID(), aiAimAt, akId)
+		q.Hold(aiActor, aiMarker, k.GetFormID(), aiAimAt, akId, w && w == Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm"))
 	EndIf
 	If !w
 		Return 1  ; (a game played with the hands: Atomic Rollers, Hoop Shot)

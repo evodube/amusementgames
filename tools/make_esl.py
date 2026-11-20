@@ -201,7 +201,7 @@ def travel_package(form_id: int, editor_id: str, link_keyword: int, radius: int 
 USE_WEAPON_TEMPLATE = 0x0008F677  # Fallout4.esm's UseWeapon package template (as MinRecruit00AimWeapon uses it)
 
 
-def aim_package(form_id: int, editor_id: str, spot_keyword: int, target_keyword: int) -> bytes:
+def aim_package(form_id: int, editor_id: str, spot_keyword: int, target_keyword: int, weapon: int = 0) -> bytes:
     """Stand at the actor's linked ref (spot_keyword) with the weapon drawn, aiming at their other linked ref
     (target_keyword) without firing (the plugin fires the shots): laid out as Fallout4.esm's MinRecruit00AimWeapon
     (the UseWeapon template, its 23 data inputs in its order), its location and target our linked refs, any time, and
@@ -222,8 +222,10 @@ def aim_package(form_id: int, editor_id: str, spot_keyword: int, target_keyword:
         + subrecord(b"PKCU", struct.pack("<III", 23, USE_WEAPON_TEMPLATE, 11))
         # 00 Location: near the linked ref (spot), radius 10
         + subrecord(b"ANAM", zstring("Location")) + subrecord(b"PLDT", struct.pack("<IIiI", 6, spot_keyword, 10, 0))
-        # 01 Weapon to Use (as vanilla: the equipped one)
-        + subrecord(b"ANAM", zstring("TargetSelector")) + subrecord(b"PTDA", bytes.fromhex("020000001400000000000000"))
+        # 01 Weapon to Use: as vanilla (an object type: the best they have of it), or (weapon) that very weapon (object
+        # ID): left to choose, a settler took up their own gun at the zapper race and fired bullets
+        + subrecord(b"ANAM", zstring("TargetSelector"))
+        + subrecord(b"PTDA", struct.pack("<IiI", 1, weapon, 0) if weapon else bytes.fromhex("020000001400000000000000"))
         # 02 Target: the linked ref (target)
         + subrecord(b"ANAM", zstring("SingleRef")) + subrecord(b"PTDA", struct.pack("<IiI", 3, target_keyword, 0))
         + b(0)   # 1f Move while aiming?
@@ -251,13 +253,13 @@ def aim_package(form_id: int, editor_id: str, spot_keyword: int, target_keyword:
     return record(b"PACK", 0, form_id, body)
 
 
-def quest(form_id: int, editor_id: str, package: int, hold: int, hold_drawn: int, priority: int = 100) -> bytes:
+def quest(form_id: int, editor_id: str, package: int, hold: int, hold_drawn: int, hold_zapper: int, priority: int = 100) -> bytes:
     """AmusementGamesQuest: start game enabled, priority 100, collection alias 0 'Players' with the walk package.
     Scripts: AmusementGamesQuest on the quest (property Players), AmusementGamesGroupAlias on the alias (papyrus/).
     Laid out as Wasteland Wagers' WastelandWagersQuest (itself as Fallout4.esm's DialogueGlowingSeaAtom)."""
     def entry(name: str, props: list[bytes]) -> bytes:
         return wstring(name) + b"\x00" + struct.pack("<H", len(props)) + b"".join(props)
-    aliases = [(0, "Players", package), (1, "Shooters", hold), (2, "Holders", hold_drawn)]
+    aliases = [(0, "Players", package), (1, "Shooters", hold), (2, "Holders", hold_drawn), (3, "Squirters", hold_zapper)]
     props = [wstring(n) + bytes([1, 1]) + struct.pack("<HhI", 0, i, form_id) for i, n, _ in aliases]
     vmad = (struct.pack("<HHH", 6, 2, 1) + entry("AmusementGamesQuest", props)
             + b"\x03" + struct.pack("<H", 0) + wstring("")
@@ -404,11 +406,13 @@ def build() -> bytes:
     # (and for a melee game, Whac-a-Commie: kept at the spot with the mallet drawn, weapon drawn 0x00800000, no
     # interruptions)
     hold_drawn = OWN | (FIRST_ID + 0x2E)
+    hold_zapper = OWN | (FIRST_ID + 0x2F)  # (the zapper race's: aiming the Thirst Zapper itself)
     packages = [travel_package(walk, "AmusementGamesWalkToSpot", link),
                 aim_package(hold, "AmusementGamesHoldAtSpot", link, target),
-                travel_package(hold_drawn, "AmusementGamesHoldDrawnAtSpot", link, general=0x00802000, interrupts=0)]
+                travel_package(hold_drawn, "AmusementGamesHoldDrawnAtSpot", link, general=0x00802000, interrupts=0),
+                aim_package(hold_zapper, "AmusementGamesHoldZapperAtSpot", link, target, weapon=NUKA | 0x007BC8)]  # DLC04_ThirstZapper
     # (priority 101: above Wasteland Wagers' 100, so a roulette bettor called over isn't pulled back mid-walk)
-    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk, hold, hold_drawn, priority=101)]
+    quests = [quest(OWN | (FIRST_ID + 0xF), "AmusementGamesQuest", walk, hold, hold_drawn, hold_zapper, priority=101)]
     # the category's picture: its first item, Whac-a-Commie, framed as its own workshop preview
     # (DLC04workshop_NukaCade_WhackACommie01) with its bounds
     art = [menu_art(OWN | (FIRST_ID + 1), "AmusementGamesWorkshopMenuArt", menu,
@@ -447,7 +451,7 @@ def build() -> bytes:
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x2F))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x30))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))

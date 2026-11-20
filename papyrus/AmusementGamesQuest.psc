@@ -6,6 +6,7 @@ have (as Wasteland Wagers walks its bettors and dealers). Actors, refs and keywo
 RefCollectionAlias Property Players Auto Const Mandatory
 RefCollectionAlias Property Shooters Auto Const Mandatory  ; (there with the rifle: AmusementGamesHoldAtSpot)
 RefCollectionAlias Property Holders Auto Const Mandatory   ; (there with the mallet: AmusementGamesHoldDrawnAtSpot)
+RefCollectionAlias Property Squirters Auto Const Mandatory ; (there with a Thirst Zapper: AmusementGamesHoldZapperAtSpot)
 
 Function StartAndWait()
 	Start()
@@ -50,7 +51,7 @@ Function Walk(Int aiActor, Int aiTarget, Int aiLink, Bool abReset)
 EndFunction
 
 ; there: from the walk to the hold (the spot kept, weapon drawn, nothing else: no hellos, chatter or wandering looks)
-Function Hold(Int aiActor, Int aiTarget, Int aiLink, Int aiAimAt, Int aiAimLink)
+Function Hold(Int aiActor, Int aiTarget, Int aiLink, Int aiAimAt, Int aiAimLink, Bool abZapper = False)
 	Actor a = Game.GetForm(aiActor) as Actor
 	ObjectReference t = Game.GetForm(aiTarget) as ObjectReference
 	Keyword k = Game.GetForm(aiLink) as Keyword
@@ -58,7 +59,11 @@ Function Hold(Int aiActor, Int aiTarget, Int aiLink, Int aiAimAt, Int aiAimLink)
 		Return
 	EndIf
 	Players.RemoveRef(a)
-	Shooters.AddRef(a)
+	If abZapper
+		Squirters.AddRef(a)  ; (aiming the Thirst Zapper itself, not a gun of their own)
+	Else
+		Shooters.AddRef(a)
+	EndIf
 	a.SetLinkedRef(t, k)
 	Keyword ak = Game.GetForm(aiAimLink) as Keyword
 	If ak
@@ -92,6 +97,7 @@ Function Leave(Int aiActor, Int aiLink)
 	Players.RemoveRef(a)
 	Shooters.RemoveRef(a)
 	Holders.RemoveRef(a)
+	Squirters.RemoveRef(a)
 	a.EnableAI(True)
 	a.SetHeadTracking(True)
 	If k
@@ -110,6 +116,7 @@ Function ClearAll(Int aiLink)
 	ClearCollection(Players, k)
 	ClearCollection(Shooters, k)
 	ClearCollection(Holders, k)
+	ClearCollection(Squirters, k)
 EndFunction
 
 Function ClearCollection(RefCollectionAlias akCollection, Keyword k)
