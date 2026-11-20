@@ -111,6 +111,7 @@ PRIZES = [
     ("Weapons", [
         ("Paddle Ball", 0x00A6C0, 1, 500),
         ("Thirst Zapper", 0x007BC8, 1, 500),
+        ("Commie Whacker", 0x052926, 1, 1250),          # DLC04_CommieWhacker: Whac-a-Commie's mallet
         ("Acid Soaker", 0x007BC6, 1, 6250),
     ]),
     ("Ammo", [

@@ -40,7 +40,7 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
 - **Prize Counter**: a terminal (no power needed) that trades Nuka-Cade tickets for Nuka-World's own things. A prize
   you haven't the tickets for says "(not enough)".
   Prices are the Nuka-Cade's own: an item's caps value x 50.
-  - Weapons: Paddle Ball 500, Thirst Zapper 500, Acid Soaker 6250
+  - Weapons: Paddle Ball 500, Thirst Zapper 500, Commie Whacker 1250, Acid Soaker 6250
   - Ammo: Paddle Balls x10 500; Thirst Zapper ammo x20 (Water, Nuka-Cola, Nuka-Cherry, Nuka-Quantum) 1000 each;
     Acid Concentrate x20 2000; 7.62 Rounds x20 2000
   - Drinks (ice-cold Nuka-Cola): Orange, Grape, Wild 1000 each; Victory, Quartz 2000 each; Dark 2500
