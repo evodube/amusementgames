@@ -225,6 +225,8 @@ namespace ag
 			double                                 onTarget{ 0.0 }; // a shot held back this long, turning onto the target
 			double                                 steady{ 0.0 };   // their weapon drawn this long
 			double                                 drawAsked{ 0.0 };  // ...put away: till it's asked out again
+			double                                 diag{ 0.0 };
+			double                                 diagT{ 0.0 };
 			bool                                   everDrawn{ false };
 			double                                 stall{ 0.0 };    // ...no closer for this long
 			float                                  best{ 1e9f };    // ...the closest they've been

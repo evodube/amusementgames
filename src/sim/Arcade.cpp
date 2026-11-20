@@ -1096,9 +1096,11 @@ namespace sim
 			if (a_ready) {
 				_wait -= a_dt;
 			} else {
-				_wait = std::max(_wait, 1.0);  // (the game's busy: the last ball not counted yet, or over)
+				// (the game's busy: the last ball not counted yet, or over. Atomic Rollers: the next roll straight
+				// after it's counted)
+				_wait = std::max(_wait, _game == GameId::kHoopShot ? 1.0 : std::max(0.0, _lead - _charge));
 			}
-			if (_wait > 0.0) {
+			if (_wait > 0.0 || !a_ready) {
 				in.dir = (_game == GameId::kHoopShot ? layout::Hoop().rim : Vec3{ 0.0, layout::Rollers().release.y + 40.0, layout::Rollers().release.z }) - in.eye;
 				in.dir = in.dir.Normalized();
 			} else {
@@ -1119,13 +1121,14 @@ namespace sim
 				in.from = layout::SettlerRelease(_game);
 			}
 			_held = -1.0;
-			_wait = _game == GameId::kHoopShot ? 2.2 : 1.4;  // (Atomic Rollers: from the last ball counted)
 			Plan();
+			// (Atomic Rollers: the next once the last ball's counted, as soon as its animation can be under way)
+			_wait = _game == GameId::kHoopShot ? 2.2 : std::max(0.0, _lead - _charge);
 			_cued = false;
 		}
 		// the animation's cue: _lead before the release
 		const double toRelease = _held < 0.0 ? std::max(0.0, _wait) + _charge : _charge - _held;
-		if (!_cued && !in.released && toRelease <= _lead) {
+		if (!_cued && !in.released && (a_ready || _held >= 0.0) && toRelease <= _lead) {  // (none while the game's busy)
 			_cued = _cue = true;
 		}
 		return in;

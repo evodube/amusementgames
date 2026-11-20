@@ -1354,6 +1354,19 @@ namespace ag
 		}
 
 		// playing Bandit Roundup: the shooter aims and fires; the game plays it
+		// (how they stand, every 2 s for their first 30: their height on the ground against where they are, how low
+		// their pelvis is over it, and what the game says the rifle's doing - to find what sinks them)
+		a_s.diag += a_dt;
+		if (a_s.diag >= 2.0 && a_s.diagT < 30.0) {
+			a_s.diagT += a_s.diag;
+			a_s.diag = 0.0;
+			auto*       root = actor->Get3D();
+			auto*       pelvis = root ? root->GetObjectByName("Pelvis") : nullptr;
+			const float z = actor->data.location.z;
+			log::info("BANDIT ROUNDUP: {} at {:.0f}s: z {:.1f} (spot {:.1f}), 3D z {:+.1f}, pelvis {:.1f} up, gun state {}, drawn {}, sneaking {}",
+				a_s.name, a_s.diagT, z, a_s.marker.get() ? a_s.marker.get()->data.location.z : 0.0f, root ? root->world.translate.z - z : 0.0f,
+				pelvis ? pelvis->world.translate.z - z : 0.0f, static_cast<int>(actor->gunState), actor->GetWeaponMagicDrawn(), actor->IsSneaking());
+		}
 		sim::Input in = a_s.shooter->Next(*a_s.game, a_s.eye, a_dt);
 		// a shot only once they've turned onto where it's aimed (their real bullet goes where the rifle points: on a
 		// fast target their turn lags), or after a moment however they stand
