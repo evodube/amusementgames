@@ -43,8 +43,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   - Weapons: Paddle Ball 500, Thirst Zapper 500, Acid Soaker 6250
   - Ammo: Paddle Balls x10 500; Thirst Zapper ammo x20 (Water, Nuka-Cola, Nuka-Cherry, Nuka-Quantum) 1000 each;
     Acid Concentrate x20 2000; 7.62 Rounds x20 2000
-  - Souvenirs: Teddy Bear, Sloth Toy, Magnet Cow, 150 each
   - Drinks (ice-cold Nuka-Cola): Orange, Grape, Wild 1000 each; Victory, Quartz 2000 each; Dark 2500
+  - Souvenirs: Teddy Bear, Sloth Toy, Magnet Cow, 150 each
 
   The catalogue is `PRIZES` in `tools/make_esl.py`; after changing it, `python tools/make_esl.py --psc` rewrites the
   terminal's fragment script (`papyrus/AmusementGamesPrizeCounterFragments.psc`).

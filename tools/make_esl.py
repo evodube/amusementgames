@@ -52,7 +52,7 @@ Form IDs (src/Forms.h expects these):
 
     xx000838  TERM AmusementGamesPrizeCounter  the Prize Counter: the base game's buildable Terminal (unpowered), a
                                                menu of its sections; xx000839-83C TERM its sections (Weapons,
-                                               Ammo, Souvenirs, Drinks), each prize shown buyable when you've its
+                                               Ammo, Drinks, Souvenirs), each prize shown buyable when you've its
                                                tickets (GetItemCount on the player) and "not enough" when not; buying
                                                runs a fragment of AmusementGamesPrizeCounterFragments (papyrus/,
                                                written by --psc from PRIZES), which calls AmusementGamesNative.BuyPrize
@@ -122,11 +122,6 @@ PRIZES = [
         ("Acid Concentrate x20", 0x030076, 20, 2000),    # DLC04_Ammo_AcidSoaker: the Acid Soaker's (a load)
         ("7.62 Rounds x20", 0x037897, 20, 2000),         # DLC04_Ammo_HandmadeRound
     ]),
-    ("Souvenirs", [
-        ("Souvenir Teddy Bear", 0x02689C, 1, 150),
-        ("Souvenir Sloth Toy", 0x02A185, 1, 150),
-        ("Souvenir Magnet Cow", 0x0268A1, 1, 150),       # DLC04_SouvenirMagnet01
-    ]),
     ("Drinks", [
         ("Ice-Cold Nuka-Cola Orange", 0x02EDAD, 1, 1000),
         ("Ice-Cold Nuka-Grape", 0x02EDAB, 1, 1000),
@@ -134,6 +129,11 @@ PRIZES = [
         ("Ice-Cold Nuka-Cola Victory", 0x02EDB0, 1, 2000),
         ("Ice-Cold Nuka-Cola Quartz", 0x02EDAF, 1, 2000),
         ("Ice-Cold Nuka-Cola Dark", 0x02EDA9, 1, 2500),
+    ]),
+    ("Souvenirs", [
+        ("Souvenir Teddy Bear", 0x02689C, 1, 150),
+        ("Souvenir Sloth Toy", 0x02A185, 1, 150),
+        ("Souvenir Magnet Cow", 0x0268A1, 1, 150),       # DLC04_SouvenirMagnet01
     ]),
 ]
 

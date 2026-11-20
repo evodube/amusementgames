@@ -84,7 +84,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_11
 Function Fragment_Terminal_11(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02689C, 1, 150)  ; Souvenir Teddy Bear
+AmusementGamesNative.BuyPrize(0x02EDAD, 1, 1000)  ; Ice-Cold Nuka-Cola Orange
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -92,7 +92,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_12
 Function Fragment_Terminal_12(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02A185, 1, 150)  ; Souvenir Sloth Toy
+AmusementGamesNative.BuyPrize(0x02EDAB, 1, 1000)  ; Ice-Cold Nuka-Grape
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -100,7 +100,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_13
 Function Fragment_Terminal_13(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x0268A1, 1, 150)  ; Souvenir Magnet Cow
+AmusementGamesNative.BuyPrize(0x02EDB1, 1, 1000)  ; Ice-Cold Nuka-Cola Wild
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -108,7 +108,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_14
 Function Fragment_Terminal_14(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02EDAD, 1, 1000)  ; Ice-Cold Nuka-Cola Orange
+AmusementGamesNative.BuyPrize(0x02EDB0, 1, 2000)  ; Ice-Cold Nuka-Cola Victory
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -116,7 +116,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_15
 Function Fragment_Terminal_15(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02EDAB, 1, 1000)  ; Ice-Cold Nuka-Grape
+AmusementGamesNative.BuyPrize(0x02EDAF, 1, 2000)  ; Ice-Cold Nuka-Cola Quartz
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -124,7 +124,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_16
 Function Fragment_Terminal_16(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02EDB1, 1, 1000)  ; Ice-Cold Nuka-Cola Wild
+AmusementGamesNative.BuyPrize(0x02EDA9, 1, 2500)  ; Ice-Cold Nuka-Cola Dark
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -132,7 +132,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_17
 Function Fragment_Terminal_17(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02EDB0, 1, 2000)  ; Ice-Cold Nuka-Cola Victory
+AmusementGamesNative.BuyPrize(0x02689C, 1, 150)  ; Souvenir Teddy Bear
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -140,7 +140,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_18
 Function Fragment_Terminal_18(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02EDAF, 1, 2000)  ; Ice-Cold Nuka-Cola Quartz
+AmusementGamesNative.BuyPrize(0x02A185, 1, 150)  ; Souvenir Sloth Toy
 ;END CODE
 EndFunction
 ;END FRAGMENT
@@ -148,7 +148,7 @@ EndFunction
 ;BEGIN FRAGMENT Fragment_Terminal_19
 Function Fragment_Terminal_19(ObjectReference akTerminalRef)
 ;BEGIN CODE
-AmusementGamesNative.BuyPrize(0x02EDA9, 1, 2500)  ; Ice-Cold Nuka-Cola Dark
+AmusementGamesNative.BuyPrize(0x0268A1, 1, 150)  ; Souvenir Magnet Cow
 ;END CODE
 EndFunction
 ;END FRAGMENT
