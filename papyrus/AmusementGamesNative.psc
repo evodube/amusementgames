@@ -228,6 +228,9 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 	If !w
 		Return 1  ; (a game played with the hands: Atomic Rollers, Hoop Shot)
 	EndIf
+	If q && k && aiAimAt == 0
+		q.HoldDrawn(aiActor, aiMarker, k.GetFormID())  ; (a melee weapon: kept drawn between swings)
+	EndIf
 	Int r = 1
 	If a.GetItemCount(w) == 0
 		a.AddItem(w, 1, True)

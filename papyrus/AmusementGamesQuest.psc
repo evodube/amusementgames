@@ -5,6 +5,7 @@ have (as Wasteland Wagers walks its bettors and dealers). Actors, refs and keywo
 
 RefCollectionAlias Property Players Auto Const Mandatory
 RefCollectionAlias Property Shooters Auto Const Mandatory  ; (there with the rifle: AmusementGamesHoldAtSpot)
+RefCollectionAlias Property Holders Auto Const Mandatory   ; (there with the mallet: AmusementGamesHoldDrawnAtSpot)
 
 Function StartAndWait()
 	Start()
@@ -67,6 +68,20 @@ Function Hold(Int aiActor, Int aiTarget, Int aiLink, Int aiAimAt, Int aiAimLink)
 	a.EvaluatePackage()
 EndFunction
 
+; there with a melee weapon: from the walk to the hold with it drawn (kept out between swings), nothing else
+Function HoldDrawn(Int aiActor, Int aiTarget, Int aiLink)
+	Actor a = Game.GetForm(aiActor) as Actor
+	ObjectReference t = Game.GetForm(aiTarget) as ObjectReference
+	Keyword k = Game.GetForm(aiLink) as Keyword
+	If !a || !t || !k
+		Return
+	EndIf
+	Players.RemoveRef(a)
+	Holders.AddRef(a)
+	a.SetLinkedRef(t, k)
+	a.EvaluatePackage()
+EndFunction
+
 ; out of Players: their own AI again
 Function Leave(Int aiActor, Int aiLink)
 	Actor a = Game.GetForm(aiActor) as Actor
@@ -76,6 +91,7 @@ Function Leave(Int aiActor, Int aiLink)
 	EndIf
 	Players.RemoveRef(a)
 	Shooters.RemoveRef(a)
+	Holders.RemoveRef(a)
 	a.EnableAI(True)
 	a.SetHeadTracking(True)
 	If k
@@ -93,6 +109,7 @@ Function ClearAll(Int aiLink)
 	Keyword k = Game.GetForm(aiLink) as Keyword
 	ClearCollection(Players, k)
 	ClearCollection(Shooters, k)
+	ClearCollection(Holders, k)
 EndFunction
 
 Function ClearCollection(RefCollectionAlias akCollection, Keyword k)
