@@ -130,8 +130,12 @@ def build(name,keys):
     act=bpy.data.actions.get(name)
     if act: bpy.data.actions.remove(act)
     n=keys[-1][0]; frames=[]
+    base=globals().get('HANDS_FROM',{}).get(name)
     for f in range(n+1):
-        pose(lk(keys,f),FZ)
+        p=lk(keys,f)
+        if base:
+            p.update({k:v for k,v in lk(KEYS[base],f).items() if k not in BODY})
+        pose(p,FZ)
         frames.append({pb.name:snap(pb.name) for pb in a.pose.bones})
     act=bpy.data.actions.new(name); a.animation_data.action=act
     for f,fr in enumerate(frames):
@@ -354,6 +358,15 @@ KEYS = {'AGBasketballShot': [(0,
                         'wyR': 0.6680952310562134,
                         'wzL': 70.69135284423828,
                         'wzR': 70.35301208496094})],
+ 'AGBasketballShot2': [(0, {'com': 0, 'comy': 0, 'liftL': 0, 'spine': 0, 'stepL': 0}),
+                       (6, {'com': -4, 'comy': 0, 'liftL': 2.5, 'spine': -6, 'stepL': 4}),
+                       (12, {'com': -14, 'comy': 0, 'liftL': 0, 'spine': -11, 'stepL': 7}),
+                       (17, {'com': -6, 'comy': 0, 'liftL': 0, 'spine': -5, 'stepL': 7}),
+                       (20, {'com': -2.5, 'comy': 0, 'liftL': 0, 'spine': 0, 'stepL': 7}),
+                       (24, {'com': -0.5, 'comy': 0, 'liftL': 0, 'spine': 5, 'stepL': 7}),
+                       (33, {'com': -0.3, 'comy': 0, 'liftL': 0, 'spine': 3, 'stepL': 7}),
+                       (42, {'com': -1.0, 'comy': 0, 'liftL': 3, 'spine': 3, 'stepL': 3.5}),
+                       (50, {'com': 0, 'comy': 0, 'liftL': 0, 'spine': 0, 'stepL': 0})],
  'AGSkeeballRoll': [(0, {}),
                     (8,
                      {'com': -4,
@@ -417,7 +430,21 @@ KEYS = {'AGBasketballShot': [(0,
                       'yawR': 2}),
                     (46,
                      {'com': -4, 'comy': 2, 'foreR': 20, 'liftL': 3, 'spine': -8, 'stepL': 8, 'twistR': 45, 'upR': 20}),
-                    (54, {})]}
+                    (54, {})],
+ 'AGSkeeballRoll2': [(0, {'com': 0, 'comy': 0, 'liftL': 0, 'spine': 0, 'stepL': 0}),
+                     (8, {'com': -6, 'comy': 1, 'liftL': 6, 'spine': -12, 'stepL': 10}),
+                     (14, {'com': -19, 'comy': 5, 'liftL': 0, 'spine': -30, 'stepL': 16}),
+                     (22, {'com': -22, 'comy': 8, 'liftL': 0, 'spine': -36, 'stepL': 16}),
+                     (30, {'com': -21, 'comy': 8, 'liftL': 0, 'spine': -35, 'stepL': 16}),
+                     (38, {'com': -17, 'comy': 6, 'liftL': 0, 'spine': -29, 'stepL': 16}),
+                     (46, {'com': -7, 'comy': 3, 'liftL': 4, 'spine': -13, 'stepL': 9}),
+                     (54, {'com': 0, 'comy': 0, 'liftL': 0, 'spine': 0, 'stepL': 0})]}
+
+# a second take of each throw: its own body (stance, crouch, lean), its hands the first's, frame by frame (the ball
+# held and let go just as it is in the first: the same places, the same frame)
+HANDS_FROM = {'AGBasketballShot2': 'AGBasketballShot', 'AGSkeeballRoll2': 'AGSkeeballRoll'}
+BODY = ('com', 'comy', 'spine', 'stepL', 'liftL')
+
 
 for _name, _keys in KEYS.items():
     build(_name, _keys)

@@ -453,7 +453,7 @@ Int Function NpcRoll(Int aiActor, Int aiSpot) Global
 			a.SetAngle(0.0, 0.0, spot.GetAngleZ())
 		EndIf
 	EndIf
-	If a && a.PlayIdle(Game.GetFormFromFile(0x000831, "AmusementGames.esl") as Idle)
+	If a && a.PlayIdle(Game.GetFormFromFile(Utility.RandomInt(0, 1) * 4 + 0x000831, "AmusementGames.esl") as Idle)  ; (the roll, or its second take: 0x835)
 		Return 4  ; (AmusementGamesSkeeballRoll: our own)
 	EndIf
 	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F0, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000EC533, "Fallout4.esm") as Idle))
@@ -482,7 +482,7 @@ Int Function NpcToss(Int aiActor, Int aiSpot) Global
 			a.SetAngle(0.0, 0.0, spot.GetAngleZ())
 		EndIf
 	EndIf
-	If a && a.PlayIdle(Game.GetFormFromFile(0x000830, "AmusementGames.esl") as Idle)
+	If a && a.PlayIdle(Game.GetFormFromFile(Utility.RandomInt(0, 1) * 4 + 0x000830, "AmusementGames.esl") as Idle)  ; (the shot, or its second take: 0x834)
 		Return 4  ; (AmusementGamesBasketballShot: our own)
 	EndIf
 	If a && (a.PlayIdle(Game.GetFormFromFile(0x000EE0F1, "Fallout4.esm") as Idle) || a.PlayIdle(Game.GetFormFromFile(0x000CF927, "Fallout4.esm") as Idle))
