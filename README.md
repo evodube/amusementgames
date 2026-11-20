@@ -44,7 +44,7 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
     yet says "(not enough)".
   - **View High Scores**: each game's top 10 across all your settlements, you and your settlers alike (each one's
     best score; generic names like Settler, Provisioner, Wastelander, Raider or Protectron left off, so it's people
-    with names of their own; the
+    with names of their own; anyone since deleted shows as "..." (the dead keep their names); the
     Nuka-Zapper Race's is most races won, every win scoring the same), and your Personal High Scores.
   Prices are the Nuka-Cade's own: an item's caps value x 50.
   - Weapons: Paddle Ball 500, Thirst Zapper 500, Commie Whacker 1250, Acid Soaker 6250
@@ -61,8 +61,10 @@ the power meter while you charge a throw; Atomic Rollers also shows each ball's 
 line up the lane to where you look (as fo4bowling's). At the end, the result. The machine's own scoreboard has the score.
 
 A point a hit (a basket, a whack, a target, a step up the zapper race; a race won is 10 more); Atomic Rollers' holes are
-worth what they say. Tickets come out at Nuka-World's own rates, doubled (the Income page's multiplier): a ticket every 100 at Atomic Rollers, every 2
-points at the rest. They're Nuka-Cade tickets, so the Nuka-Cade's prize terminal takes them too. The weapon's lent
+worth what they say. Tickets come out at Nuka-World's own rates, doubled (the Income page's multiplier): a ticket every 100 at Atomic Rollers,
+every 2 points at Hoop Shot and Whac-a-Commie, every 4 at the zapper race, and at Bandit Roundup by what you hit, as
+Nuka-World's gallery pays (the bunny half a ticket, the pig 3/4, the duck 1, the star 1 1/4, the bottle 1 1/2; a
+bullseye's more points, not more tickets). They're Nuka-Cade tickets, so the Nuka-Cade's prize terminal takes them too. The weapon's lent
 for the game (with ammo) if you haven't one, and you get back what you had out after. Each machine's own scoreboard
 shows the game on it and your best at that game, kept in your save. X leaves a game early, paid for the score so far.
 

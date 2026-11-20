@@ -74,8 +74,9 @@ namespace ag::Leaderboard
 
 		struct Entry
 		{
-			RE::TESFormID actor{ 0 };
+			RE::TESFormID actor{ 0 };  // (0 once gone)
 			std::int32_t  score{ 0 };
+			std::uint8_t  gone{ 0 };   // deleted: the place kept, "..." for the name
 		};
 
 		std::mutex                                       g_lock;
@@ -119,6 +120,10 @@ namespace ag::Leaderboard
 				const auto  id = kFirstScoreID + static_cast<std::uint32_t>(a_game * kPlaces + place);
 				if (auto* g = Forms::Own(id); g && g->Is(RE::ENUM_FORM_ID::kGLOB)) {
 					static_cast<RE::TESGlobal*>(g)->value = static_cast<float>(e.score);
+				}
+				const auto gone = kFirstGoneID + static_cast<std::uint32_t>(a_game * kPlaces + place);
+				if (auto* g = Forms::Own(gone); g && g->Is(RE::ENUM_FORM_ID::kGLOB)) {
+					static_cast<RE::TESGlobal*>(g)->value = e.gone ? 1.0f : 0.0f;
 				}
 				Papyrus::Call("TopAlias", { kFirstAlias + a_game * kPlaces + place, static_cast<std::int32_t>(e.actor) });
 			}
@@ -196,6 +201,38 @@ namespace ag::Leaderboard
 		return it != b.end() ? it->score : 0;
 	}
 
+	void Refresh()
+	{
+		std::array<std::vector<Entry>, kGames> changed;
+		{
+			std::scoped_lock l(g_lock);
+			for (int game = 0; game < kGames; ++game) {
+				bool any = false;
+				auto& b = g_boards[game];
+				for (auto& e : b) {
+					if (e.gone) {
+						continue;
+					}
+					auto* form = RE::TESForm::GetFormByID(e.actor);
+					if (!form || form->IsDeleted()) {
+						log::info("high scores: {:08X} ({} at {}) is gone: \"...\"", e.actor, e.score, sim::GameName(static_cast<sim::GameId>(game)));
+						e.gone = 1;
+						e.actor = 0;  // (its id may be someone new's later)
+						any = true;
+					}
+				}
+				if (any) {
+					changed[game].assign(b.begin(), b.begin() + std::min<std::size_t>(b.size(), kPlaces));
+				}
+			}
+		}
+		for (int game = 0; game < kGames; ++game) {
+			if (!changed[game].empty()) {
+				Publish(game, changed[game]);
+			}
+		}
+	}
+
 	void Save(const F4SE::SerializationInterface* a_intfc)
 	{
 		std::scoped_lock l(g_lock);
@@ -208,6 +245,7 @@ namespace ag::Leaderboard
 			for (const auto& e : b) {
 				a_intfc->WriteRecordData(&e.actor, sizeof(e.actor));
 				a_intfc->WriteRecordData(&e.score, sizeof(e.score));
+				a_intfc->WriteRecordData(&e.gone, sizeof(e.gone));
 			}
 		}
 	}
@@ -223,13 +261,22 @@ namespace ag::Leaderboard
 			}
 			for (std::uint32_t i = 0; i < n; ++i) {
 				Entry e;
-				if (!a_intfc->ReadRecordData(&e.actor, sizeof(e.actor)) || !a_intfc->ReadRecordData(&e.score, sizeof(e.score))) {
+				if (!a_intfc->ReadRecordData(&e.actor, sizeof(e.actor)) || !a_intfc->ReadRecordData(&e.score, sizeof(e.score)) ||
+					!a_intfc->ReadRecordData(&e.gone, sizeof(e.gone))) {
 					return;
 				}
-				if (const auto now = a_intfc->ResolveFormID(e.actor)) {
-					e.actor = *now;
-					b.push_back(e);
+				// (not there any more: their place kept, "..." for the name)
+				std::optional<std::uint32_t> now;
+				if (!e.gone) {
+					now = a_intfc->ResolveFormID(e.actor);
 				}
+				if (now) {
+					e.actor = *now;
+				} else {
+					e.actor = 0;
+					e.gone = 1;
+				}
+				b.push_back(e);
 			}
 		}
 	}

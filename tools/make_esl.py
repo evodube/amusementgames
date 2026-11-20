@@ -69,6 +69,8 @@ Form IDs (src/Forms.h expects these):
                                                them; who's at each is AmusementGamesQuest's alias of the same name (6-55)
     xx00087A  TERM AmusementGamesPrizeCounterHighScores  View High Scores: the five games, and your Personal High Scores
     xx00087B+ TERM AmusementGamesPrizeCounterTop<Game>   a game's top 10 (87B-87F)
+    xx000880+ GLOB AmusementGamesTop<Game><NN>Gone  1 when that place's player's been deleted (880-8B1): "..." for the
+                                               name (dying's fine: the dead keep it)
     xx000840+ GLOB AmusementGamesBest*         your best score at each game (840-844, sim::GameId order; the plugin)
               (AmusementGamesQuest's ref aliases 4 Player, 5 PrizeCounter: the counter's welcome, <Alias=Player>)
 
@@ -131,6 +133,7 @@ TOP_FIRST = FIRST_ID + 0x48                          # GLOB: a score each, game 
 TOP_ALIAS_FIRST = 6                                  # AmusementGamesQuest's ref aliases: who's at each, the same order
 HIGH_SCORES_PAGE = FIRST_ID + 0x7A                   # TERM: View High Scores (the five games)
 TOP_PAGE_FIRST = FIRST_ID + 0x7B                     # TERM: a game's top 10 (0x87B-0x87F)
+TOP_GONE_FIRST = FIRST_ID + 0x80                     # GLOB: a place's player deleted (1: "..." for the name), as TOP_FIRST
 RULE = "=================================================="  # (as wide as the Nuka-Cade's screens)
 
 # the catalogue: (section, [(what the terminal says, DLCNukaWorld.esm id, how many, tickets)]). Only Nuka-World's
@@ -632,6 +635,11 @@ def score_condition(global_id: int, filled: bool) -> bytes:
     return subrecord(b"CTDA", struct.pack("<B3xfHxxIIIIi", 0x40 if filled else 0x00, 0.0, 74, OWN | global_id, 0, 0, 0, -1))
 
 
+def gone_condition(global_id: int, gone: bool) -> bytes:
+    """GetGlobalValue (74) of a place's gone flag == 1 (its player deleted) or == 0"""
+    return subrecord(b"CTDA", struct.pack("<B3xfHxxIIIIi", 0x00, 1.0 if gone else 0.0, 74, OWN | global_id, 0, 0, 0, -1))
+
+
 def top_page(form_id: int, game: int) -> bytes:
     """a game's top 10, across every settlement: a line a place (display text, shown when someone's there: its score's
     global over 0), as Nuka-World lists its prizes ('<Token.ValueInt=...> Tickets - <Alias=...>')"""
@@ -640,10 +648,17 @@ def top_page(form_id: int, game: int) -> bytes:
         name = top_name(game, place)
         wins = BEST_UNITS[game] == " wins"
         line = f"{place + 1:>2}. <Token.ValueInt={name}>{BEST_UNITS[game]} - <Alias={name}>"
+        score_id = TOP_FIRST + game * TOP_PLACES + place
+        gone_id = TOP_GONE_FIRST + game * TOP_PLACES + place
         items.append(menu_item(line, 8, place + 1,
                                subrecord(b"UNAM", zstring(f"{RULE}\r\n\r\n   #{place + 1} at {BEST_NAMES[game]}: <Alias={name}>, "
                                                           f"<Token.ValueInt={name}> {'races won' if wins else 'points'}\r\n"))
-                               + score_condition(TOP_FIRST + game * TOP_PLACES + place, True)))
+                               + score_condition(score_id, True) + gone_condition(gone_id, False)))
+        # (its player deleted since: the place and score kept, "..." for the name)
+        items.append(menu_item(f"{place + 1:>2}. <Token.ValueInt={name}>{BEST_UNITS[game]} - ...", 8, 40 + place + 1,
+                               subrecord(b"UNAM", zstring(f"{RULE}\r\n\r\n   #{place + 1} at {BEST_NAMES[game]}: "
+                                                          f"<Token.ValueInt={name}> {'races won' if wins else 'points'}\r\n"))
+                               + score_condition(score_id, True) + gone_condition(gone_id, True)))
     first = TOP_FIRST + game * TOP_PLACES
     items.append(menu_item("No scores yet.", 8, 20, subrecord(b"UNAM", zstring(f"{RULE}\r\n\r\n   Nobody's "
                                                                              f"{'won' if BEST_UNITS[game] else 'played'} "
@@ -819,6 +834,8 @@ def build() -> bytes:
     globs += [global_float(OWN | (BEST_FIRST + i), f"AmusementGamesBest{g}", 0.0) for i, g in enumerate(BEST_GAMES)]
     globs += [global_float(OWN | (TOP_FIRST + g * TOP_PLACES + p), f"AmusementGames{top_name(g, p)}", 0.0)
               for g in range(len(BEST_GAMES)) for p in range(TOP_PLACES)]
+    globs += [global_float(OWN | (TOP_GONE_FIRST + g * TOP_PLACES + p), f"AmusementGames{top_name(g, p)}Gone", 0.0)
+              for g in range(len(BEST_GAMES)) for p in range(TOP_PLACES)]
 
     # ---- the machines and their pieces
     for off, name, title, mesh, bounds, preview in GAMES:
@@ -864,7 +881,7 @@ def build() -> bytes:
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x80))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0xB2))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))

@@ -886,6 +886,7 @@ namespace ag
 		for (int i = 0; i < static_cast<int>(_best.size()); ++i) {
 			set(Forms::kFirstBestID + static_cast<std::uint32_t>(i), _best[i]);
 		}
+		Leaderboard::Refresh();  // (anyone on the high scores who's been deleted: "...")
 		// (the zapper race's: your races won, every win scoring the same)
 		if (auto* player = RE::PlayerCharacter::GetSingleton()) {
 			set(Forms::kFirstBestID + static_cast<std::uint32_t>(sim::GameId::kNukaZapperRace), Leaderboard::Wins(player->GetFormID()));

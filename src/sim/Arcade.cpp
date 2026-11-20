@@ -896,6 +896,7 @@ namespace sim
 				_rival = 0;
 				_shots = { 0, 0 };
 				_hits = { 0, 0 };
+				_vanilla = { 0, 0 };
 				_bullseyes = 0;
 				_settled = false;
 				_ending = 1.5;
@@ -989,6 +990,7 @@ namespace sim
 							++_bullseyes;
 						}
 						const int pts = bull ? L.bullseyePoints : k.points;
+						_vanilla[who] += k.vanilla;  // (the tickets: what Nuka-World's gallery scores it)
 						if (who == 0) {
 							Add(pts);
 						} else {
@@ -1042,7 +1044,9 @@ namespace sim
 			int  ScoreOf(int a_who) const { return a_who == 1 ? _rival : _score; }
 			bool Versus() const { return _versus; }
 
-			int TicketsFor(int a_score) const override { return TicketTable{ 2, 1, 60, 0, 0 }.For(a_score); }  // a ticket every 2 hits (Nuka-World's rate)
+			// Nuka-World's rate: a ticket every 200 of its points, what it scores each target hit (the bunny 100 to the
+			// bottle 300); not from our score (a point a hit), so a bullseye's more points, not more tickets. Yours (side 0)
+			int TicketsFor(int) const override { return TicketTable{ 200, 1, 100, 0, 0 }.For(_vanilla[0]); }
 
 		private:
 			struct Target
@@ -1077,6 +1081,7 @@ namespace sim
 			double                     _ending{ 1.5 };
 			std::array<int, 2>         _shots{};
 			std::array<int, 2>         _hits{};
+			std::array<int, 2>         _vanilla{};  // each one's hits at Nuka-World's values (the tickets)
 			int                        _bullseyes{ 0 };
 			bool                       _hurried{ false };
 			bool                       _versus{ false };
