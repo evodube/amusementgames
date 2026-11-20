@@ -872,6 +872,7 @@ namespace ag
 		constexpr float     kShowReach = 3000.0f;              // settlers this near the machine
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
+		constexpr double    kSteadyBeforeShot = 2.5;           // the rifle drawn this long before a shot
 	}
 
 	std::vector<Arcade::Worn> Arcade::WornBy(RE::Actor* a_actor)
@@ -1332,6 +1333,17 @@ namespace ag
 				aimAt->data.location.y = w.y;
 				aimAt->data.location.z = w.z;
 			}
+		}
+		// ...and not till the rifle's been up and steady a while: taking it up they raise it, lower it as their hold
+		// package takes over and raise it again, and the first shots of that went into the ground
+		if (actor->GetWeaponMagicDrawn()) {
+			a_s.steady += a_dt;
+		} else {
+			a_s.steady = 0.0;
+		}
+		if (in.pressed && a_s.steady < kSteadyBeforeShot) {
+			in.pressed = false;
+			a_s.shooter->Again();
 		}
 		if (in.pressed && a_s.weapon && CanFire(actor, a_s.name)) {
 			static std::atomic<int> told{ -1 };  // (how the shots go: logged once each way)
@@ -1842,10 +1854,13 @@ namespace ag
 		auto* weapon = Forms::WeaponOf(sim::GameId::kNukaZapperRace);
 		for (auto& q : a_r.racers) {
 			q.sinceShot += a_dt;
+			auto  r = q.actor.get();
+			auto* a = r ? r->As<RE::Actor>() : nullptr;
+			q.steady = a && a->GetWeaponMagicDrawn() ? q.steady + a_dt : 0.0;  // (as at the gallery: drawn a while first)
 		}
 		for (int lane : sim::TakeZapperShots(a_game)) {
 			auto it = std::ranges::find_if(a_r.racers, [&](const Racer& a_q) { return a_q.lane == lane && a_q.state == 2; });
-			if (it == a_r.racers.end() || it->sinceShot < 0.35 || !weapon) {
+			if (it == a_r.racers.end() || it->sinceShot < 0.35 || it->steady < kSteadyBeforeShot || !weapon) {
 				continue;  // (a squirt's animation still going: the next one shown)
 			}
 			auto  ref = it->actor.get();

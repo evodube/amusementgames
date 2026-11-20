@@ -277,7 +277,10 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 			q.HoldDrawn(aiActor, aiMarker, k.GetFormID())  ; (a melee weapon: kept drawn between swings)
 		EndIf
 	EndIf
-	a.DrawWeapon()
+	If aiAimAt == 0
+		a.DrawWeapon()  ; (the mallet; a gun's raised by their hold package: drawn here too, they raised it, lowered it
+		                ; as the package took over, and raised it again)
+	EndIf
 	; (no raising it ourselves: their hold package aims it, and a sighted idle on top of that put them in a low crouch,
 	; as behind cover, for the first few shots)
 	Return r
