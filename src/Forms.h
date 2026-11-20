@@ -40,6 +40,7 @@ namespace ag::Forms
 	inline constexpr std::uint32_t kThirstZapper = 0x007BC8;    // WEAP DLC04_ThirstZapper: the zapper race's water gun
 	inline constexpr std::uint32_t kLeverGun = 0x02C8B0;        // WEAP DLC03_LeverGun (DLCCoast.esm): Bandit Roundup's lever-action rifle...
 	inline constexpr RE::TESFormID kHuntingRifle = 0x0004F46A;  // WEAP HuntingRifle (Fallout4.esm): ...or this, without Far Harbor
+	inline constexpr std::uint32_t kSettlerLeverGun = 0x833;    // WEAP AmusementGamesSettlerLeverGun (ours): a settler's
 	inline constexpr std::uint32_t kLeverGunIronSights = 0x042E6F;      // OMOD DLC03_mod_LeverGun_Scope_SightsIron: no scope
 	inline constexpr RE::TESFormID kHuntingRifleIronSights = 0x00148418;  // OMOD mod_HuntingRifle_Scope_SightsIron
 	inline constexpr std::uint32_t kNumbers = 0x04E138;       // ACTI DLC04_Nukacade_Numbers: a scoreboard digit
@@ -118,7 +119,7 @@ namespace ag::Forms
 		case sim::GameId::kWhacACommie: form = Nuka(kCommieWhacker); break;
 		case sim::GameId::kNukaZapperRace: form = Nuka(kThirstZapper); break;
 		case sim::GameId::kBanditRoundup:
-			form = From("DLCCoast.esm", kLeverGun);  // (a settler's played with the Hunting Rifle's animations: NpcTakeUp)
+			form = From("DLCCoast.esm", kLeverGun);
 			if (!form) {
 				form = RE::TESForm::GetFormByID(kHuntingRifle);
 			}
@@ -128,13 +129,25 @@ namespace ag::Forms
 		return form ? form->As<RE::TESObjectWEAP>() : nullptr;
 	}
 
+	// a settler's: as yours, but Bandit Roundup's lever-action is ours (AmusementGamesSettlerLeverGun): Far Harbor's, played
+	// with the Hunting Rifle's animations (Far Harbor's own had them lower it and drop into the floor at each shot)
+	inline RE::TESObjectWEAP* SettlerWeaponOf(sim::GameId a_game)
+	{
+		if (a_game == sim::GameId::kBanditRoundup) {
+			if (auto* own = Own(kSettlerLeverGun); own && own->As<RE::TESObjectWEAP>()) {
+				return own->As<RE::TESObjectWEAP>();
+			}
+		}
+		return WeaponOf(a_game);
+	}
+
 	// the mod fitted to a lent weapon: the rifles' iron sights (no scope)
 	inline RE::TESForm* LentModFor(const RE::TESObjectWEAP* a_weapon)
 	{
 		if (!a_weapon) {
 			return nullptr;
 		}
-		if (a_weapon == From("DLCCoast.esm", kLeverGun)) {
+		if (a_weapon == From("DLCCoast.esm", kLeverGun) || a_weapon == Own(kSettlerLeverGun)) {
 			return From("DLCCoast.esm", kLeverGunIronSights);
 		}
 		if (a_weapon->GetFormID() == kHuntingRifle) {

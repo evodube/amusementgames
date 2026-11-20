@@ -247,21 +247,14 @@ Int Function NpcTakeUp(Int aiActor, Int aiWeapon, Int aiMarker, Int aiAimAt, Int
 			a.AddItem(w, 1, True)
 		EndIf
 		ObjectMod sights = None
-		If w == Game.GetFormFromFile(0x02C8B0, "DLCCoast.esm")
+		If w == Game.GetFormFromFile(0x02C8B0, "DLCCoast.esm") || w == Game.GetFormFromFile(0x833, "AmusementGames.esl")
+			; (Far Harbor's lever-action, or a settler's: ours, the same rifle with the Hunting Rifle's animations)
 			sights = Game.GetFormFromFile(0x042E6F, "DLCCoast.esm") as ObjectMod   ; (DLC03_mod_LeverGun_Scope_SightsIron)
 		ElseIf w == Game.GetFormFromFile(0x04F46A, "Fallout4.esm")
 			sights = Game.GetFormFromFile(0x148418, "Fallout4.esm") as ObjectMod   ; (mod_HuntingRifle_Scope_SightsIron)
 		EndIf
 		If sights
 			a.AttachModToInventoryItem(w, sights)
-		EndIf
-		If w == Game.GetFormFromFile(0x02C8B0, "DLCCoast.esm")
-			; a settler's lever-action played with the Hunting Rifle's animations (Far Harbor's own had them lower it and
-			; drop into the floor at each shot): our mod in its empty legendary slot, before it's equipped. Yours keeps its own
-			ObjectMod anims = Game.GetFormFromFile(0x832, "AmusementGames.esl") as ObjectMod
-			If anims
-				a.AttachModToInventoryItem(w, anims)
-			EndIf
 		EndIf
 		r = 2
 	EndIf

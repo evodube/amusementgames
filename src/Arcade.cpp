@@ -1489,7 +1489,7 @@ namespace ag
 		}
 		std::shuffle(machines.begin(), machines.end(), _showRng);
 		for (auto& [h, gameId] : machines) {
-			auto* weapon = Forms::WeaponOf(gameId);  // (none: Atomic Rollers, Hoop Shot)
+			auto* weapon = Forms::SettlerWeaponOf(gameId);  // (none: Atomic Rollers, Hoop Shot)
 			if (gameId != sim::GameId::kAtomicRollers && gameId != sim::GameId::kHoopShot && !weapon) {
 				continue;
 			}

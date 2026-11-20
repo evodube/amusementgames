@@ -79,7 +79,7 @@ CAPS = 0x0000000F
 LEVER_GUN = COAST | 0x02C8B0                         # DLC03_LeverGun: Bandit Roundup's rifle
 ANIMS_LEVER_ACTION = COAST | 0x02F834                # its animations' keyword (Far Harbor's, for the lever)
 ANIMS_HUNTING_RIFLE = 0x00058E37                     # the Hunting Rifle's
-AP_LEGENDARY = 0x001E32C8                            # ap_Legendary: an attach point the lever-action has, empty
+SETTLER_LEVER_GUN = OWN | (FIRST_ID + 0x33)          # ours: the lever-action, the Hunting Rifle's animations
 TOKEN = NUKA | 0x01998A                              # DLC04_Nukacade_Token01
 TOKEN_SOUND = NUKA | 0x04E5E4                        # DLC04OBJArcadeTokenExchangeDispense
 TOKEN_PRICE = 5.0                                    # caps a token
@@ -258,16 +258,61 @@ def aim_package(form_id: int, editor_id: str, spot_keyword: int, target_keyword:
     return record(b"PACK", 0, form_id, body)
 
 
-def anim_mod(form_id: int, editor_id: str, attach_point: int, remove: int, add: int) -> bytes:
-    """A weapon mod (OMOD) changing nothing but which animations the weapon is played with: one keyword off, another on.
-    DATA as Fallout4.esm's: includes 0, properties, 2 unknown bytes, form type WEAP, max rank, level tier, attach point,
-    attach parent slots (none), items (none), then each property: value type 4 (form), function (1 remove, 2 add),
-    property 0x1F (Keywords), the keyword, 1, 0.0."""
-    props = [(1, remove), (2, add)]
-    data = (struct.pack("<II", 0, len(props)) + b"\x00\x00" + b"WEAP" + b"\x00\x00"
-            + struct.pack("<III", attach_point, 0, 0)
-            + b"".join(struct.pack("<IIIIIf", 4, fn, 0x1F, kw, 1, 0.0) for fn, kw in props))
-    return record(b"OMOD", 0, form_id, subrecord(b"EDID", zstring(editor_id)) + subrecord(b"DATA", data))
+# DLCCoast.esm's DLC03_LeverGun (0102C8B0) record, its subrecords as they are there (decompressed): what an override
+# of it in xEdit would copy
+LEVER_GUN_RECORD = bytes.fromhex(
+    "454449440f00444c4330335f4c6576657247756e004f424e440c000000000000000000000000005054524e0400161c030046554c4c0400b5"
+    "2500004d4f444c3100576561706f6e735c48756e74696e675269666c655c48756e74696e675269666c6544756d6d79506172656e742e6e69"
+    "66004d4f445414000400000000000000000000000000000000000000455459500400453f0100424944530400e53e1200594e414d04002349"
+    "03005a4e414d0400c3f501004b53495a0400090000004b5744412400ea4a0f00a1a00400cb9c040185c41000b4ad0300862a090034f80201"
+    "122b0001789e1c0044455343040000000000494e52440400cf772300415050520c0004400200a0980400c8321e004f42544504000b000000"
+    "4f425446000046554c4c04009d3300004f4254533c00060000000000000000000000ffff0100000043a60401000001702e04010000016d2e"
+    "04010000016e2e04010000016f2e04010000011df204000000014f425446000046554c4c0400e24100004f42545340000600000000000000"
+    "00000000ffff0001a7421600000043a60401000001702e04010000016d2e04010000016e2e04010000016f2e04010000011df20400000001"
+    "4f425446000046554c4c04004e4100004f4254531600000000000000000000000000010000012df4050000004f425446000046554c4c0400"
+    "ad4100004f4254534000060000000000000000000000ffff0001a6421600000043a6040100000149a6040100000147a6040100000144a604"
+    "010000014aa6040100000148a604010000014f425446000046554c4c04003f4100004f425453160000000000000000000000000003000001"
+    "2df4050000004f425446000046554c4c0400bb4100004f4254534000060000000000000000000000ffff0001989c0d00000043a604010000"
+    "01702e04010000016d2e04010000016e2e04010000016f2e04010000011df204000000014f425446000046554c4c0400934100004f425453"
+    "4000060000000000000000000000050000012df40500000043a6040100000149a604010000016e2e040100000146a604010000014da60401"
+    "00000148a604010000014f425446000046554c4c0400444100004f4254534000060000000000000000000000ffff000193f70c00000043a6"
+    "0401000001702e0401000001c99c04010000016e2e04010000016f2e04010000011df204000000014f425446000046554c4c0400aa410000"
+    "4f4254534000060000000000000000000000070000012df40500000043a6040100000149a6040100000147a6040100000145a60401000001"
+    "4aa6040100000148a604010000014f425446000046554c4c0400ee4100004f4254534000060000000000000000000000ffff000197f70c00"
+    "000043a60401000001702e0401000001c99c0401000001c79c0401000001c29c04010000011df204000000014f425446000046554c4c0400"
+    "c44100004f4254534000060000000000000000000000090000012df40500000043a6040100000149a6040100000147a6040100000145a604"
+    "010000014ca6040100000148a6040100000153544f500000444e414d8400b1c802010000803f0000803f0000803f00008043000080430000"
+    "003f000000000000003f00000000000000000000000000014000050009000080400000000096000000230000000000000000000000000000"
+    "000000000000000000000000000000ac2615000000000000abaa2a3f00000000d041000000000000000001000000ffff7f7f464e414d2900"
+    "acc527370000003f0000803fc3f5a83e5e3373400000803fcdcc4c3e01000000000000000000000000435244540c00000000400000803f00"
+    "000000494e414d0400374b00004c4e414d0400722e040157414d440400cc9c0401575a4d44040046b20400")
+
+
+def settler_lever_gun(form_id: int, editor_id: str) -> bytes:
+    """Far Harbor's lever-action as a record of ours: its form IDs kept as they are (its masters, Fallout4.esm then
+    itself, are our first two), its animations' keyword the Hunting Rifle's, and its names written out (DLCCoast's are
+    localized)."""
+    body = LEVER_GUN_RECORD
+    out = b""
+    i = 0
+    first_full = True
+    while i < len(body):
+        sig = body[i:i + 4]
+        n = struct.unpack_from("<H", body, i + 4)[0]
+        v = body[i + 6:i + 6 + n]
+        i += 6 + n
+        if sig == b"EDID":
+            v = zstring(editor_id)
+        elif sig == b"FULL":
+            v = zstring("Lever-Action Rifle" if first_full else "Default")
+            first_full = False
+        elif sig == b"DESC":
+            v = zstring("")
+        elif sig == b"KWDA":
+            ids = [ANIMS_HUNTING_RIFLE if k == ANIMS_LEVER_ACTION else k for k in struct.unpack("<%dI" % (n // 4), v)]
+            v = struct.pack("<%dI" % len(ids), *ids)
+        out += subrecord(sig, v)
+    return record(b"WEAP", 0, form_id, out)
 
 
 def quest(form_id: int, editor_id: str, package: int, hold: int, hold_drawn: int, hold_zapper: int, priority: int = 100) -> bytes:
@@ -437,8 +482,9 @@ def build() -> bytes:
     hold_drawn = OWN | (FIRST_ID + 0x2E)
     hold_zapper = OWN | (FIRST_ID + 0x2F)  # (the zapper race's: aiming the Thirst Zapper itself)
     packages = [travel_package(walk, "AmusementGamesWalkToSpot", link),
-                # (Bandit Roundup's: that very rifle, the lever-action, as the zapper race's names the Thirst Zapper)
-                aim_package(hold, "AmusementGamesHoldAtSpot", link, target, weapon=LEVER_GUN),
+                # (Bandit Roundup's: that very rifle, the settlers' lever-action, as the zapper race's names the Thirst
+                # Zapper)
+                aim_package(hold, "AmusementGamesHoldAtSpot", link, target, weapon=SETTLER_LEVER_GUN),
                 travel_package(hold_drawn, "AmusementGamesHoldDrawnAtSpot", link, general=0x00802000, interrupts=0),
                 aim_package(hold_zapper, "AmusementGamesHoldZapperAtSpot", link, target, weapon=NUKA | 0x007BC8)]  # DLC04_ThirstZapper
     # (priority 101: above Wasteland Wagers' 100, so a roulette bettor called over isn't pulled back mid-walk)
@@ -480,19 +526,17 @@ def build() -> bytes:
     idles = [idle(OWN | (FIRST_ID + 0x30), "AmusementGamesBasketballShot", "AGBasketballShot"),
              idle(OWN | (FIRST_ID + 0x31), "AmusementGamesSkeeballRoll", "AGSkeeballRoll")]
 
-    # ---- a settler's lever-action at Bandit Roundup fired with the Hunting Rifle's animations: Far Harbor's own for it
-    # (third person) had them lower it and drop into the floor at each shot. A weapon's animations are picked by its
-    # keyword (as the laser rifle's barrels pick theirs): this mod, on the settler's lent rifle only (its empty legendary
-    # slot), takes Far Harbor's keyword off and puts the Hunting Rifle's on. Yours keeps its own
-    omods = [anim_mod(OWN | (FIRST_ID + 0x32), "AmusementGamesSettlerLeverActionAnims", AP_LEGENDARY,
-                      remove=ANIMS_LEVER_ACTION, add=ANIMS_HUNTING_RIFLE)]
+    # ---- the settlers' lever-action at Bandit Roundup: Far Harbor's own (yours), with the Hunting Rifle's animations.
+    # Far Harbor's for it (third person) had them lower it and drop into the floor at each shot; a weapon's animations
+    # are picked by its keyword. (0.8.0's mod changing the keyword on their lent rifle didn't take)
+    weapons = [settler_lever_gun(SETTLER_LEVER_GUN, "AmusementGamesSettlerLeverGun")]
 
-    count = len(omods) + len(idles) + len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests)
+    count = len(weapons) + len(idles) + len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests)
     header = record(
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x33))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0x34))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
@@ -504,9 +548,10 @@ def build() -> bytes:
     )
     # groups in the order the game's own master has them
     return (header + group(b"GLOB", b"".join(globs)) + group(b"KYWD", b"".join(keywords))
-            + group(b"ACTI", b"".join(acti)) + group(b"STAT", b"".join(stats)) + group(b"QUST", b"".join(quests))
+            + group(b"ACTI", b"".join(acti)) + group(b"STAT", b"".join(stats)) + group(b"WEAP", b"".join(weapons))
+            + group(b"QUST", b"".join(quests))
             + group(b"IDLE", b"".join(idles)) + group(b"PACK", b"".join(packages)) + group(b"MESG", b"".join(messages)) + group(b"ARTO", b"".join(art))
-            + group(b"COBJ", b"".join(recipes)) + group(b"OMOD", b"".join(omods)))
+            + group(b"COBJ", b"".join(recipes)))
 
 
 def main() -> int:
