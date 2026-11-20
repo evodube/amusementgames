@@ -619,7 +619,7 @@ namespace ag
 		});
 	}
 
-	void Arcade::PlaceNode(RE::TESObjectREFR* a_ref, const RE::NiPoint3& a_pos, const RE::NiMatrix3& a_rot, float a_scale, bool a_hidden)
+	void Arcade::PlaceNode(RE::TESObjectREFR* a_ref, const RE::NiPoint3& a_pos, const RE::NiMatrix3& a_rot, float a_scale, bool a_hidden, bool a_moveHidden)
 	{
 		auto* root = a_ref ? a_ref->Get3D() : nullptr;
 		if (!root) {
@@ -628,7 +628,7 @@ namespace ag
 		if (root->GetAppCulled() != a_hidden) {
 			root->SetAppCulled(a_hidden);
 		}
-		if (a_hidden) {
+		if (a_hidden && !a_moveHidden) {
 			return;
 		}
 		RE::NiTransform local;
@@ -1306,7 +1306,8 @@ namespace ag
 					auto* root = actor->Get3D();
 					RE::NiPoint3 at;
 					bool         show = false;
-					if (a_s.holding) {
+					bool         placed = false;  // (where it'd be in her hand, shown or not)
+					{
 						auto* h = root ? root->GetObjectByName("RArm_Hand") : nullptr;
 						auto* mid = root ? root->GetObjectByName("RArm_Finger31") : nullptr;
 						auto* index = root ? root->GetObjectByName("RArm_Finger21") : nullptr;
@@ -1339,8 +1340,9 @@ namespace ag
 									const RE::NiPoint3 forward{ std::sin(heading), std::cos(heading), 0.0f };
 									// (once shown, kept till it's let go: the palm's turn hovers about the line through the set
 									// point, and the ball blinked in and out there)
-									if (a_s.ballShown || n.x * forward.x + n.y * forward.y > 0.45f) {
-										at = wrist + along * 0.75f + n * (radius + 4.0f);  // (clear of the hand: on its palm, not round its fingers)
+									at = wrist + along * 0.75f + n * (radius + 4.0f);  // (clear of the hand: on its palm, not round its fingers)
+									placed = true;
+									if (a_s.holding && (a_s.ballShown || n.x * forward.x + n.y * forward.y > 0.45f)) {
 										show = true;
 										a_s.ballShown = true;
 									}
@@ -1350,14 +1352,17 @@ namespace ag
 									const RE::NiPoint3 knuckle = mid->world.translate;
 									const RE::NiPoint3 into = tip ? (tip->world.translate - knuckle) * 0.3f : RE::NiPoint3{};
 									at = knuckle + into + n * (radius + 2.0f);
-									show = true;
+									placed = true;
+									show = a_s.holding;
 								}
 							}
 						}
 					}
-					if (show) {
+					// kept in her hand while hidden too: taken up, it shows where it is already (it was left where it was
+					// last let go, and shown in her hand it flickered a moment: the renderer's motion across from there)
+					if (placed) {
 						Freeze(ball.get(), a_s.frozen);
-						PlaceNode(ball.get(), at, f.rot, f.scale, false);
+						PlaceNode(ball.get(), at, f.rot, f.scale, !show, true);
 					} else if (auto* b3 = ball->Get3D()) {
 						b3->SetAppCulled(true);
 					}

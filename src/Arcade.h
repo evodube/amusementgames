@@ -136,7 +136,7 @@ namespace ag
 			std::vector<RE::ObjectRefHandle>& a_pieces, std::vector<int>& a_models, std::vector<RE::NiAVObject*>& a_frozen);
 		RE::ObjectRefHandle Spawn(RE::TESBoundObject* a_form, RE::TESObjectREFR* a_near, const RE::NiPoint3& a_pos);
 		void                Remove(RE::ObjectRefHandle& a_handle);
-		void                PlaceNode(RE::TESObjectREFR* a_ref, const RE::NiPoint3& a_pos, const RE::NiMatrix3& a_rot, float a_scale, bool a_hidden);
+		void                PlaceNode(RE::TESObjectREFR* a_ref, const RE::NiPoint3& a_pos, const RE::NiMatrix3& a_rot, float a_scale, bool a_hidden, bool a_moveHidden = false);
 		void Freeze(RE::TESObjectREFR* a_ref, std::vector<RE::NiAVObject*>& a_frozen);
 		void                BlockControls(bool a_block, bool a_allowFighting = false);
 		void                Arm(sim::GameId a_game);
