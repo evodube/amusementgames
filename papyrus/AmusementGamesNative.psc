@@ -329,11 +329,25 @@ Int Function NpcShoot(Int aiActor, Int aiWeapon, Int aiAmmo) Global
 	EndIf
 	; (no Weapon.Fire: from a settler whose gun has nothing to fire, it crashed the game)
 	; a shot, the same way for every gun: the zapper race's way (the shot idle), Bandit Roundup's rifle too
-	If a.PlayIdle(Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle)
+	Idle shot = Game.GetFormFromFile(0x00018E1F, "Fallout4.esm") as Idle
+	If a.PlayIdle(shot)
 		Return 1
 	EndIf
-	a.PlayAnimation("attackStart")
-	Return 2
+	If w == Game.GetFormFromFile(0x007BC8, "DLCNukaWorld.esm")
+		a.PlayAnimation("attackStart")  ; (the Thirst Zapper: as it was)
+		Return 2
+	EndIf
+	; a rifle: the shot idle again in a moment (the last one not done). Never the attack instead: on the rifle, every
+	; other shot of theirs was a reload
+	Int tries = 0
+	While tries < 4
+		Utility.Wait(0.15)
+		If a.PlayIdle(shot)
+			Return 1
+		EndIf
+		tries += 1
+	EndWhile
+	Return 4
 EndFunction
 
 ; ...and let go: out of the quest, AI back on, the lent rifle taken back

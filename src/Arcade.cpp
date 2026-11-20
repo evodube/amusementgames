@@ -1559,17 +1559,15 @@ namespace ag
 			in.pressed = false;
 			a_s.shooter->Again();
 		}
-		// the magazine kept full, as yours is: the rifle's handed over empty, and their first shots were reloads till one
-		// filled it
-		if (a_s.weapon && actor->GetWeaponMagicDrawn()) {
+		// the magazine filled once, as the rifle comes up: it's handed over empty, and their first shots were reloads till
+		// one filled it. (Kept full after every shot, as yours is, every other shot of theirs was a reload)
+		if (a_s.weapon && !a_s.loaded && actor->GetWeaponMagicDrawn()) {
+			a_s.loaded = true;
 			const RE::BGSEquipIndex hand{ 0 };
 			const auto              full = a_s.weapon->weaponData.ammoCapacity > 0 ? a_s.weapon->weaponData.ammoCapacity : 10u;
 			if (const auto now = actor->GetCurrentAmmoCount(hand); now < full) {
 				actor->SetCurrentAmmoCount(hand, full);
-				if (!a_s.loaded) {
-					a_s.loaded = true;
-					log::info("BANDIT ROUNDUP: {}'s magazine filled ({} of {})", a_s.name, now, full);
-				}
+				log::info("BANDIT ROUNDUP: {}'s magazine filled ({} of {})", a_s.name, now, full);
 			}
 		}
 		if (in.pressed && a_s.weapon && CanFire(actor, a_s.name)) {
@@ -1581,7 +1579,7 @@ namespace ag
 						log::info("BANDIT ROUNDUP: {}'s shots: {}", name,
 							a_r == 3 ? "the rifle's fire event (weaponFire)" :
 							a_r == 1 ? "the shot idle (RaiderFireSingle)" :
-							a_r == 2 ? "an attack (attackStart)" : "nobody to fire it");
+							a_r == 2 ? "an attack (attackStart)" : a_r == 4 ? "none (the shot idle wouldn't play)" : "nobody to fire it");
 					}
 				});
 		}
