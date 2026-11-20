@@ -9,8 +9,17 @@ namespace ag::Leaderboard
 	{
 		constexpr int kGames = static_cast<int>(sim::GameId::kCount);
 
-		// names that aren't anyone's own: these never go on a board
-		constexpr std::array<std::string_view, 4> kGeneric{ "Settler", "Trader", "Provisioner", "Scavenger" };
+		// names that aren't anyone's own (the game's generic ones: settlers, wanderers, jobs, factions, hired help,
+		// default robots): these never go on a board. Matched ignoring case and full stops ("Mr. Handy" is "Mr Handy")
+		constexpr std::array<std::string_view, 53> kGeneric{
+			"Settler", "Provisioner", "Wastelander", "Wasteland Traveler", "Drifter", "Resident", "Neighbor", "Farmer",
+			"Fisherman", "Harborman", "Hunter", "Moonshiner", "Scavenger", "Merchant", "Trader", "Caravan Guard",
+			"Caravan Worker", "Guard", "Minuteman", "Railroad Agent", "Brotherhood Knight", "Brotherhood Scribe",
+			"Child of Atom", "Gunner", "Raider", "Disciple", "Operator", "Pack Member", "Mercenary", "Hired Gun", "Bodyguard",
+			"Synth Refugee", "Rebel Synth", "Escaping Synth", "Ghoul", "Prisoner", "Junkie", "Courier", "Soldier", "Mr Handy",
+			"Mr Gutsy", "Protectron", "Assaultron", "Sentry Bot", "Robobrain", "Eyebot", "Robot", "Automatron", "Junkbot",
+			"Scrapbot", "Swarmbot", "Tankbot", "Servitron"
+		};
 
 		struct Entry
 		{
@@ -24,8 +33,15 @@ namespace ag::Leaderboard
 		bool Generic(std::string_view a_name)
 		{
 			auto lower = [](std::string_view a_s) {
-				std::string out(a_s);
-				std::ranges::transform(out, out.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+				std::string out;
+				for (const unsigned char c : a_s) {
+					if (c != '.') {
+						out += static_cast<char>(std::tolower(c));
+					}
+				}
+				while (!out.empty() && out.back() == ' ') {
+					out.pop_back();
+				}
 				return out;
 			};
 			const auto name = lower(a_name);

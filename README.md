@@ -43,7 +43,8 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   - **Spend Tickets**: Weapons, Ammo, Drinks, Souvenirs, paid from what you've redeemed; a prize you can't afford
     yet says "(not enough)".
   - **View High Scores**: each game's top 10 across all your settlements, you and your settlers alike (each one's
-    best score; Settler, Trader, Provisioner and Scavenger left off, so it's people with names of their own; the
+    best score; generic names like Settler, Provisioner, Wastelander, Raider or Protectron left off, so it's people
+    with names of their own; the
     Nuka-Zapper Race's is most races won, every win scoring the same), and your Personal High Scores.
   Prices are the Nuka-Cade's own: an item's caps value x 50.
   - Weapons: Paddle Ball 500, Thirst Zapper 500, Commie Whacker 1250, Acid Soaker 6250

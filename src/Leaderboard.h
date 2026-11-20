@@ -3,8 +3,8 @@
 #include "sim/Arcade.h"
 
 // The Prize Counter's high scores: each game's top 10 across every settlement, each player's best only, by name (the
-// Nuka-Zapper Race's by races won: every win scores the same);
-// the game's generic names (Settler, Trader, Provisioner, Scavenger) left off. Shown on the counter through
+// Nuka-Zapper Race's by races won: every win scores the same); the game's generic names (Settler, Provisioner,
+// Wastelander, Raider, Protectron...: Leaderboard.cpp's list) left off. Shown on the counter through
 // AmusementGames.esl's globals (a score each, 0x848 on: game * 10 + place) and AmusementGamesQuest's ref aliases (the
 // player at each, from 6 on, the same order), which AmusementGamesNative.TopAlias fills.
 namespace ag::Leaderboard
