@@ -105,13 +105,14 @@ TERMINAL_COMPONENTS = [(RUBBER, 2), (COPPER, 2), (CIRCUITRY, 2), (ALUMINUM, 4)] 
 NOT_ENOUGH = 100                                     # a prize's "not enough tickets" line: its menu id + 100
 
 # the catalogue: (section, [(what the terminal says, DLCNukaWorld.esm id, how many, tickets)]). Only Nuka-World's
-# own things (its prize counter's Paddle Ball and Acid Soaker, its souvenirs, its sodas ice-cold, its 7.62)
+# own things (its prize counter's Paddle Ball and Acid Soaker, its souvenirs, its sodas ice-cold, its 7.62), at the
+# Nuka-Cade's own prices: an item's caps value x 50 (DLC04NukacadePriceMult), a bundle that times how many
 PRIZES = [
     ("Prizes", [
-        ("Paddle Ball", 0x00A6C0, 1, 50),
-        ("Paddle Balls x10", 0x00A6C2, 10, 10),          # DLC04_Ammo_PaddleBall
-        ("Acid Soaker", 0x007BC6, 1, 75),
-        ("7.62 Rounds x20", 0x037897, 20, 20),           # DLC04_Ammo_HandmadeRound
+        ("Paddle Ball", 0x00A6C0, 1, 500),
+        ("Paddle Balls x10", 0x00A6C2, 10, 500),          # DLC04_Ammo_PaddleBall
+        ("Acid Soaker", 0x007BC6, 1, 6250),
+        ("7.62 Rounds x20", 0x037897, 20, 2000),           # DLC04_Ammo_HandmadeRound
     ]),
     ("Souvenirs", [
         ("Souvenir Teddy Bear", 0x02689C, 1, 150),
@@ -119,12 +120,12 @@ PRIZES = [
         ("Souvenir Magnet Cow", 0x0268A1, 1, 150),       # DLC04_SouvenirMagnet01
     ]),
     ("Nuka-Cola", [
-        ("Ice-Cold Nuka-Cola Orange", 0x02EDAD, 1, 15),
-        ("Ice-Cold Nuka-Grape", 0x02EDAB, 1, 15),
-        ("Ice-Cold Nuka-Cola Wild", 0x02EDB1, 1, 15),
-        ("Ice-Cold Nuka-Cola Dark", 0x02EDA9, 1, 20),
-        ("Ice-Cold Nuka-Cola Victory", 0x02EDB0, 1, 20),
-        ("Ice-Cold Nuka-Cola Quartz", 0x02EDAF, 1, 20),
+        ("Ice-Cold Nuka-Cola Orange", 0x02EDAD, 1, 1000),
+        ("Ice-Cold Nuka-Grape", 0x02EDAB, 1, 1000),
+        ("Ice-Cold Nuka-Cola Wild", 0x02EDB1, 1, 1000),
+        ("Ice-Cold Nuka-Cola Dark", 0x02EDA9, 1, 2500),
+        ("Ice-Cold Nuka-Cola Victory", 0x02EDB0, 1, 2000),
+        ("Ice-Cold Nuka-Cola Quartz", 0x02EDAF, 1, 2000),
     ]),
 ]
 
