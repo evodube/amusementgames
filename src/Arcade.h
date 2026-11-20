@@ -271,6 +271,10 @@ namespace ag
 			RE::NiPoint3                           lastAt{};
 			bool                                   lastAtOk{ false };
 			int                                    jumps{ 0 };
+			int                                    pickups{ 0 };    // (logged frame by frame: the first few)
+			int                                    pickupLog{ -1 }; // frames of this one logged so far (-1: none)
+			RE::NiPoint3                           lastActorAt{};
+			float                                  lastHeading{ 0.0f };
 			// Bandit Roundup 1v1: their side (-1 alone, 0 left, 1 right); the rival of yours, or of another settler (the
 			// guest: their shots go into the host's game, the host's plays it); the other settler
 			int                                    side{ -1 };
