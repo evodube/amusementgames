@@ -20,7 +20,8 @@ namespace ag
 {
 	namespace
 	{
-		constexpr int kLeaveVk = 'X';
+		constexpr int    kLeaveVk = 'X';
+		constexpr double kLeaveHold = 1.0;  // s Activate's held, playing, to leave (a controller's way out)
 
 		bool GameHasFocus()
 		{
@@ -37,16 +38,27 @@ namespace ag
 				static_cast<float>(a_m[2][0]), static_cast<float>(a_m[2][1]), static_cast<float>(a_m[2][2]), 0.0f);
 		}
 
-		// the Activate button, as the game reads it (whatever it's bound to): how long it's held, watched and never
-		// handled (the game's activation goes on as ever)
+		// the Activate and attack buttons, as the game reads them (keyboard and mouse or a controller, whatever they're
+		// bound to): watched and never handled (the game goes on with them as ever). Activate's how long it's held (a
+		// hold at Bandit Roundup, a 1v1; a hold while playing, leaving); attack's the games' fire button (charge, throw,
+		// roll, shoot, swing)
 		struct ActivateWatch final : RE::BSInputEventUser
 		{
 			bool ShouldHandleEvent(const RE::InputEvent* a_event) override
 			{
 				if (const auto* b = a_event ? a_event->As<RE::ButtonEvent>() : nullptr) {
 					static const RE::BSFixedString activate{ "Activate" };
-					if (b->QRawUserEvent() == activate) {
+					static const RE::BSFixedString attack{ "PrimaryAttack" };
+					const auto& ev = b->QRawUserEvent();
+					if (ev == activate) {
 						Arcade::Get().OnActivateButton(b->QPressed(), b->QHeldDownSecs());
+					} else if (ev == attack) {
+						static bool told = false;
+						if (!told) {
+							told = true;
+							log::info("the attack button's coming through: the games' fire button on any device");
+						}
+						Arcade::Get().OnAttackButton(b->QPressed());
 					}
 				}
 				return false;
@@ -331,8 +343,9 @@ namespace ag
 		_lastDuel.erase(_machineID);
 		_game->Start(static_cast<std::uint32_t>(std::chrono::steady_clock::now().time_since_epoch().count()));
 		_playing = true;
-		_held = _lmb.load();  // (a button already down when you start doesn't throw)
+		_held = _lmb.load() || _attackDown.load();  // (a button already down when you start doesn't throw)
 		_leavePressed = false;
+		_leaveArmed = !_activateDown.load();  // (Activate still down from starting it: let go first)
 		_hurry = false;
 		_resultsLeft = 0.0;
 		_last = std::chrono::steady_clock::now();
@@ -574,7 +587,13 @@ namespace ag
 			Abort("the machine's gone");
 			return;
 		}
-		if (_leavePressed.exchange(false)) {
+		// leaving: the leave key (X), or Activate held a second (a controller's A: every other button's the game's)
+		if (!_activateDown.load()) {
+			_leaveArmed = true;
+		}
+		const bool heldToLeave = _leaveArmed && _activateDown.load() && _activateHeld.load() >= kLeaveHold;
+		if (_leavePressed.exchange(false) || heldToLeave) {
+			_leaveArmed = false;
 			Finish(true);
 			return;
 		}
@@ -590,7 +609,7 @@ namespace ag
 		RE::NiPoint3 dir{ std::sin(yaw) * std::cos(pitch), std::cos(yaw) * std::cos(pitch), -std::sin(pitch) };
 		in.eye = ToLocal(f, camera->cameraRoot->world.translate);
 		in.dir = DirToLocal(f, dir).Normalized();
-		const bool down = _lmb.load();
+		const bool down = _lmb.load() || _attackDown.load();  // (the mouse read straight, or the game's attack: any device)
 		in.pressed = down && !_held;
 		in.released = !down && _held;
 		in.held = down;

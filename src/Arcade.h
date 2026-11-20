@@ -116,6 +116,8 @@ namespace ag
 		void OnActivated(RE::TESObjectREFR* a_machine);
 		// the Activate button down or up, and how long it's been held (the game's input)
 		void OnActivateButton(bool a_down, float a_held);
+		// the attack button, as the game reads it (left mouse, a controller's right trigger, whatever it's bound to)
+		void OnAttackButton(bool a_down) { _attackDown = a_down; }
 
 		// after a load: settlers held at a machine when the game was saved let go (their AI back on, the lent rifle
 		// taken back)
@@ -161,6 +163,8 @@ namespace ag
 		std::atomic<bool> _tickPending{ false };
 		std::atomic<bool> _lmb{ false };
 		std::atomic<bool> _leavePressed{ false };     // the leave key went down
+		std::atomic<bool> _attackDown{ false };       // the game's attack button held (any device: see OnAttackButton)
+		bool              _leaveArmed{ false };       // Activate let go since the game began: a hold of it now leaves
 		bool              _leaveWas{ false };
 		// the Activate button (the game's own button events): a machine tapped or held. Bandit Roundup tapped you play
 		// alone, held (kHoldToDuel) a settler's called to take you on
