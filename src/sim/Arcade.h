@@ -233,7 +233,7 @@ namespace sim
 	private:
 		std::mt19937 _rng;
 		double       _spread;
-		double       _wait{ 1.5 };  // till the next shot (the first: once they've the rifle up)
+		double       _wait{ 0.3 };  // till the next shot (the first: straight away, once the rifle's up)
 	};
 
 	// rows of a rotation of a_angle radians about z (a piece turned to face along y)

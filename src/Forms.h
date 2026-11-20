@@ -118,10 +118,9 @@ namespace ag::Forms
 		case sim::GameId::kWhacACommie: form = Nuka(kCommieWhacker); break;
 		case sim::GameId::kNukaZapperRace: form = Nuka(kThirstZapper); break;
 		case sim::GameId::kBanditRoundup:
-			form = From("DLCCoast.esm", kLeverGun);
-			if (!form) {
-				form = RE::TESForm::GetFormByID(kHuntingRifle);
-			}
+			// (the Hunting Rifle: their aim package names that very gun, and Far Harbor's lever-action can't be named
+			// from here without making Far Harbor a master)
+			form = RE::TESForm::GetFormByID(kHuntingRifle);
 			break;
 		default: return nullptr;
 		}

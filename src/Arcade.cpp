@@ -872,7 +872,7 @@ namespace ag
 		constexpr float     kShowReach = 3000.0f;              // settlers this near the machine
 		constexpr float     kShowYouAway = 3000.0f;            // you this far from it: the game's called off
 		constexpr double    kGalleryEyeHeight = 115.0;         // their eye (the rifle's sights) above it
-		constexpr double    kSteadyBeforeShot = 2.5;           // the rifle drawn this long before a shot
+		constexpr double    kSteadyBeforeShot = 0.4;           // the gun drawn this long before a shot (out, then fire)
 		constexpr float     kWhacMalletReach = 30.0f;          // a settler's mallet head this near an up head's middle: a hit
 		                                                       // (they swing straight ahead, still: the holes are 48 across)
 		constexpr float     kWhacHeadMiddle = 8.0f;            // ...its middle above where it's placed
