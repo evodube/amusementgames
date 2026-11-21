@@ -420,6 +420,9 @@ namespace ag
 			return nullptr;
 		}
 		RE::Actor* PickSettler(RE::TESObjectREFR* a_machine, sim::GameId a_game);
+		// the hours settlers start games of their own (the Settlers page's, game time; past midnight if from's later)
+		bool         SettlersHours() const;
+		mutable bool _wasHours{ true };  // (for the log: the hours' start and end noted once each)
 		// settlers reacting: one's own game over (cheer, nod or head shake, against their best and the high scores);
 		// and up to three near the machine, not playing and not a_others, clapping or cheering (someone's won, a new
 		// top score, your new best)
