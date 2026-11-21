@@ -1173,8 +1173,9 @@ namespace ag
 		};
 		count(_rest);
 		count(_played);
-		// a settler to a free machine now and then (another soon after, while there are machines free)
-		if (Settings::Get().settlersOn) {
+		// a settler to a free machine now and then (another soon after, while there are machines free), in the hours
+		// they play (the Settlers page's)
+		if (Settings::Get().settlersOn && SettlersHours()) {
 			_nextShow -= a_dt;
 			if (_nextShow <= 0.0) {
 				_nextShow = StartShow() ? kShowNextTry : kShowRetry;
@@ -1186,6 +1187,23 @@ namespace ag
 		}
 		SweepStragglers(a_dt);
 		std::erase_if(_shows, [](const Show& a_s) { return a_s.phase == Show::Phase::kNone; });
+	}
+
+	bool Arcade::SettlersHours() const
+	{
+		const auto& set = Settings::Get();
+		const float from = set.settlersFrom, to = set.settlersTo;
+		auto*       cal = RE::Calendar::GetSingleton();
+		if (from == to || !cal || !cal->gameHour) {
+			return true;  // (all day)
+		}
+		const float hour = cal->gameHour->value;  // (0 to 24)
+		const bool  in = from < to ? (hour >= from && hour < to) : (hour >= from || hour < to);  // (past midnight)
+		if (in != _wasHours) {
+			_wasHours = in;
+			log::info("settlers' hours ({:02.0f}:00 to {:02.0f}:00): {} at {:.1f}", from, to, in ? "playing from now" : "no new games now", hour);
+		}
+		return in;
 	}
 
 	void Arcade::TickOne(Show& a_s, double a_dt)

@@ -35,6 +35,8 @@ namespace ag
 		settlersGapLongest = std::clamp(ReadFloat(L"Settlers", L"fGapLongest", 120.0f), settlersGapShortest, 3600.0f);
 		settlersDuel = std::clamp(ReadFloat(L"Settlers", L"fDuelPercent", 35.0f), 0.0f, 100.0f);
 		settlersSkill = std::clamp(ReadFloat(L"Settlers", L"fSkill", 0.0f), -50.0f, 50.0f);
+		settlersFrom = std::clamp(std::round(ReadFloat(L"Settlers", L"fFromHour", 8.0f)), 0.0f, 24.0f);
+		settlersTo = std::clamp(std::round(ReadFloat(L"Settlers", L"fToHour", 22.0f)), 0.0f, 24.0f);
 		incomeCaps = std::clamp(ReadFloat(L"Income", L"fCapsPerSettler", 1.0f), 0.0f, 100.0f);
 		incomeTickets = std::clamp(ReadFloat(L"Income", L"fTicketsPerSettler", 2.0f), 0.0f, 100.0f);
 		playTickets = std::clamp(ReadFloat(L"Income", L"fPlayTicketsMult", 2.0f), 0.5f, 5.0f);
@@ -47,6 +49,8 @@ namespace ag
 		WriteFloat(L"Settlers", L"fGapLongest", settlersGapLongest);
 		WriteFloat(L"Settlers", L"fDuelPercent", settlersDuel);
 		WriteFloat(L"Settlers", L"fSkill", settlersSkill);
+		WriteFloat(L"Settlers", L"fFromHour", settlersFrom);
+		WriteFloat(L"Settlers", L"fToHour", settlersTo);
 		WriteFloat(L"Income", L"fCapsPerSettler", incomeCaps);
 		WriteFloat(L"Income", L"fTicketsPerSettler", incomeTickets);
 		WriteFloat(L"Income", L"fPlayTicketsMult", playTickets);
@@ -90,6 +94,18 @@ namespace ag
 				            "everyone's skill.");
 				SetNextItemWidth(260.0f);
 				SliderFloat("Settlers' skill", &s.settlersSkill, -50.0f, 50.0f, "%+.0f");
+				Saved(IsItemDeactivatedAfterEdit());
+				Spacing();
+				TextWrapped("The hours settlers start games of their own (game time). A game they're in finishes; your own "
+				            "race or 1v1 still calls them over at any hour. Later 'from' than 'to' runs past midnight; the same "
+				            "hour for both, all day.");
+				SetNextItemWidth(260.0f);
+				SliderFloat("Settlers play from", &s.settlersFrom, 0.0f, 24.0f, "%02.0f:00");
+				s.settlersFrom = std::round(s.settlersFrom);
+				Saved(IsItemDeactivatedAfterEdit());
+				SetNextItemWidth(260.0f);
+				SliderFloat("Settlers play until", &s.settlersTo, 0.0f, 24.0f, "%02.0f:00");
+				s.settlersTo = std::round(s.settlersTo);
 				Saved(IsItemDeactivatedAfterEdit());
 			}
 
