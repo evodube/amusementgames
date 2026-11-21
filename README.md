@@ -22,8 +22,9 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   you're left of the counter's middle when you hold it, the right if right (near the middle, either); the settler
   takes the other side. Both scores on the machine's boards (the left shooter's on the left one, the right's on the right) and on screen; the winner gets 1000 more.
 - **Settings** in F4SE Menu Framework (Amusement Games > Settlers, Income): settlers playing (on/off, how often, how
-  often two play each other at Bandit Roundup, their skill, the hours they play: 08:00 to 22:00 by default, game time,
-  past midnight if "from" is later; your own race or 1v1 calls them over at any hour), the takings and ticket rates;
+  often two play each other at Bandit Roundup, their skill, the hours they play: 8 AM to 10 PM by default, game time;
+  from 18 until 2 plays past midnight, the same hour for both is all day; your own race or 1v1 calls them over any
+  time), the takings and ticket rates;
   kept in
   `Data\F4SE\Plugins\AmusementGames_user.ini`.
 - **Settlers play too**, one settler to each machine: Bandit Roundup (rifle to the shoulder; now and then two settlers

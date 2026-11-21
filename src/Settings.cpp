@@ -96,9 +96,10 @@ namespace ag
 				SliderFloat("Settlers' skill", &s.settlersSkill, -50.0f, 50.0f, "%+.0f");
 				Saved(IsItemDeactivatedAfterEdit());
 				Spacing();
-				TextWrapped("The hours settlers start games of their own (game time). A game they're in finishes; your own "
-				            "race or 1v1 still calls them over at any hour. Later 'from' than 'to' runs past midnight; the same "
-				            "hour for both, all day.");
+				TextWrapped("When settlers play on their own (game time). Outside these hours they won't start new games, "
+				            "but anyone already playing finishes. Your own race or 1v1 can still call them over any time.");
+				TextWrapped("Night shift: from 18 until 2 plays through the evening past midnight. "
+				            "All day: set both to the same hour.");
 				SetNextItemWidth(260.0f);
 				SliderFloat("Settlers play from", &s.settlersFrom, 0.0f, 24.0f, "%02.0f:00");
 				s.settlersFrom = std::round(s.settlersFrom);
