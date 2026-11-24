@@ -214,6 +214,11 @@ def menu_keyword(form_id: int, editor_id: str, name: str) -> bytes:
     )
 
 
+def form_list(form_id: int, editor_id: str, forms: list) -> bytes:
+    return record(b"FLST", 0, form_id, subrecord(b"EDID", zstring(editor_id))
+                  + b"".join(subrecord(b"LNAM", struct.pack("<I", f)) for f in forms))
+
+
 def menu_art(form_id: int, editor_id: str, keyword_id: int, mesh: str, preview: int, bounds: tuple) -> bytes:
     """the picture on a workshop menu tab: an art object with the tab's keyword (the menu finds a tab's art by it)"""
     return record(
@@ -840,6 +845,17 @@ def build() -> bytes:
     art = [menu_art(OWN | (FIRST_ID + 1), "AmusementGamesWorkshopMenuArt", menu,
                     "DLC04\\SetDressing\\Games\\DLC04_Nukacade_WhackaCommie01.nif", NUKA | 0x055807,
                     (-48, -40, 0, 48, 55, 179))]
+
+    # Evodube Games: a submenu of Furniture shared by evodube's mods (Furniture > Evodube Games > Amusement Games). A
+    # workshop submenu is a form list whose first entry is the keyword naming it (as Fallout4.esm's
+    # WorkshopMenu01Furniture starts with WorkshopRecipeFilterFurniture). Each mod carries its own copy with the same
+    # editor ids; the plugin puts the first one found in the Furniture menu and each mod's category into that one
+    # (Forms.h AddWorkshopMenu), so there's only ever one Evodube Games
+    games = OWN | (FIRST_ID + 0xb3)
+    keywords.append(menu_keyword(games, "EvodubeGamesWorkshopMenu", "Evodube Games"))
+    art.append(menu_art(OWN | (FIRST_ID + 0xb4), "EvodubeGamesWorkshopMenuArt", games, "DLC04\\SetDressing\\Games\\DLC04_Nukacade_WhackaCommie01.nif", NUKA | 0x055807,
+                    (-48, -40, 0, 48, 55, 179)))
+    lists = [form_list(OWN | (FIRST_ID + 0xb5), "EvodubeGamesWorkshopMenuList", [games, menu])]
     recipes = [workshop_recipe(OWN | (FIRST_ID + off), f"workshop_co_AmusementGames{name}", made, parts, menu, sounds)
                for off, name, made, parts, sounds in MACHINES]
 
@@ -900,12 +916,12 @@ def build() -> bytes:
     recipes.append(workshop_recipe(OWN | PRIZE_RECIPE, "workshop_co_AmusementGamesPrizeCounter", PRIZE_COUNTER,
                                    TERMINAL_COMPONENTS, menu, METAL_SOUNDS))
 
-    count = len(terminals) + len(weapons) + len(idles) + len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests)
+    count = len(terminals) + len(weapons) + len(idles) + len(keywords) + len(art) + len(recipes) + len(acti) + len(messages) + len(globs) + len(stats) + len(packages) + len(quests) + len(lists)
     header = record(
         b"TES4",
         FLAG_MASTER | FLAG_LIGHT,
         0,
-        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0xB3))
+        subrecord(b"HEDR", struct.pack("<fiI", 1.0, count, FIRST_ID + 0xb6))
         + subrecord(b"CNAM", zstring("evodube"))
         + subrecord(b"SNAM", zstring("Amusement Games: the Nuka-Cade's arcade machines in your settlements"))
         + subrecord(b"MAST", zstring("Fallout4.esm"))
@@ -916,7 +932,7 @@ def build() -> bytes:
         + subrecord(b"DATA", struct.pack("<Q", 0)),
     )
     # groups in the order the game's own master has them
-    return (header + group(b"GLOB", b"".join(globs)) + group(b"KYWD", b"".join(keywords))
+    return (header + group(b"GLOB", b"".join(globs)) + group(b"KYWD", b"".join(keywords)) + group(b"FLST", b"".join(lists))
             + group(b"ACTI", b"".join(acti)) + group(b"STAT", b"".join(stats)) + group(b"WEAP", b"".join(weapons))
             + group(b"TERM", b"".join(terminals)) + group(b"QUST", b"".join(quests))
             + group(b"IDLE", b"".join(idles)) + group(b"PACK", b"".join(packages)) + group(b"MESG", b"".join(messages)) + group(b"ARTO", b"".join(art))

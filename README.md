@@ -1,7 +1,7 @@
 # Amusement Games
 
 The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build them from the workshop menu under
-**Furniture > Amusement Games**, buy tokens at the **Token Stand** with caps, play, win tickets.
+**Furniture > Evodube Games > Amusement Games**, buy tokens at the **Token Stand** with caps, play, win tickets.
 
 - **Atomic Rollers** (skee-ball): hold the left mouse button to charge, let go to roll; look where it goes. Nine
   balls over the hump and up the board, its ring walls funnelling them into the holes: 100 to 500 up the middle,
