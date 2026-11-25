@@ -285,6 +285,9 @@ namespace ag
 			double                                 magCheckIn{ -1.0 };
 			std::uint32_t                          magBefore{ 0 };
 			int                                    pickupLog{ -1 }; // frames of this one logged so far (-1: none)
+			// the right hand's bones, found once (the skeleton they're in kept: found again if it changes) - not five
+			// name searches through it every frame
+			RE::NiPointer<RE::NiAVObject> boneRoot, boneHand, boneMid, boneIndex, bonePinky, boneThumb, boneTip, boneGrip;
 			RE::NiPoint3                           lastActorAt{};
 			float                                  lastHeading{ 0.0f };
 			// Bandit Roundup 1v1: their side (-1 alone, 0 left, 1 right); the rival of yours, or of another settler (the

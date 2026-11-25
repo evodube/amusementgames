@@ -4,6 +4,7 @@
 #include "Leaderboard.h"
 #include "SettlerSkill.h"
 #include "Reactions.h"
+#include "Machines.h"
 
 #include "Forms.h"
 #include "Hud.h"
@@ -1412,7 +1413,7 @@ namespace ag
 				// beside) the head they were after, flat on the ground, so the next swings land (no further than 80 from
 				// where the machine puts them). Not off a swing cut short before it could come down
 				const auto missed = [&]() {
-					if (a_s.swingBest < 1e8f && a_s.swingT >= kWhacSwingDown && a_s.misses++ < 6) {
+					if (a_s.swingBest < 1e8f && a_s.swingT >= kWhacSwingDown && a_s.misses++ < 6 && Settings::Get().detailedLog) {
 						log::info("WHAC-A-COMMIE: {}'s swing missed, its mallet {:.0f} from the nearest head up", a_s.name, a_s.swingBest);
 					}
 					a_s.swingT = -1.0;
@@ -1438,7 +1439,11 @@ namespace ag
 				if (a_s.swingT >= 0.0) {
 					a_s.swingT += a_dt;
 					auto* root = actor->Get3D();
-					auto* grip = root ? root->GetObjectByName("Weapon") : nullptr;
+					if (a_s.boneRoot.get() != root || !a_s.boneGrip) {  // (found once a skeleton, not every frame)
+						a_s.boneRoot.reset(root);
+						a_s.boneGrip.reset(root ? root->GetObjectByName("Weapon") : nullptr);
+					}
+					auto* grip = a_s.boneGrip.get();
 					if (grip && grip->worldBound.fRadius > 1.0f) {
 						const RE::NiPoint3 g = grip->world.translate;
 						const RE::NiPoint3 c = grip->worldBound.center;
@@ -1494,7 +1499,7 @@ namespace ag
 									}
 									const bool      hit = best >= 0 && bestD < kWhacBottomReach;
 									const sim::Vec3 at = ToLocal(f, a_s.swingLowAt);
-									if (a_s.swingsLogged++ < 15) {
+									if (a_s.swingsLogged++ < 15 && Settings::Get().detailedLog) {
 										log::info("WHAC-A-COMMIE: {}'s swing bottomed out at ({:.0f}, {:.0f}, {:.0f}) on the machine, {:.0f} from the nearest head out{}",
 											a_s.name, at.x, at.y, at.z, bestD, hit ? ": a hit" : best < 0 ? " (none out)" : "");
 									}
@@ -1594,11 +1599,21 @@ namespace ag
 					}
 					const bool throwing = a_s.throwFrames >= 2;
 					{
-						auto* h = root ? root->GetObjectByName("RArm_Hand") : nullptr;
-						auto* mid = root ? root->GetObjectByName("RArm_Finger31") : nullptr;
-						auto* index = root ? root->GetObjectByName("RArm_Finger21") : nullptr;
-						auto* pinky = root ? root->GetObjectByName("RArm_Finger51") : nullptr;
-						auto* thumb = root ? root->GetObjectByName("RArm_Finger13") : nullptr;
+						if (a_s.boneRoot.get() != root) {
+							auto find = [&](const char* a_name) { return RE::NiPointer<RE::NiAVObject>(root ? root->GetObjectByName(a_name) : nullptr); };
+							a_s.boneRoot.reset(root);
+							a_s.boneHand = find("RArm_Hand");
+							a_s.boneMid = find("RArm_Finger31");
+							a_s.boneIndex = find("RArm_Finger21");
+							a_s.bonePinky = find("RArm_Finger51");
+							a_s.boneThumb = find("RArm_Finger13");
+							a_s.boneTip = find("RArm_Finger33");
+						}
+						auto* h = a_s.boneHand.get();
+						auto* mid = a_s.boneMid.get();
+						auto* index = a_s.boneIndex.get();
+						auto* pinky = a_s.bonePinky.get();
+						auto* thumb = a_s.boneThumb.get();
 						if (h && mid && index && pinky) {
 							const RE::NiPoint3 wrist = h->world.translate;
 							const RE::NiPoint3 along = mid->world.translate - wrist;
@@ -1634,7 +1649,7 @@ namespace ag
 									}
 								} else {
 									// (in the fingers, out from them by its radius: from the palm or the wrist it sat in the hand)
-									auto* tip = root ? root->GetObjectByName("RArm_Finger33") : nullptr;
+									auto* tip = a_s.boneTip.get();
 									const RE::NiPoint3 knuckle = mid->world.translate;
 									const RE::NiPoint3 into = tip ? (tip->world.translate - knuckle) * 0.3f : RE::NiPoint3{};
 									at = knuckle + into + n * (radius + 2.0f);
@@ -1666,7 +1681,7 @@ namespace ag
 						b3->SetAppCulled(true);
 					}
 					// (a pickup frame by frame, the first three a game: what's shown, the hand, her own moves)
-					if (a_s.pickupLog >= 0 && a_s.pickupLog < 40) {
+					if (a_s.pickupLog >= 0 && a_s.pickupLog < 40 && Settings::Get().detailedLog) {
 						bool laneShown = false;
 						for (std::size_t i = 0; i < waiting.size() && i < a_s.pieces.size(); ++i) {
 							if (auto r = a_s.pieces[i].get(); r && r->Get3D() && !r->Get3D()->GetAppCulled()) {
@@ -1707,7 +1722,7 @@ namespace ag
 		// (how they stand, every 2 s for their first 30: their height on the ground against where they are, how low
 		// their pelvis is over it, and what the game says the rifle's doing - to find what sinks them)
 		a_s.diag += a_dt;
-		if (a_s.diag >= 2.0 && a_s.diagT < 30.0) {
+		if (a_s.diag >= 2.0 && a_s.diagT < 30.0 && Settings::Get().detailedLog) {
 			a_s.diagT += a_s.diag;
 			a_s.diag = 0.0;
 			auto*       root = actor->Get3D();
@@ -1791,7 +1806,9 @@ namespace ag
 			const auto              full = a_s.weapon->weaponData.ammoCapacity > 0 ? a_s.weapon->weaponData.ammoCapacity : 10u;
 			if (const auto now = actor->GetCurrentAmmoCount(hand); now < full) {
 				actor->SetCurrentAmmoCount(hand, full);
-				log::info("BANDIT ROUNDUP: {}'s magazine filled ({} of {})", a_s.name, now, full);
+				if (Settings::Get().detailedLog) {
+					log::info("BANDIT ROUNDUP: {}'s magazine filled ({} of {})", a_s.name, now, full);
+				}
 			}
 		}
 		// (the first ten shots: the magazine just before and half a second after - back up, a reload; one down, the
@@ -1805,7 +1822,7 @@ namespace ag
 			}
 		}
 		if (in.pressed && a_s.weapon && CanFire(actor, a_s.name)) {
-			if (a_s.shotsLogged < 10 && a_s.magCheckIn < 0.0) {
+			if (a_s.shotsLogged < 10 && a_s.magCheckIn < 0.0 && Settings::Get().detailedLog) {
 				++a_s.shotsLogged;
 				a_s.magBefore = actor->GetCurrentAmmoCount(RE::BGSEquipIndex{ 0 });
 				a_s.magCheckIn = 0.5;
@@ -2237,6 +2254,11 @@ namespace ag
 			return;
 		}
 		_sweep = 1.0;
+		// (none of ours loaded, no settler at a game or being let go: nobody could be left from one here. Not a look
+		// through every actor about you every second for nothing)
+		if (machines::Empty() && _shows.empty() && _letGo.empty() && _heldFromSave.empty() && !_playing) {
+			return;
+		}
 		auto* lists = RE::ProcessLists::GetSingleton();
 		auto* link = Forms::Own(0x80D) ? Forms::Own(0x80D)->As<RE::BGSKeyword>() : nullptr;  // AmusementGamesLinkSpot
 		if (!lists || !link) {
@@ -2244,7 +2266,7 @@ namespace ag
 		}
 		// (who's about a Bandit Roundup in play and not in its game: looked for every 5 s, each logged once a game, to
 		// see who they are)
-		const bool lookAbout = ++_bystanderTick % 5 == 0;
+		const bool lookAbout = ++_bystanderTick % 5 == 0 && Settings::Get().detailedLog;
 		std::vector<std::pair<RE::TESFormID, RE::NiPoint3>> inPlay;
 		std::vector<RE::TESFormID>                          playing;
 		if (_playing && _gameId == sim::GameId::kBanditRoundup) {

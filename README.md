@@ -25,6 +25,7 @@ The Nuka-Cade's arcade games, playable in your settlements, in Fallout 4: build 
   often two play each other at Bandit Roundup, their skill, the hours they play: 8 AM to 10 PM by default, game time;
   from 18 until 2 plays past midnight, the same hour for both is all day; your own race or 1v1 calls them over any
   time), the takings and ticket rates;
+  a "Detailed log" switch for bug reports (off: the debugging logs stay quiet);
   kept in
   `Data\F4SE\Plugins\AmusementGames_user.ini`.
 - **Settlers play too**, one settler to each machine: Bandit Roundup (rifle to the shoulder; now and then two settlers

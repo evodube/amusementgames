@@ -1,4 +1,5 @@
 #include "Scoreboard.h"
+#include "Machines.h"
 
 #include "Arcade.h"
 #include "Forms.h"
@@ -331,23 +332,20 @@ namespace ag::Scoreboards
 					Income::Check(m.get());
 				}
 			}
-			// up: our machines near you
-			auto* tes = RE::TES::GetSingleton();
-			auto  visit = [&](RE::TESObjectCELL* a_cell) {
-				if (!a_cell) {
-					return;
-				}
-				a_cell->ForEachReferenceInRange(me, kNear, [&](RE::TESObjectREFR* a_ref) {
+			// up: our machines near you (from the ones loaded, kept as they load: not a look through every object in
+			// the loaded cells, every second, machines or none)
+			for (auto* a_ref : machines::Near(me, kNear)) {
+				[&] {
 					const auto game = Forms::GameOf(a_ref);
 					if (game == sim::GameId::kCount || a_ref->IsDisabled() || a_ref->IsDeleted() || !a_ref->Get3D()) {
-						return RE::BSContainer::ForEachResult::kContinue;
+						return;
 					}
 					if (std::ranges::any_of(g_boards, [&](const Board& a_b) { return a_b.id == a_ref->GetFormID(); })) {
-						return RE::BSContainer::ForEachResult::kContinue;
+						return;
 					}
 					if (a_ref->GetFormID() == Held()) {
 						g_lastSeen.erase(a_ref->GetFormID());
-						return RE::BSContainer::ForEachResult::kContinue;  // (in your hands in build mode: up once it's put down)
+						return;  // (in your hands in build mode: up once it's put down)
 					}
 					// still being moved (where it is differs from the last look): wait till it's put down
 					const auto& now = a_ref->Get3D()->world;
@@ -355,7 +353,7 @@ namespace ag::Scoreboards
 					auto [seen, fresh] = g_lastSeen.try_emplace(a_ref->GetFormID(), now);
 					if (fresh || Moved(now, seen->second)) {
 						seen->second = now;
-						return RE::BSContainer::ForEachResult::kContinue;
+						return;
 					}
 					seen->second = now;
 					Board b;
@@ -366,21 +364,8 @@ namespace ag::Scoreboards
 					if (PutUp(b, a_ref)) {
 						g_boards.push_back(std::move(b));
 					}
-					return RE::BSContainer::ForEachResult::kContinue;
-				});
-			};
-			if (tes && tes->interiorCell) {
-				visit(tes->interiorCell);
-			} else if (tes && tes->gridCells && tes->gridCells->gridCell) {
-				const auto dim = std::min<std::uint32_t>(tes->gridCells->dimension, 15);
-				for (std::uint32_t i = 0; i < dim * dim; ++i) {
-					auto* cell = tes->gridCells->gridCell[i].cell;
-					if (cell && cell->IsAttached()) {
-						visit(cell);
-					}
-				}
-			} else {
-				visit(player->GetParentCell());
+					return;
+				}();
 			}
 		}
 	}
@@ -501,7 +486,7 @@ namespace ag::Scoreboards
 			// Papyrus call dropped)
 			b.refresh -= a_dt;
 			if (b.refresh <= 0.0) {
-				b.refresh = 4.0;
+				b.refresh = 30.0;  // (a safety net: each digit's a Papyrus call; every 4 s was 20 calls a second for 5 boards)
 				b.score.shown.fill(-2);
 				b.high.shown.fill(-2);
 			}

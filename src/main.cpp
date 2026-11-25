@@ -4,6 +4,7 @@
 #include "Hud.h"
 #include "MenuWatch.h"
 #include "Scoreboard.h"
+#include "Machines.h"
 #include "Settings.h"
 
 namespace
@@ -27,6 +28,7 @@ namespace
 			ag::menus::Watch();
 			ag::Hook::Install();
 			ag::Arcade::Get().Listen();
+			ag::machines::Listen();
 			break;
 		case F4SE::MessagingInterface::kPreLoadGame:
 			ag::Arcade::Get().Abort("a save loading");
@@ -38,9 +40,11 @@ namespace
 		case F4SE::MessagingInterface::kPostLoadGame:
 			ag::Hook::Install();  // no-op if already hooked
 			ag::Arcade::Get().ReleaseHeld();
+			ag::machines::Reseed();
 			break;
 		case F4SE::MessagingInterface::kNewGame:
 			ag::Hook::Install();  // no-op if already hooked
+			ag::machines::Reseed();
 			break;
 		default:
 			break;

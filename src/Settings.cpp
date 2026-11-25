@@ -31,6 +31,7 @@ namespace ag
 	void Settings::Load()
 	{
 		settlersOn = ReadFloat(L"Settlers", L"bSettlersPlay", 1.0f) != 0.0f;
+		detailedLog = ReadFloat(L"Debug", L"bDetailedLog", 0.0f) != 0.0f;
 		settlersGapShortest = std::clamp(ReadFloat(L"Settlers", L"fGapShortest", 45.0f), 5.0f, 1800.0f);
 		settlersGapLongest = std::clamp(ReadFloat(L"Settlers", L"fGapLongest", 120.0f), settlersGapShortest, 3600.0f);
 		settlersDuel = std::clamp(ReadFloat(L"Settlers", L"fDuelPercent", 35.0f), 0.0f, 100.0f);
@@ -45,6 +46,7 @@ namespace ag
 	void Settings::Save() const
 	{
 		WriteFloat(L"Settlers", L"bSettlersPlay", settlersOn ? 1.0f : 0.0f);
+		WriteFloat(L"Debug", L"bDetailedLog", detailedLog ? 1.0f : 0.0f);
 		WriteFloat(L"Settlers", L"fGapShortest", settlersGapShortest);
 		WriteFloat(L"Settlers", L"fGapLongest", settlersGapLongest);
 		WriteFloat(L"Settlers", L"fDuelPercent", settlersDuel);
@@ -108,6 +110,8 @@ namespace ag
 				SliderFloat("Settlers play until", &s.settlersTo, 0.0f, 24.0f, "%02.0f:00");
 				s.settlersTo = std::round(s.settlersTo);
 				Saved(IsItemDeactivatedAfterEdit());
+				Spacing();
+				Saved(Checkbox("Detailed log (for bug reports: slower)", &s.detailedLog));
 			}
 
 			void __stdcall DrawIncome()
