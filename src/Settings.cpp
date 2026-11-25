@@ -31,6 +31,7 @@ namespace ag
 	void Settings::Load()
 	{
 		settlersOn = ReadFloat(L"Settlers", L"bSettlersPlay", 1.0f) != 0.0f;
+		detailedLog = ReadFloat(L"Debug", L"bDetailedLog", 0.0f) != 0.0f;
 		settlersGapShortest = std::clamp(ReadFloat(L"Settlers", L"fGapShortest", 45.0f), 5.0f, 1800.0f);
 		settlersGapLongest = std::clamp(ReadFloat(L"Settlers", L"fGapLongest", 120.0f), settlersGapShortest, 3600.0f);
 		settlersDuel = std::clamp(ReadFloat(L"Settlers", L"fDuelPercent", 35.0f), 0.0f, 100.0f);
@@ -45,6 +46,7 @@ namespace ag
 	void Settings::Save() const
 	{
 		WriteFloat(L"Settlers", L"bSettlersPlay", settlersOn ? 1.0f : 0.0f);
+		WriteFloat(L"Debug", L"bDetailedLog", detailedLog ? 1.0f : 0.0f);
 		WriteFloat(L"Settlers", L"fGapShortest", settlersGapShortest);
 		WriteFloat(L"Settlers", L"fGapLongest", settlersGapLongest);
 		WriteFloat(L"Settlers", L"fDuelPercent", settlersDuel);
@@ -96,9 +98,10 @@ namespace ag
 				SliderFloat("Settlers' skill", &s.settlersSkill, -50.0f, 50.0f, "%+.0f");
 				Saved(IsItemDeactivatedAfterEdit());
 				Spacing();
-				TextWrapped("The hours settlers start games of their own (game time). A game they're in finishes; your own "
-				            "race or 1v1 still calls them over at any hour. Later 'from' than 'to' runs past midnight; the same "
-				            "hour for both, all day.");
+				TextWrapped("When settlers play on their own (game time). Outside these hours they won't start new games, "
+				            "but anyone already playing finishes. Your own race or 1v1 can still call them over any time.");
+				TextWrapped("Night shift: from 18 until 2 plays through the evening past midnight. "
+				            "All day: set both to the same hour.");
 				SetNextItemWidth(260.0f);
 				SliderFloat("Settlers play from", &s.settlersFrom, 0.0f, 24.0f, "%02.0f:00");
 				s.settlersFrom = std::round(s.settlersFrom);
@@ -107,6 +110,8 @@ namespace ag
 				SliderFloat("Settlers play until", &s.settlersTo, 0.0f, 24.0f, "%02.0f:00");
 				s.settlersTo = std::round(s.settlersTo);
 				Saved(IsItemDeactivatedAfterEdit());
+				Spacing();
+				Saved(Checkbox("Detailed log (for bug reports: slower)", &s.detailedLog));
 			}
 
 			void __stdcall DrawIncome()
